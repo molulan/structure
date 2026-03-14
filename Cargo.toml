@@ -1,0 +1,3 @@
+[workspace]
+resolver = "3"
+members = ["application_core","mesocycle_builder", "workout_tracker"]

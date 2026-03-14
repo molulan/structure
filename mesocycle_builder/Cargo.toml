@@ -1,0 +1,7 @@
+[package]
+name = "mesocycle_builder"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+application_core = { path = "../application_core" }

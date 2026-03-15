@@ -1,6 +1,7 @@
+#[derive(Debug)]
 pub struct Mesocycle {
-    name: String,
-    microcycles: Vec<Microcycle>,
+    pub name: String,
+    pub microcycles: Vec<Microcycle>,
 }
 
 impl Mesocycle {
@@ -16,9 +17,10 @@ impl Mesocycle {
     }
 }
 
+#[derive(Debug)]
 pub struct Microcycle {
-    name: String,
-    workouts: Vec<Workout>,
+    pub name: String,
+    pub workouts: Vec<Workout>,
 }
 
 impl Microcycle {
@@ -34,9 +36,10 @@ impl Microcycle {
     }
 }
 
+#[derive(Debug)]
 pub struct Workout {
-    name: String,
-    exercises: Vec<Exercise>,
+    pub name: String,
+    pub exercises: Vec<Exercise>,
 }
 
 impl Workout {

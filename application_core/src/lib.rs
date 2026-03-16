@@ -1,4 +1,6 @@
-#[derive(Debug)]
+use serde::{Serialize, Deserialize};
+
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Mesocycle {
     pub name: String,
     pub microcycles: Vec<Microcycle>,
@@ -17,7 +19,7 @@ impl Mesocycle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct Microcycle {
     pub name: String,
     pub workouts: Vec<Workout>,
@@ -36,8 +38,8 @@ impl Microcycle {
     }
 }
 
-#[derive(Debug)]
-pub struct Workout {
+#[derive(Serialize, Deserialize, Debug)]
+pub struct Workout { 
     pub name: String,
     pub exercises: Vec<Exercise>,
 }
@@ -55,7 +57,7 @@ impl Workout {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum Exercise {
     Bodyweight { name: String, sets: Vec<Set> },
     Assisted { name: String, sets: Vec<Set> },
@@ -119,7 +121,7 @@ impl Exercise {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
 pub enum Set {
     Bodyweight { reps: u32 },
     Weighted { reps: u32, weight: u32 },

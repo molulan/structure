@@ -1,6 +1,11 @@
+mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
 use serde::{Serialize, Deserialize};
+use flutter_rust_bridge::frb;
+
+pub mod api;
 
 #[derive(Serialize, Deserialize, Debug)]
+#[frb]
 pub struct Mesocycle {
     pub name: String,
     pub microcycles: Vec<Microcycle>,
@@ -20,6 +25,7 @@ impl Mesocycle {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[frb]
 pub struct Microcycle {
     pub name: String,
     pub workouts: Vec<Workout>,
@@ -39,6 +45,7 @@ impl Microcycle {
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[frb]
 pub struct Workout { 
     pub name: String,
     pub exercises: Vec<Exercise>,
@@ -58,6 +65,7 @@ impl Workout {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[frb]
 pub enum Exercise {
     Bodyweight { name: String, sets: Vec<Set> },
     Assisted { name: String, sets: Vec<Set> },
@@ -122,6 +130,7 @@ impl Exercise {
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[frb]
 pub enum Set {
     Bodyweight { reps: u32 },
     Weighted { reps: u32, weight: u32 },

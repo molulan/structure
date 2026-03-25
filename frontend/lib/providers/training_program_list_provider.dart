@@ -1,12 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:structure/models/mock_training_program.dart';
+import '../src/bridge/api.dart' as bridge;
+import '../src/bridge/lib.dart';
 
-final trainingProgramListProvider = NotifierProvider<TrainingProgramListNotifier, List<MockTrainingProgram>>(
-  TrainingProgramListNotifier.new,
-);
+final trainingProgramListProvider = FutureProvider<List<Mesocycle>>((ref) async {
+  return bridge.getMesocycles();
+});
 
-class TrainingProgramListNotifier extends Notifier<List<MockTrainingProgram>> {
-  @override
-  List<MockTrainingProgram> build() => []; // initial state
-  void add(MockTrainingProgram plan) => state = [...state, plan];
-}

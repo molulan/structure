@@ -1,1 +1,4 @@
 /target
+
+#frb generated code
+/src/frb_generated.rs

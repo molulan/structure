@@ -17,7 +17,7 @@ class StructureApp extends StatelessWidget {
     return MaterialApp(
       title: 'StructureApp',
       theme: ThemeData(colorScheme: .fromSeed(seedColor: Colors.amber)),
-      home: const TrainingProgramsScreen(title: 'Training Programs'),
+      home: const TrainingProgramsScreen(),
     );
   }
 }

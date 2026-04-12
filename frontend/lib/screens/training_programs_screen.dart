@@ -1,68 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:structure/models/mock_training_program.dart';
 import 'package:structure/providers/selected_training_program_provider.dart';
 import 'package:structure/providers/training_program_list_provider.dart';
+import 'package:structure/screens/widgets/create_training_program_dialog.dart';
+import 'package:structure/src/bridge/lib.dart';
+import 'package:structure/src/bridge/api.dart' as bridge;
 
 class TrainingProgramsScreen extends ConsumerStatefulWidget {
-  const TrainingProgramsScreen({super.key, required this.title});
-
-  final String title;
+  const TrainingProgramsScreen({super.key});
 
   @override
-  ConsumerState<TrainingProgramsScreen> createState() => _TrainingProgramsScreenState();
+  ConsumerState<TrainingProgramsScreen> createState() =>
+      _TrainingProgramsScreenState();
 }
 
-class _TrainingProgramsScreenState extends ConsumerState<TrainingProgramsScreen> {
-
-  void _createTrainingProgram() {
-    final controller = TextEditingController();
-    showDialog(
+class _TrainingProgramsScreenState
+    extends ConsumerState<TrainingProgramsScreen> {
+  void _createTrainingProgram() async {
+    final name = await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('New Training Plan'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          decoration: const InputDecoration(hintText: 'Enter name'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () {
-              if (controller.text.isNotEmpty) {
-                ref.read(trainingProgramListProvider.notifier).add(
-                  MockTrainingProgram(name: controller.text),
-                );
-              }
-              Navigator.pop(context);
-            },
-            child: const Text('Create'),
-          ),
-        ],
-      ),
+      builder: (context) => const CreateTrainingProgramDialog(),
     );
+
+    if (name != null && name.isNotEmpty) {
+      //bridge calls should have errorhandling in case rust returns some error
+      try {
+        bridge.createMesocycle(name: name);
+        ref.invalidate(trainingProgramListProvider);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to create program: $e')),
+          );
+        }
+      }
+      
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final programsAsync = ref.watch(trainingProgramListProvider);
+
     return Scaffold(
-      body: Row(
-        children: [
-          SizedBox(
-            width: 300,
-            child: Column(
-              children: [
-                Expanded(child: _TrainingProgramList()),
-              ],
+      body: programsAsync.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (err, _) => Center(child: Text('Error: $err')),
+        data: (programs) => Row(
+          children: [
+            SizedBox(
+              width: 300,
+              child: Column(
+                children: [
+                  Expanded(child: _TrainingProgramList(programs: programs)),
+                ],
+              ),
             ),
-          ),
-          const VerticalDivider(width: 1),
-          Expanded(child: _TrainingProgramDetail()),
-        ],
+            const VerticalDivider(width: 1),
+            Expanded(child: _TrainingProgramDetail(programs: programs)),
+          ],
+        ),
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _createTrainingProgram,
@@ -74,9 +71,11 @@ class _TrainingProgramsScreenState extends ConsumerState<TrainingProgramsScreen>
 }
 
 class _TrainingProgramList extends ConsumerWidget {
+  final List<Mesocycle> programs;
+  const _TrainingProgramList({required this.programs});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final programs = ref.watch(trainingProgramListProvider);
     final selectedIndex = ref.watch(selectedTrainingProgramProvider);
 
     return ListView.separated(
@@ -89,24 +88,33 @@ class _TrainingProgramList extends ConsumerWidget {
           elevation: isSelected ? 4 : 0,
           child: ListTile(
             title: Text(programs[index].name),
-            onTap: () => ref.read(selectedTrainingProgramProvider.notifier).select(index),
+            onTap: () => ref
+                .read(selectedTrainingProgramProvider.notifier)
+                .select(index),
           ),
         );
       },
     );
-  } 
+  }
 }
 
 class _TrainingProgramDetail extends ConsumerWidget {
+  final List<Mesocycle> programs;
+  const _TrainingProgramDetail({required this.programs});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final programs = ref.watch(trainingProgramListProvider);
     final selectedIndex = ref.watch(selectedTrainingProgramProvider);
     if (programs.isEmpty) {
-      return const Center(child: Text('You have no training programs. Create one by pressing "+"'));
+      return const Center(
+        child: Text(
+          'You have no training programs. Create one by pressing "+"',
+        ),
+      );
     }
 
-    final program = programs[selectedIndex ?? 0];
+    final effectiveIndex = (selectedIndex ?? 0).clamp(0, programs.length -1 );
+    final program = programs[effectiveIndex];
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Text(program.name, style: const TextStyle(fontSize: 24)),

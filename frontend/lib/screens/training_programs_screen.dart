@@ -104,8 +104,8 @@ class _TrainingProgramDetail extends ConsumerWidget {
       );
     }
 
-    //fix index out of bounds risk  
-    final program = programs[selectedIndex ?? 0];
+    final effectiveIndex = (selectedIndex ?? 0).clamp(0, programs.length -1 );
+    final program = programs[effectiveIndex];
     return Padding(
       padding: const EdgeInsets.all(24),
       child: Text(program.name, style: const TextStyle(fontSize: 24)),

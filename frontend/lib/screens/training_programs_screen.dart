@@ -24,8 +24,17 @@ class _TrainingProgramsScreenState
 
     if (name != null && name.isNotEmpty) {
       //bridge calls should have errorhandling in case rust returns some error
-      bridge.createMesocycle(name: name);
-      ref.invalidate(trainingProgramListProvider);
+      try {
+        bridge.createMesocycle(name: name);
+        ref.invalidate(trainingProgramListProvider);
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to create program: $e')),
+          );
+        }
+      }
+      
     }
   }
 

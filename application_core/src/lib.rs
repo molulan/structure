@@ -1,12 +1,22 @@
 mod frb_generated; /* AUTO INJECTED BY flutter_rust_bridge. This line may not be accurate, and you can change it according to your needs. */
-use serde::{Serialize, Deserialize};
 use flutter_rust_bridge::frb;
+use serde::{Deserialize, Serialize};
 
 pub mod api;
 
-#[derive(Serialize, Deserialize, Debug)]
+pub struct Weight(i64);
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[frb]
+pub enum WeightUnit {
+    Kg,
+    Lbs,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[frb]
 pub struct Mesocycle {
+    pub id: Option<i64>,
     pub name: String,
     pub microcycles: Vec<Microcycle>,
 }
@@ -14,6 +24,7 @@ pub struct Mesocycle {
 impl Mesocycle {
     pub fn new(name: &str) -> Mesocycle {
         Mesocycle {
+            id: None,
             name: String::from(name),
             microcycles: vec![],
         }
@@ -24,9 +35,10 @@ impl Mesocycle {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[frb]
 pub struct Microcycle {
+    pub id: Option<i64>,
     pub name: String,
     pub workouts: Vec<Workout>,
 }
@@ -34,6 +46,7 @@ pub struct Microcycle {
 impl Microcycle {
     pub fn new(name: &str) -> Microcycle {
         Microcycle {
+            id: None,
             name: String::from(name),
             workouts: vec![],
         }
@@ -44,9 +57,10 @@ impl Microcycle {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[frb]
-pub struct Workout { 
+pub struct Workout {
+    pub id: Option<i64>,
     pub name: String,
     pub exercises: Vec<Exercise>,
 }
@@ -54,6 +68,7 @@ pub struct Workout {
 impl Workout {
     pub fn new(name: &str) -> Workout {
         Workout {
+            id: None,
             name: String::from(name),
             exercises: vec![],
         }
@@ -64,64 +79,63 @@ impl Workout {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
-#[frb]
-pub enum Exercise {
-    Bodyweight { name: String, sets: Vec<Set> },
-    Assisted { name: String, sets: Vec<Set> },
-    Weighted { name: String, sets: Vec<Set> },
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub enum ExerciseType {
+    Bodyweight,
+    Weighted,
+    Assisted,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct Exercise {
+    id: Option<i64>,
+    name: String,
+    sets: Vec<Set>,
+    exercise_type: ExerciseType,
 }
 
 impl Exercise {
-    pub fn name(&self) -> &str {
-        match self {
-            Exercise::Bodyweight { name, .. } => name,
-            Exercise::Weighted { name, .. } => name,
-            Exercise::Assisted { name, .. } => name,
-        }
-    }
-
-    pub fn sets(&self) -> &Vec<Set> {
-        match self {
-            Exercise::Bodyweight { sets, .. } => sets,
-            Exercise::Weighted { sets, .. } => sets,
-            Exercise::Assisted { sets, .. } => sets,
-        }
-    }
-
     pub fn bodyweight(name: &str) -> Exercise {
-        Exercise::Bodyweight {
+        Exercise {
+            id: None,
             name: String::from(name),
             sets: vec![],
+            exercise_type: ExerciseType::Bodyweight,
         }
     }
 
     pub fn weighted(name: &str) -> Exercise {
-        Exercise::Weighted {
+        Exercise {
+            id: None,
             name: String::from(name),
             sets: vec![],
+            exercise_type: ExerciseType::Weighted,
         }
     }
 
     pub fn assisted(name: &str) -> Exercise {
-        Exercise::Assisted {
+        Exercise {
+            id: None,
             name: String::from(name),
             sets: vec![],
+            exercise_type: ExerciseType::Assisted,
         }
     }
 
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn sets(&self) -> &Vec<Set> {
+        &self.sets
+    }
+
     pub fn add_set(&mut self, set: Set) -> Result<(), String> {
-        match (self, &set) {
-            (Exercise::Bodyweight { sets, .. }, Set::Bodyweight { .. }) => {
-                sets.push(set);
-                Ok(())
-            }
-            (Exercise::Weighted { sets, .. }, Set::Weighted { .. }) => {
-                sets.push(set);
-                Ok(())
-            }
-            (Exercise::Assisted { sets, .. }, Set::Assisted { .. }) => {
-                sets.push(set);
+        match (&self.exercise_type, &set) {
+            (ExerciseType::Bodyweight, Set::Bodyweight { .. })
+            | (ExerciseType::Assisted, Set::Assisted { .. })
+            | (ExerciseType::Weighted, Set::Weighted { .. }) => {
+                self.sets.push(set);
                 Ok(())
             }
             (exercise, set) => Err(format!("Cannot add {:?}set to {:?}exercise", set, exercise)),
@@ -129,16 +143,12 @@ impl Exercise {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[frb]
 pub enum Set {
-    Bodyweight { reps: u32 },
-    Weighted { reps: u32, weight: u32 },
-    Assisted { reps: u32, assistence: u32 },
-}
-
-pub fn hello() -> String {
-    String::from("Hello from the application Core!")
+    Bodyweight { reps: i32 },
+    Weighted { reps: i32, weight: i64 },
+    Assisted { reps: i32, assistance: i64 },
 }
 
 #[cfg(test)]

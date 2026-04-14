@@ -5,15 +5,22 @@ use serde::{Deserialize, Serialize};
 #[frb]
 pub enum WeightUnit {
     Kg,
-    Lbs,
+    Lbs
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[frb]
+pub struct Weight {
+    value: f64,
+    unit: WeightUnit,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[frb]
 pub struct Mesocycle {
-    pub id: Option<i64>,
-    pub name: String,
-    pub microcycles: Vec<Microcycle>,
+    id: Option<i64>,
+    name: String,
+    microcycles: Vec<Microcycle>,
 }
 
 impl Mesocycle {
@@ -21,7 +28,7 @@ impl Mesocycle {
         Mesocycle {
             id: None,
             name: name.into(),
-            microcycles: vec![],
+            microcycles: Vec::new(),
         }
     }
 
@@ -33,9 +40,9 @@ impl Mesocycle {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[frb]
 pub struct Microcycle {
-    pub id: Option<i64>,
-    pub name: String,
-    pub workouts: Vec<Workout>,
+    id: Option<i64>,
+    name: String,
+    workouts: Vec<Workout>,
 }
 
 impl Microcycle {
@@ -43,7 +50,7 @@ impl Microcycle {
         Microcycle {
             id: None,
             name: name.into(),
-            workouts: vec![],
+            workouts: Vec::new(),
         }
     }
 
@@ -55,9 +62,9 @@ impl Microcycle {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[frb]
 pub struct Workout {
-    pub id: Option<i64>,
-    pub name: String,
-    pub exercises: Vec<Exercise>,
+    id: Option<i64>,
+    name: String,
+    exercises: Vec<Exercise>,
 }
 
 impl Workout {
@@ -65,7 +72,7 @@ impl Workout {
         Workout {
             id: None,
             name: name.into(),
-            exercises: vec![],
+            exercises: Vec::new(),
         }
     }
 
@@ -96,7 +103,7 @@ impl Exercise {
         Exercise {
             id: None,
             name: name.into(),
-            sets: vec![],
+            sets: Vec::new(),
             exercise_type: ExerciseType::Bodyweight,
         }
     }
@@ -105,7 +112,7 @@ impl Exercise {
         Exercise {
             id: None,
             name: name.into(),
-            sets: vec![],
+            sets: Vec::new(),
             exercise_type: ExerciseType::Weighted,
         }
     }
@@ -114,7 +121,7 @@ impl Exercise {
         Exercise {
             id: None,
             name: name.into(),
-            sets: vec![],
+            sets: Vec::new(),
             exercise_type: ExerciseType::Assisted,
         }
     }
@@ -123,7 +130,7 @@ impl Exercise {
         &self.name
     }
 
-    pub fn sets(&self) -> &Vec<Set> {
+    pub fn sets(&self) -> &[Set] {
         &self.sets
     }
 
@@ -143,9 +150,9 @@ impl Exercise {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[frb]
 pub enum Set {
-    Bodyweight { reps: i32 },
-    Weighted { reps: i32, weight: i64 },
-    Assisted { reps: i32, assistance: i64 },
+    Bodyweight { reps: u32 },
+    Weighted { reps: u32, weight: Weight },
+    Assisted { reps: u32, assistance: Weight },
 }
 
 #[cfg(test)]

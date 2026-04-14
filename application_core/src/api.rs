@@ -1,4 +1,4 @@
-use crate::Mesocycle;
+use crate::domain::Mesocycle;
 use flutter_rust_bridge::frb;
 
 //Fake it until there is a solution to store mesocycles
@@ -12,5 +12,5 @@ pub fn get_mesocycles() -> Vec<Mesocycle> {
 
 #[frb(sync)]
 pub fn create_mesocycle(name: String) -> Mesocycle {
-    Mesocycle::new(&name)
+    Mesocycle::new(name)
 }

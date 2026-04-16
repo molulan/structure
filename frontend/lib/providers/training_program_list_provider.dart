@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../src/bridge/api.dart' as bridge;
-import '../src/bridge/lib.dart';
+import 'package:structure/src/bridge/api/mesocycles.dart' as bridge;
+import 'package:structure/src/bridge/dto/planning.dart';
 
-final trainingProgramListProvider = FutureProvider<List<Mesocycle>>((ref) async {
+final trainingProgramListProvider = FutureProvider<List<MesocycleDTO>>((ref) async {
   return bridge.getMesocycles();
 });
 

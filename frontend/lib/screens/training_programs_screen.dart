@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:structure/providers/selected_training_program_provider.dart';
 import 'package:structure/providers/training_program_list_provider.dart';
 import 'package:structure/screens/widgets/create_training_program_dialog.dart';
-import 'package:structure/src/bridge/lib.dart';
-import 'package:structure/src/bridge/api.dart' as bridge;
+import 'package:structure/src/bridge/dto/planning.dart';
+import 'package:structure/src/bridge/api/mesocycles.dart' as bridge;
 
 class TrainingProgramsScreen extends ConsumerStatefulWidget {
   const TrainingProgramsScreen({super.key});
@@ -71,7 +71,7 @@ class _TrainingProgramsScreenState
 }
 
 class _TrainingProgramList extends ConsumerWidget {
-  final List<Mesocycle> programs;
+  final List<MesocycleDTO> programs;
   const _TrainingProgramList({required this.programs});
 
   @override
@@ -99,7 +99,7 @@ class _TrainingProgramList extends ConsumerWidget {
 }
 
 class _TrainingProgramDetail extends ConsumerWidget {
-  final List<Mesocycle> programs;
+  final List<MesocycleDTO> programs;
   const _TrainingProgramDetail({required this.programs});
 
   @override

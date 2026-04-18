@@ -22,7 +22,7 @@ impl Mesocycle {
     
     pub fn new(name: impl Into<String>, id: i64) -> Mesocycle {
         Mesocycle {
-            id: id,
+            id,
             name: name.into(),
             microcycles: Vec::new(),
         }

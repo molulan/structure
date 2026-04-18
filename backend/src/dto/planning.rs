@@ -20,7 +20,7 @@ impl From<&Mesocycle> for MesocycleDTO {
             microcycles: value
                 .microcycles()
                 .iter()
-                .map(|microcycle| MicrocycleDTO::from(microcycle))
+                .map(MicrocycleDTO::from)
                 .collect()
         }
     }
@@ -42,7 +42,7 @@ impl From<&Microcycle> for MicrocycleDTO {
             workouts: value
                 .workouts()
                 .iter()
-                .map(|workout| WorkoutDTO::from(workout))
+                .map(WorkoutDTO::from)
                 .collect()
         }
     }
@@ -64,7 +64,7 @@ impl From<&Workout> for WorkoutDTO {
             exercises: value
                 .exercises()
                 .iter()
-                .map(|exercise| ExerciseDTO::from(exercise))
+                .map(ExerciseDTO::from)
                 .collect()
         }
     }
@@ -106,7 +106,7 @@ impl From<&Exercise> for ExerciseDTO {
             sets: value
                 .sets()
                 .iter()
-                .map(|set| SetDTO::from(set))
+                .map(SetDTO::from)
                 .collect()
         }
     }

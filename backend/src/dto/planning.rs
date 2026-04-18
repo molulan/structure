@@ -7,7 +7,7 @@ use crate::domain::planning::{Mesocycle, Microcycle, Workout, ExerciseType, Exer
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[frb]
 pub struct MesocycleDTO {
-    pub(crate) id: Option<i64>,
+    pub(crate) id: i64,
     pub(crate) name: String,
     pub(crate) microcycles: Vec<MicrocycleDTO>,
 }

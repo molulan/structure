@@ -1,28 +1,27 @@
 use crate::{
-    domain::planning::Mesocycle, 
     dto::planning::MesocycleDTO,
+    persistence::{mesocycles as db, sqlite::init_db},
 };
 use flutter_rust_bridge::frb;
 
-//Fake it until there is a solution to store mesocycles
 #[frb(sync)]
-pub fn get_mesocycles() -> Vec<MesocycleDTO> {
-    vec![
-        MesocycleDTO { 
-            id: None,
-            name: String::from("Strength Block"),
-            microcycles: Vec::new()
-        },
-        MesocycleDTO { 
-            id: None,
-            name: String::from("Hypertrophy Block"),
-            microcycles: Vec::new() 
-        },
-    ]
+pub fn list_mesocycles() -> Result<Vec<MesocycleDTO>, String> {
+    let conn = init_db().map_err(|e| e.to_string())?;
+    
+    let mesocycles = db::list_mesocycles(&conn).map_err(|e| e.to_string())?;
+    
+    Ok(
+        mesocycles.iter()
+            .map(|mesocycle| MesocycleDTO::from(mesocycle))
+            .collect()
+    )
 }
 
 #[frb(sync)]
-pub fn create_mesocycle(name: String) -> MesocycleDTO {
-    let mesocycle = Mesocycle::new(name);
-    MesocycleDTO::from(&mesocycle)
+pub fn create_mesocycle(name: String) -> Result<MesocycleDTO, String> {
+    let conn = init_db().map_err(|e| e.to_string())?;
+    
+    let mesocycle = db::create_mesocycle(&conn, &name).map_err(|e| e.to_string())?;
+    
+    Ok(MesocycleDTO::from(&mesocycle))
 }

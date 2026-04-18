@@ -2,13 +2,13 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Mesocycle {
-    id: Option<i64>,
+    id: i64,
     name: String,
     microcycles: Vec<Microcycle>,
 }
 
 impl Mesocycle {    
-    pub fn id(&self) -> Option<i64> {
+    pub fn id(&self) -> i64 {
         self.id
     }
     
@@ -20,9 +20,9 @@ impl Mesocycle {
         &self.microcycles
     }
     
-    pub fn new(name: impl Into<String>) -> Mesocycle {
+    pub fn new(name: impl Into<String>, id: i64) -> Mesocycle {
         Mesocycle {
-            id: None,
+            id: id,
             name: name.into(),
             microcycles: Vec::new(),
         }
@@ -243,15 +243,16 @@ mod tests {
 
     #[test]
     fn create_mesocycle_works() {
-        let mesocycle = Mesocycle::new("test mesocycle");
+        let mesocycle = Mesocycle::new("test mesocycle", 1);
 
-        assert_eq!(mesocycle.name, "test mesocycle");
+        assert_eq!(mesocycle.name(), "test mesocycle");
         assert_eq!(mesocycle.microcycles.len(), 0);
+        assert_eq!(mesocycle.id(), 1)
     }
 
     #[test]
     fn add_microcycle_to_mesocycle() {
-        let mut mesocycle = Mesocycle::new("test mesocycle");
+        let mut mesocycle = Mesocycle::new("test mesocycle", 1);
 
         let microcycle = Microcycle::new("Microcycle 1");
         mesocycle.add_microcycle(microcycle);

@@ -1,8 +1,9 @@
 use flutter_rust_bridge::frb;
 use serde::{Deserialize, Serialize};
 
-use crate::domain::planning::{Mesocycle, Microcycle, Workout, ExerciseType, Exercise, Set, Weight, WeightUnit};
-
+use crate::domain::planning::{
+    Exercise, ExerciseType, Mesocycle, Microcycle, Set, Weight, WeightUnit, Workout,
+};
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[frb]
@@ -14,14 +15,14 @@ pub struct MesocycleDTO {
 
 impl From<&Mesocycle> for MesocycleDTO {
     fn from(value: &Mesocycle) -> Self {
-        MesocycleDTO { 
+        MesocycleDTO {
             id: value.id(),
             name: value.name().to_owned(),
             microcycles: value
                 .microcycles()
                 .iter()
                 .map(MicrocycleDTO::from)
-                .collect()
+                .collect(),
         }
     }
 }
@@ -36,14 +37,10 @@ pub struct MicrocycleDTO {
 
 impl From<&Microcycle> for MicrocycleDTO {
     fn from(value: &Microcycle) -> Self {
-        MicrocycleDTO { 
+        MicrocycleDTO {
             id: value.id(),
             name: value.name().to_owned(),
-            workouts: value
-                .workouts()
-                .iter()
-                .map(WorkoutDTO::from)
-                .collect()
+            workouts: value.workouts().iter().map(WorkoutDTO::from).collect(),
         }
     }
 }
@@ -58,14 +55,10 @@ pub struct WorkoutDTO {
 
 impl From<&Workout> for WorkoutDTO {
     fn from(value: &Workout) -> Self {
-        WorkoutDTO { 
+        WorkoutDTO {
             id: value.id(),
             name: value.name().to_owned(),
-            exercises: value
-                .exercises()
-                .iter()
-                .map(ExerciseDTO::from)
-                .collect()
+            exercises: value.exercises().iter().map(ExerciseDTO::from).collect(),
         }
     }
 }
@@ -99,15 +92,11 @@ pub struct ExerciseDTO {
 
 impl From<&Exercise> for ExerciseDTO {
     fn from(value: &Exercise) -> Self {
-        ExerciseDTO { 
+        ExerciseDTO {
             id: value.id(),
             name: value.name().to_owned(),
             exercise_type: ExerciseTypeDTO::from(&value.exercise_type()),
-            sets: value
-                .sets()
-                .iter()
-                .map(SetDTO::from)
-                .collect()
+            sets: value.sets().iter().map(SetDTO::from).collect(),
         }
     }
 }
@@ -123,19 +112,15 @@ pub enum SetDTO {
 impl From<&Set> for SetDTO {
     fn from(value: &Set) -> Self {
         match value {
-            Set::Assisted { reps, assistance } => {
-                SetDTO::Assisted { 
-                    reps: *reps, 
-                    assistance: WeightDTO::from(assistance) }
-            }
-            Set::Bodyweight { reps } => {
-                SetDTO::Bodyweight { reps: *reps }
-            }
-            Set::Weighted { reps, weight } => {
-                SetDTO::Weighted { 
-                    reps: *reps,
-                    weight: WeightDTO::from(weight) }
-            }
+            Set::Assisted { reps, assistance } => SetDTO::Assisted {
+                reps: *reps,
+                assistance: WeightDTO::from(assistance),
+            },
+            Set::Bodyweight { reps } => SetDTO::Bodyweight { reps: *reps },
+            Set::Weighted { reps, weight } => SetDTO::Weighted {
+                reps: *reps,
+                weight: WeightDTO::from(weight),
+            },
         }
     }
 }
@@ -149,9 +134,10 @@ pub struct WeightDTO {
 
 impl From<&Weight> for WeightDTO {
     fn from(value: &Weight) -> Self {
-        WeightDTO { 
+        WeightDTO {
             value: value.value(),
-            unit: WeightUnitDTO::from(&value.unit()) }
+            unit: WeightUnitDTO::from(&value.unit()),
+        }
     }
 }
 
@@ -159,7 +145,7 @@ impl From<&Weight> for WeightDTO {
 #[frb]
 pub enum WeightUnitDTO {
     Kg,
-    Lbs
+    Lbs,
 }
 
 impl From<&WeightUnit> for WeightUnitDTO {

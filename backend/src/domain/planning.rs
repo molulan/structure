@@ -7,19 +7,19 @@ pub struct Mesocycle {
     microcycles: Vec<Microcycle>,
 }
 
-impl Mesocycle {    
+impl Mesocycle {
     pub fn id(&self) -> i64 {
         self.id
     }
-    
+
     pub fn name(&self) -> &str {
         &self.name
     }
-    
+
     pub fn microcycles(&self) -> &[Microcycle] {
         &self.microcycles
     }
-    
+
     pub fn new(name: impl Into<String>, id: i64) -> Mesocycle {
         Mesocycle {
             id,
@@ -44,15 +44,15 @@ impl Microcycle {
     pub fn id(&self) -> Option<i64> {
         self.id
     }
-    
+
     pub fn name(&self) -> &str {
         &self.name
     }
-    
+
     pub fn workouts(&self) -> &[Workout] {
         &self.workouts
     }
-    
+
     pub fn new(name: impl Into<String>) -> Microcycle {
         Microcycle {
             id: None,
@@ -77,15 +77,15 @@ impl Workout {
     pub fn id(&self) -> Option<i64> {
         self.id
     }
-    
+
     pub fn name(&self) -> &str {
         &self.name
     }
-    
+
     pub fn exercises(&self) -> &[Exercise] {
         &self.exercises
     }
-    
+
     pub fn new(name: impl Into<String>) -> Workout {
         Workout {
             id: None,
@@ -118,7 +118,7 @@ impl Exercise {
     pub fn id(&self) -> Option<i64> {
         self.id
     }
-    
+
     pub fn name(&self) -> &str {
         &self.name
     }
@@ -126,11 +126,11 @@ impl Exercise {
     pub fn sets(&self) -> &[Set] {
         &self.sets
     }
-    
+
     pub fn exercise_type(&self) -> ExerciseType {
         self.exercise_type
     }
-    
+
     pub fn bodyweight(name: impl Into<String>) -> Exercise {
         Exercise {
             id: None,
@@ -188,7 +188,7 @@ impl Weight {
     pub fn value(&self) -> f64 {
         self.value
     }
-    
+
     pub fn unit(&self) -> WeightUnit {
         self.unit
     }
@@ -197,7 +197,7 @@ impl Weight {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub enum WeightUnit {
     Kg,
-    Lbs
+    Lbs,
 }
 
 #[cfg(test)]

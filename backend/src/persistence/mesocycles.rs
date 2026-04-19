@@ -1,26 +1,23 @@
-use rusqlite::Connection;
+use rusqlite::{Connection, Result};
 
 use crate::domain::planning::Mesocycle;
 
-pub fn create_mesocycles_table(conn: &Connection) -> rusqlite::Result<()> {
+pub fn create_mesocycles_table(conn: &Connection) -> Result<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS mesocycles (
             id INTEGER PRIMARY KEY,
             name TEXT NOT NULL
-        )", 
+        )",
         (),
     )?;
     Ok(())
 }
 
-pub fn create_mesocycle(conn: &Connection, name: &str) -> rusqlite::Result<Mesocycle> {
-    conn.execute(
-        "INSERT INTO mesocycles (name) VALUES (?1)",
-        (&name,)
-    )?;
-    
+pub fn create_mesocycle(conn: &Connection, name: &str) -> Result<Mesocycle> {
+    conn.execute("INSERT INTO mesocycles (name) VALUES (?1)", (&name,))?;
+
     let id = conn.last_insert_rowid();
-    
+
     Ok(Mesocycle::new(name, id))
 }
 

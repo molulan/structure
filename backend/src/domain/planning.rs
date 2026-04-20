@@ -265,29 +265,29 @@ mod tests {
         assert_eq!(mesocycle.microcycles()[0].id(), 1);
         assert_eq!(mesocycle.microcycles()[0].name(), "Microcycle 1");
     }
-    
+
     #[test]
     fn create_bodyweight_exercise_works() {
         let exercise = Exercise::bodyweight(1, "Squat");
-        
+
         assert_eq!(exercise.exercise_type(), ExerciseType::Bodyweight);
         assert_eq!(exercise.name(), "Squat");
         assert_eq!(exercise.id(), 1);
     }
-    
+
     #[test]
     fn create_weighted_exercise_works() {
         let exercise = Exercise::weighted(1, "Squat");
-        
+
         assert_eq!(exercise.exercise_type(), ExerciseType::Weighted);
         assert_eq!(exercise.name(), "Squat");
         assert_eq!(exercise.id(), 1);
     }
-    
+
     #[test]
     fn create_assisted_exercise_works() {
         let exercise = Exercise::assisted(1, "Squat");
-        
+
         assert_eq!(exercise.exercise_type(), ExerciseType::Assisted);
         assert_eq!(exercise.name(), "Squat");
         assert_eq!(exercise.id(), 1);

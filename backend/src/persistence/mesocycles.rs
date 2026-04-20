@@ -36,7 +36,7 @@ pub fn list_mesocycles(conn: &Connection) -> Result<Vec<Mesocycle>> {
 mod tests {
     use super::*;
     use crate::persistence::sqlite;
-    
+
     fn setup_test_db() -> Connection {
         sqlite::init_db(":memory:").expect("Failed to create test database")
     }

@@ -15,7 +15,6 @@ pub fn list_mesocycles() -> Result<Vec<MesocycleDTO>, MesocycleError> {
     let conn = sqlite::init_db("structure.db")?;
 
     let mesocycles = db::list_mesocycles(&conn)?;
-    
     Ok(mesocycles.iter().map(MesocycleDTO::from).collect())
 }
 

@@ -30,7 +30,7 @@ impl From<&Mesocycle> for MesocycleDTO {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[frb]
 pub struct MicrocycleDTO {
-    pub(crate) id: Option<i64>,
+    pub(crate) id: i64,
     pub(crate) name: String,
     pub(crate) workouts: Vec<WorkoutDTO>,
 }
@@ -48,7 +48,7 @@ impl From<&Microcycle> for MicrocycleDTO {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[frb]
 pub struct WorkoutDTO {
-    pub(crate) id: Option<i64>,
+    pub(crate) id: i64,
     pub(crate) name: String,
     pub(crate) exercises: Vec<ExerciseDTO>,
 }
@@ -84,7 +84,7 @@ impl From<&ExerciseType> for ExerciseTypeDTO {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[frb]
 pub struct ExerciseDTO {
-    pub(crate) id: Option<i64>,
+    pub(crate) id: i64,
     pub(crate) name: String,
     pub(crate) exercise_type: ExerciseTypeDTO,
     pub(crate) sets: Vec<SetDTO>,

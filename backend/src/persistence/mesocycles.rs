@@ -18,7 +18,7 @@ pub fn create_mesocycle(conn: &Connection, name: &str) -> Result<Mesocycle> {
 
     let id = conn.last_insert_rowid();
 
-    Ok(Mesocycle::new(name, id))
+    Ok(Mesocycle::new(id, name))
 }
 
 pub fn list_mesocycles(conn: &Connection) -> Result<Vec<Mesocycle>> {
@@ -27,7 +27,7 @@ pub fn list_mesocycles(conn: &Connection) -> Result<Vec<Mesocycle>> {
     stmt.query_map([], |row| {
         let id = row.get(0)?;
         let name: String = row.get(1)?;
-        Ok(Mesocycle::new(name, id))
+        Ok(Mesocycle::new(id, name))
     })?
     .collect()
 }

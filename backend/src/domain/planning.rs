@@ -20,7 +20,7 @@ impl Mesocycle {
         &self.microcycles
     }
 
-    pub fn new(name: impl Into<String>, id: i64) -> Mesocycle {
+    pub fn new(id: i64, name: impl Into<String>) -> Mesocycle {
         Mesocycle {
             id,
             name: name.into(),
@@ -35,13 +35,13 @@ impl Mesocycle {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Microcycle {
-    id: Option<i64>,
+    id: i64,
     name: String,
     workouts: Vec<Workout>,
 }
 
 impl Microcycle {
-    pub fn id(&self) -> Option<i64> {
+    pub fn id(&self) -> i64 {
         self.id
     }
 
@@ -53,9 +53,9 @@ impl Microcycle {
         &self.workouts
     }
 
-    pub fn new(name: impl Into<String>) -> Microcycle {
+    pub fn new(id: i64, name: impl Into<String>) -> Microcycle {
         Microcycle {
-            id: None,
+            id,
             name: name.into(),
             workouts: Vec::new(),
         }
@@ -68,13 +68,13 @@ impl Microcycle {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Workout {
-    id: Option<i64>,
+    id: i64,
     name: String,
     exercises: Vec<Exercise>,
 }
 
 impl Workout {
-    pub fn id(&self) -> Option<i64> {
+    pub fn id(&self) -> i64 {
         self.id
     }
 
@@ -86,9 +86,9 @@ impl Workout {
         &self.exercises
     }
 
-    pub fn new(name: impl Into<String>) -> Workout {
+    pub fn new(id: i64, name: impl Into<String>) -> Workout {
         Workout {
-            id: None,
+            id,
             name: name.into(),
             exercises: Vec::new(),
         }
@@ -99,23 +99,23 @@ impl Workout {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub enum ExerciseType {
     Bodyweight,
     Weighted,
     Assisted,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Exercise {
-    id: Option<i64>,
+    id: i64,
     name: String,
     sets: Vec<Set>,
     exercise_type: ExerciseType,
 }
 
 impl Exercise {
-    pub fn id(&self) -> Option<i64> {
+    pub fn id(&self) -> i64 {
         self.id
     }
 
@@ -131,27 +131,27 @@ impl Exercise {
         self.exercise_type
     }
 
-    pub fn bodyweight(name: impl Into<String>) -> Exercise {
+    pub fn bodyweight(id: i64, name: impl Into<String>) -> Exercise {
         Exercise {
-            id: None,
+            id,
             name: name.into(),
             sets: Vec::new(),
             exercise_type: ExerciseType::Bodyweight,
         }
     }
 
-    pub fn weighted(name: impl Into<String>) -> Exercise {
+    pub fn weighted(id: i64, name: impl Into<String>) -> Exercise {
         Exercise {
-            id: None,
+            id,
             name: name.into(),
             sets: Vec::new(),
             exercise_type: ExerciseType::Weighted,
         }
     }
 
-    pub fn assisted(name: impl Into<String>) -> Exercise {
+    pub fn assisted(id: i64, name: impl Into<String>) -> Exercise {
         Exercise {
-            id: None,
+            id,
             name: name.into(),
             sets: Vec::new(),
             exercise_type: ExerciseType::Assisted,
@@ -206,64 +206,96 @@ mod tests {
 
     #[test]
     fn create_workout_works() {
-        let workout = Workout::new("test workout");
+        let workout = Workout::new(1, "test workout");
 
-        assert_eq!(workout.name, "test workout");
-        assert_eq!(workout.exercises.len(), 0);
+        assert_eq!(workout.name(), "test workout");
+        assert_eq!(workout.id(), 1);
+        assert_eq!(workout.exercises().len(), 0);
     }
 
     #[test]
     fn add_exercise_to_workout() {
-        let mut workout = Workout::new("test workout");
+        let mut workout = Workout::new(1, "test workout");
 
-        workout.add_exercise(Exercise::bodyweight("Pull-Up"));
+        workout.add_exercise(Exercise::bodyweight(1, "Pull-Up"));
 
-        assert_eq!(workout.exercises.len(), 1);
-        assert_eq!(workout.exercises[0].name(), "Pull-Up");
+        assert_eq!(workout.exercises().len(), 1);
+        assert_eq!(workout.exercises()[0].name(), "Pull-Up");
+        assert_eq!(workout.exercises()[0].id(), 1);
     }
 
     #[test]
     fn create_microcycle_works() {
-        let microcycle = Microcycle::new("test microcycle");
+        let microcycle = Microcycle::new(1, "test microcycle");
 
-        assert_eq!(microcycle.name, "test microcycle");
-        assert_eq!(microcycle.workouts.len(), 0);
+        assert_eq!(microcycle.name(), "test microcycle");
+        assert_eq!(microcycle.id(), 1);
+        assert_eq!(microcycle.workouts().len(), 0);
     }
 
     #[test]
     fn add_workout_to_microcycle() {
-        let mut microcycle = Microcycle::new("test microcycle");
+        let mut microcycle = Microcycle::new(1, "test microcycle");
 
-        let workout = Workout::new("Workout 1");
+        let workout = Workout::new(1, "Workout 1");
         microcycle.add_workout(workout);
 
-        assert_eq!(microcycle.workouts.len(), 1);
-        assert_eq!(microcycle.workouts[0].name, "Workout 1");
+        assert_eq!(microcycle.workouts().len(), 1);
+        assert_eq!(microcycle.workouts()[0].name(), "Workout 1");
+        assert_eq!(microcycle.workouts()[0].id(), 1);
     }
 
     #[test]
     fn create_mesocycle_works() {
-        let mesocycle = Mesocycle::new("test mesocycle", 1);
+        let mesocycle = Mesocycle::new(1, "test mesocycle");
 
         assert_eq!(mesocycle.name(), "test mesocycle");
-        assert_eq!(mesocycle.microcycles.len(), 0);
+        assert_eq!(mesocycle.microcycles().len(), 0);
         assert_eq!(mesocycle.id(), 1)
     }
 
     #[test]
     fn add_microcycle_to_mesocycle() {
-        let mut mesocycle = Mesocycle::new("test mesocycle", 1);
+        let mut mesocycle = Mesocycle::new(1, "test mesocycle");
 
-        let microcycle = Microcycle::new("Microcycle 1");
+        let microcycle = Microcycle::new(1, "Microcycle 1");
         mesocycle.add_microcycle(microcycle);
 
-        assert_eq!(mesocycle.microcycles.len(), 1);
-        assert_eq!(mesocycle.microcycles[0].name, "Microcycle 1");
+        assert_eq!(mesocycle.microcycles().len(), 1);
+        assert_eq!(mesocycle.microcycles()[0].id(), 1);
+        assert_eq!(mesocycle.microcycles()[0].name(), "Microcycle 1");
+    }
+    
+    #[test]
+    fn create_bodyweight_exercise_works() {
+        let exercise = Exercise::bodyweight(1, "Squat");
+        
+        assert_eq!(exercise.exercise_type(), ExerciseType::Bodyweight);
+        assert_eq!(exercise.name(), "Squat");
+        assert_eq!(exercise.id(), 1);
+    }
+    
+    #[test]
+    fn create_weighted_exercise_works() {
+        let exercise = Exercise::weighted(1, "Squat");
+        
+        assert_eq!(exercise.exercise_type(), ExerciseType::Weighted);
+        assert_eq!(exercise.name(), "Squat");
+        assert_eq!(exercise.id(), 1);
+    }
+    
+    #[test]
+    fn create_assisted_exercise_works() {
+        let exercise = Exercise::assisted(1, "Squat");
+        
+        assert_eq!(exercise.exercise_type(), ExerciseType::Assisted);
+        assert_eq!(exercise.name(), "Squat");
+        assert_eq!(exercise.id(), 1);
     }
 
     #[test]
     fn add_set_to_exercise_with_matching_types_works() {
-        let mut exercise = Exercise::bodyweight("Squat");
+        let mut exercise = Exercise::bodyweight(1, "Bench Press");
         assert_eq!(exercise.sets().len(), 0);
 
         exercise.add_set(Set::Bodyweight { reps: 42 }).unwrap();
@@ -274,7 +306,7 @@ mod tests {
 
     #[test]
     fn add_set_to_exercise_with_mismatching_types_causes_error() {
-        let mut exercise = Exercise::weighted("Squat");
+        let mut exercise = Exercise::weighted(1, "Bench Press");
 
         let result = exercise.add_set(Set::Bodyweight { reps: 42 });
 

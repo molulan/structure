@@ -7,7 +7,7 @@ pub fn open_connection(db_path: &str) -> rusqlite::Result<Connection> {
 }
 
 pub fn init_db(db_path: &str) -> rusqlite::Result<Connection> {
-    let conn = open_connection(db_path)?; //fake db path placeholder
+    let conn = open_connection(db_path)?;
 
     create_mesocycles_table(&conn)?;
 

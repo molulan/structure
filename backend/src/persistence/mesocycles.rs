@@ -42,14 +42,14 @@ mod tests {
     }
 
     #[test]
-    fn test_list_mesocycles_empty() {
+    fn list_mesocycles_returns_empty_list_on_fresh_db() {
         let conn = setup_test_db();
         let result = list_mesocycles(&conn).unwrap();
         assert!(result.is_empty())
     }
 
     #[test]
-    fn test_create_mesocycle() {
+    fn create_mesocycle_generates_mesocycle_with_correct_name() {
         let conn = setup_test_db();
 
         let name = "hypertrophy 1";
@@ -59,7 +59,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_and_list_mesocycles() {
+    fn created_mesocycle_appears_in_list_with_correct_id_and_name() {
         let conn = setup_test_db();
 
         let mesocyle = create_mesocycle(&conn, "hypertrophy 1").unwrap();
@@ -72,7 +72,7 @@ mod tests {
     }
 
     #[test]
-    fn test_create_multiple_mesocycles() {
+    fn multiple_mesocycles_get_unique_ids_and_appear_in_list() {
         let conn = setup_test_db();
 
         let mesocyle_1 = create_mesocycle(&conn, "Big Arms").unwrap();

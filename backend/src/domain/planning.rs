@@ -205,7 +205,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn create_workout_works() {
+    fn new_workout_has_no_exercises_and_correct_name_and_id() {
         let workout = Workout::new(1, "test workout");
 
         assert_eq!(workout.name(), "test workout");
@@ -214,7 +214,7 @@ mod tests {
     }
 
     #[test]
-    fn add_exercise_to_workout() {
+    fn added_exercise_appears_in_workout_with_correct_name_and_id() {
         let mut workout = Workout::new(1, "test workout");
 
         workout.add_exercise(Exercise::bodyweight(1, "Pull-Up"));
@@ -225,7 +225,7 @@ mod tests {
     }
 
     #[test]
-    fn create_microcycle_works() {
+    fn new_microcycle_has_no_workouts_and_correct_name_and_id() {
         let microcycle = Microcycle::new(1, "test microcycle");
 
         assert_eq!(microcycle.name(), "test microcycle");
@@ -234,7 +234,7 @@ mod tests {
     }
 
     #[test]
-    fn add_workout_to_microcycle() {
+    fn added_workout_appears_in_microcycle_with_correct_name_and_id() {
         let mut microcycle = Microcycle::new(1, "test microcycle");
 
         let workout = Workout::new(1, "Workout 1");
@@ -246,7 +246,7 @@ mod tests {
     }
 
     #[test]
-    fn create_mesocycle_works() {
+    fn new_mesocycle_has_no_microcycles_and_correct_name_and_id() {
         let mesocycle = Mesocycle::new(1, "test mesocycle");
 
         assert_eq!(mesocycle.name(), "test mesocycle");
@@ -255,7 +255,7 @@ mod tests {
     }
 
     #[test]
-    fn add_microcycle_to_mesocycle() {
+    fn added_microcycle_appears_in_mesocycle_with_correct_name_and_id() {
         let mut mesocycle = Mesocycle::new(1, "test mesocycle");
 
         let microcycle = Microcycle::new(1, "Microcycle 1");
@@ -267,7 +267,7 @@ mod tests {
     }
 
     #[test]
-    fn create_bodyweight_exercise_works() {
+    fn new_bodyweight_exercise_has_bodyweight_type_with_correct_name_and_id() {
         let exercise = Exercise::bodyweight(1, "Squat");
 
         assert_eq!(exercise.exercise_type(), ExerciseType::Bodyweight);
@@ -276,7 +276,7 @@ mod tests {
     }
 
     #[test]
-    fn create_weighted_exercise_works() {
+    fn new_weighted_exercise_has_weighted_type_with_correct_name_and_id() {
         let exercise = Exercise::weighted(1, "Squat");
 
         assert_eq!(exercise.exercise_type(), ExerciseType::Weighted);
@@ -285,7 +285,7 @@ mod tests {
     }
 
     #[test]
-    fn create_assisted_exercise_works() {
+    fn new_assisted_exercise_has_assisted_type_with_correct_name_and_id() {
         let exercise = Exercise::assisted(1, "Squat");
 
         assert_eq!(exercise.exercise_type(), ExerciseType::Assisted);

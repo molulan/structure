@@ -1,7 +1,7 @@
 use crate::domain::planning::Microcycle;
 use rusqlite::{Connection, Result, params};
 
-pub fn create_microcycle_table(conn: &Connection) -> Result<()> {
+pub fn create_microcycles_table(conn: &Connection) -> Result<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS microcycles (
             id INTEGER PRIMARY KEY,

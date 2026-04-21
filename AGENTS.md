@@ -34,10 +34,10 @@
 ## Commands
 - `flutter analyze` (from `frontend/`)
 - `flutter test` (from `frontend/`)
-- `./run_linux.sh`
+- `./scripts/run_linux.sh`
 
 ## Gotchas
-- `./run_linux.sh` uses `target/debug` via `LD_LIBRARY_PATH`.
+- `./scripts/run_linux.sh` uses `target/debug` via `LD_LIBRARY_PATH`.
 - Generated Dart FRB loader points at `../backend/target/release/` in `frontend/lib/src/bridge/frb_generated.dart`; keep build mode and library path aligned.
 - `frontend/test/widget_test.dart` is stale Flutter boilerplate, not a trustworthy app test.
 - Prioritize `backend/` and `frontend/`, not `mesocycle_builder/`.
@@ -91,4 +91,4 @@
 
 ### Repo root
 - `flutter_rust_bridge.yaml`
-- `run_linux.sh`
+- `scripts/run_linux.sh`

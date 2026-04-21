@@ -54,6 +54,17 @@ mod tests {
     fn setup_test_db() -> Connection {
         sqlite::init_db(":memory:").expect("Failed to create test database")
     }
+    
+    #[test]
+    fn list_microcycles_returns_empty_list_for_mesocycle_with_no_microcycles() {
+        let conn = setup_test_db();
+        
+        let mesocycle = create_mesocycle(&conn, "welcome to the gunshow").unwrap();
+        
+        let result = list_microcycles(&conn, mesocycle.id()).unwrap();
+        
+        assert!(result.is_empty());
+    }
 
     #[test]
     fn create_microcycle_generates_microcycle_with_position_0_in_empty_mesocycle() {

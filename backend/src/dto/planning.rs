@@ -10,7 +10,6 @@ use crate::domain::planning::{
 pub struct MesocycleDTO {
     pub(crate) id: i64,
     pub(crate) name: String,
-    pub(crate) microcycles: Vec<MicrocycleDTO>,
 }
 
 impl From<&Mesocycle> for MesocycleDTO {
@@ -18,11 +17,6 @@ impl From<&Mesocycle> for MesocycleDTO {
         MesocycleDTO {
             id: value.id(),
             name: value.name().to_owned(),
-            microcycles: value
-                .microcycles()
-                .iter()
-                .map(MicrocycleDTO::from)
-                .collect(),
         }
     }
 }
@@ -31,16 +25,14 @@ impl From<&Mesocycle> for MesocycleDTO {
 #[frb]
 pub struct MicrocycleDTO {
     pub(crate) id: i64,
-    pub(crate) name: String,
-    pub(crate) workouts: Vec<WorkoutDTO>,
+    pub(crate) position: u32,
 }
 
 impl From<&Microcycle> for MicrocycleDTO {
     fn from(value: &Microcycle) -> Self {
         MicrocycleDTO {
             id: value.id(),
-            name: value.name().to_owned(),
-            workouts: value.workouts().iter().map(WorkoutDTO::from).collect(),
+            position: value.position(),
         }
     }
 }
@@ -50,7 +42,6 @@ impl From<&Microcycle> for MicrocycleDTO {
 pub struct WorkoutDTO {
     pub(crate) id: i64,
     pub(crate) name: String,
-    pub(crate) exercises: Vec<ExerciseDTO>,
 }
 
 impl From<&Workout> for WorkoutDTO {
@@ -58,7 +49,6 @@ impl From<&Workout> for WorkoutDTO {
         WorkoutDTO {
             id: value.id(),
             name: value.name().to_owned(),
-            exercises: value.exercises().iter().map(ExerciseDTO::from).collect(),
         }
     }
 }

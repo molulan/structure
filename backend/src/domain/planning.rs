@@ -4,7 +4,6 @@ use serde::{Deserialize, Serialize};
 pub struct Mesocycle {
     id: i64,
     name: String,
-    microcycles: Vec<Microcycle>,
 }
 
 impl Mesocycle {
@@ -16,28 +15,18 @@ impl Mesocycle {
         &self.name
     }
 
-    pub fn microcycles(&self) -> &[Microcycle] {
-        &self.microcycles
-    }
-
-    pub fn new(id: i64, name: impl Into<String>) -> Mesocycle {
+    pub(crate) fn new(id: i64, name: impl Into<String>) -> Mesocycle {
         Mesocycle {
             id,
             name: name.into(),
-            microcycles: Vec::new(),
         }
-    }
-
-    pub fn add_microcycle(&mut self, microcycle: Microcycle) {
-        self.microcycles.push(microcycle);
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Microcycle {
     id: i64,
-    name: String,
-    workouts: Vec<Workout>,
+    position: u32,
 }
 
 impl Microcycle {
@@ -45,24 +34,15 @@ impl Microcycle {
         self.id
     }
 
-    pub fn name(&self) -> &str {
-        &self.name
+    pub fn position(&self) -> u32 {
+        self.position
     }
 
-    pub fn workouts(&self) -> &[Workout] {
-        &self.workouts
-    }
-
-    pub fn new(id: i64, name: impl Into<String>) -> Microcycle {
+    pub(crate) fn new(id: i64, position: u32) -> Microcycle {
         Microcycle {
             id,
-            name: name.into(),
-            workouts: Vec::new(),
+            position,
         }
-    }
-
-    pub fn add_workout(&mut self, workout: Workout) {
-        self.workouts.push(workout);
     }
 }
 
@@ -70,7 +50,6 @@ impl Microcycle {
 pub struct Workout {
     id: i64,
     name: String,
-    exercises: Vec<Exercise>,
 }
 
 impl Workout {
@@ -82,20 +61,11 @@ impl Workout {
         &self.name
     }
 
-    pub fn exercises(&self) -> &[Exercise] {
-        &self.exercises
-    }
-
     pub fn new(id: i64, name: impl Into<String>) -> Workout {
         Workout {
             id,
             name: name.into(),
-            exercises: Vec::new(),
         }
-    }
-
-    pub fn add_exercise(&mut self, exercise: Exercise) {
-        self.exercises.push(exercise);
     }
 }
 
@@ -205,65 +175,27 @@ mod tests {
     use super::*;
 
     #[test]
-    fn new_workout_has_no_exercises_and_correct_name_and_id() {
+    fn new_workout_has_correct_name_and_id() {
         let workout = Workout::new(1, "test workout");
 
         assert_eq!(workout.name(), "test workout");
         assert_eq!(workout.id(), 1);
-        assert_eq!(workout.exercises().len(), 0);
     }
 
     #[test]
-    fn added_exercise_appears_in_workout_with_correct_name_and_id() {
-        let mut workout = Workout::new(1, "test workout");
+    fn new_microcycle_has_correct_name_and_id() {
+        let microcycle = Microcycle::new(1234, 0);
 
-        workout.add_exercise(Exercise::bodyweight(1, "Pull-Up"));
-
-        assert_eq!(workout.exercises().len(), 1);
-        assert_eq!(workout.exercises()[0].name(), "Pull-Up");
-        assert_eq!(workout.exercises()[0].id(), 1);
+        assert_eq!(microcycle.position(), 0);
+        assert_eq!(microcycle.id(), 1234);
     }
 
     #[test]
-    fn new_microcycle_has_no_workouts_and_correct_name_and_id() {
-        let microcycle = Microcycle::new(1, "test microcycle");
-
-        assert_eq!(microcycle.name(), "test microcycle");
-        assert_eq!(microcycle.id(), 1);
-        assert_eq!(microcycle.workouts().len(), 0);
-    }
-
-    #[test]
-    fn added_workout_appears_in_microcycle_with_correct_name_and_id() {
-        let mut microcycle = Microcycle::new(1, "test microcycle");
-
-        let workout = Workout::new(1, "Workout 1");
-        microcycle.add_workout(workout);
-
-        assert_eq!(microcycle.workouts().len(), 1);
-        assert_eq!(microcycle.workouts()[0].name(), "Workout 1");
-        assert_eq!(microcycle.workouts()[0].id(), 1);
-    }
-
-    #[test]
-    fn new_mesocycle_has_no_microcycles_and_correct_name_and_id() {
+    fn new_mesocycle_has_correct_name_and_id() {
         let mesocycle = Mesocycle::new(1, "test mesocycle");
 
         assert_eq!(mesocycle.name(), "test mesocycle");
-        assert_eq!(mesocycle.microcycles().len(), 0);
         assert_eq!(mesocycle.id(), 1)
-    }
-
-    #[test]
-    fn added_microcycle_appears_in_mesocycle_with_correct_name_and_id() {
-        let mut mesocycle = Mesocycle::new(1, "test mesocycle");
-
-        let microcycle = Microcycle::new(1, "Microcycle 1");
-        mesocycle.add_microcycle(microcycle);
-
-        assert_eq!(mesocycle.microcycles().len(), 1);
-        assert_eq!(mesocycle.microcycles()[0].id(), 1);
-        assert_eq!(mesocycle.microcycles()[0].name(), "Microcycle 1");
     }
 
     #[test]

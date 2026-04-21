@@ -62,28 +62,28 @@ mod tests {
     fn created_mesocycle_appears_in_list_with_correct_id_and_name() {
         let conn = setup_test_db();
 
-        let mesocyle = create_mesocycle(&conn, "hypertrophy 1").unwrap();
+        let mesocycle = create_mesocycle(&conn, "hypertrophy 1").unwrap();
 
         let result = list_mesocycles(&conn).unwrap();
 
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].id(), mesocyle.id());
-        assert_eq!(result[0].name(), mesocyle.name());
+        assert_eq!(result[0].id(), mesocycle.id());
+        assert_eq!(result[0].name(), mesocycle.name());
     }
 
     #[test]
     fn multiple_mesocycles_get_unique_ids_and_appear_in_list() {
         let conn = setup_test_db();
 
-        let mesocyle_1 = create_mesocycle(&conn, "Big Arms").unwrap();
-        let mesocyle_2 = create_mesocycle(&conn, "Bigger Arms!").unwrap();
-        assert_ne!(mesocyle_1.id(), mesocyle_2.id());
+        let mesocycle_1 = create_mesocycle(&conn, "Big Arms").unwrap();
+        let mesocycle_2 = create_mesocycle(&conn, "Bigger Arms!").unwrap();
+        assert_ne!(mesocycle_1.id(), mesocycle_2.id());
 
         let mesocycles = list_mesocycles(&conn).unwrap();
         assert_eq!(mesocycles.len(), 2);
-        assert_eq!(mesocycles[0].id(), mesocyle_1.id());
-        assert_eq!(mesocycles[0].name(), mesocyle_1.name());
-        assert_eq!(mesocycles[1].id(), mesocyle_2.id());
-        assert_eq!(mesocycles[1].name(), mesocyle_2.name());
+        assert_eq!(mesocycles[0].id(), mesocycle_1.id());
+        assert_eq!(mesocycles[0].name(), mesocycle_1.name());
+        assert_eq!(mesocycles[1].id(), mesocycle_2.id());
+        assert_eq!(mesocycles[1].name(), mesocycle_2.name());
     }
 }

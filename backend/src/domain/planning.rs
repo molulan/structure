@@ -39,10 +39,7 @@ impl Microcycle {
     }
 
     pub(crate) fn new(id: i64, position: u32) -> Microcycle {
-        Microcycle {
-            id,
-            position,
-        }
+        Microcycle { id, position }
     }
 }
 
@@ -187,7 +184,7 @@ mod tests {
     }
 
     #[test]
-    fn new_microcycle_has_correct_name_and_id() {
+    fn new_microcycle_has_correct_position_and_id() {
         let microcycle = Microcycle::new(1234, 0);
 
         assert_eq!(microcycle.position(), 0);

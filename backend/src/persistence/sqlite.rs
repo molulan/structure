@@ -1,6 +1,8 @@
 use rusqlite::Connection;
 
-use crate::persistence::{mesocycles::create_mesocycles_table, microcycles::create_microcycle_table};
+use crate::persistence::{
+    mesocycles::create_mesocycles_table, microcycles::create_microcycle_table,
+};
 
 pub fn open_connection(db_path: &str) -> rusqlite::Result<Connection> {
     Connection::open(db_path)

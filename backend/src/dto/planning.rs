@@ -61,8 +61,8 @@ pub enum ExerciseTypeDTO {
     Assisted,
 }
 
-impl From<&ExerciseType> for ExerciseTypeDTO {
-    fn from(value: &ExerciseType) -> Self {
+impl From<ExerciseType> for ExerciseTypeDTO {
+    fn from(value: ExerciseType) -> Self {
         match value {
             ExerciseType::Assisted => ExerciseTypeDTO::Assisted,
             ExerciseType::Bodyweight => ExerciseTypeDTO::Bodyweight,
@@ -85,7 +85,7 @@ impl From<&Exercise> for ExerciseDTO {
         ExerciseDTO {
             id: value.id(),
             name: value.name().to_owned(),
-            exercise_type: ExerciseTypeDTO::from(&value.exercise_type()),
+            exercise_type: ExerciseTypeDTO::from(value.exercise_type()),
             sets: value.sets().iter().map(SetDTO::from).collect(),
         }
     }
@@ -126,7 +126,7 @@ impl From<&Weight> for WeightDTO {
     fn from(value: &Weight) -> Self {
         WeightDTO {
             value: value.value(),
-            unit: WeightUnitDTO::from(&value.unit()),
+            unit: WeightUnitDTO::from(value.unit()),
         }
     }
 }
@@ -138,16 +138,11 @@ pub enum WeightUnitDTO {
     Lbs,
 }
 
-impl From<&WeightUnit> for WeightUnitDTO {
-    fn from(value: &WeightUnit) -> Self {
+impl From<WeightUnit> for WeightUnitDTO {
+    fn from(value: WeightUnit) -> Self {
         match value {
             WeightUnit::Kg => WeightUnitDTO::Kg,
             WeightUnit::Lbs => WeightUnitDTO::Lbs,
         }
     }
 }
-
-// #[cfg(test)]
-// mod tests {
-//     use super::*;
-// }

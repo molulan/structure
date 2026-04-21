@@ -22,7 +22,7 @@ pub fn create_mesocycle(conn: &Connection, name: &str) -> Result<Mesocycle> {
 }
 
 pub fn list_mesocycles(conn: &Connection) -> Result<Vec<Mesocycle>> {
-    let mut stmt = conn.prepare("SELECT id, name FROM mesocycles")?;
+    let mut stmt = conn.prepare("SELECT id, name FROM mesocycles ORDER BY id ASC")?;
 
     stmt.query_map([], |row| {
         let id = row.get(0)?;

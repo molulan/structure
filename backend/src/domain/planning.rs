@@ -61,7 +61,7 @@ impl Workout {
         &self.name
     }
 
-    pub fn new(id: i64, name: impl Into<String>) -> Workout {
+    pub(crate) fn new(id: i64, name: impl Into<String>) -> Workout {
         Workout {
             id,
             name: name.into(),
@@ -161,6 +161,10 @@ impl Weight {
 
     pub fn unit(&self) -> WeightUnit {
         self.unit
+    }
+
+    pub(crate) fn new(&self, value: f64, unit: WeightUnit) -> Weight {
+        Weight { value, unit }
     }
 }
 

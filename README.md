@@ -19,7 +19,7 @@ Builds the Rust backend and launches the Flutter app on Linux.
 ### Rust
 
 ```sh
-cd backend && cargo test
+cd application_core && cargo test
 ```
 
 ### Flutter

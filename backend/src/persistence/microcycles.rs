@@ -1,19 +1,24 @@
-use crate::domain::planning::Microcycle;
-use rusqlite::{Connection, Result, params};
+use crate::{domain::planning::Microcycle, errors::MicrocycleError, persistence::mesocycles::get_mesocycle};
+use rusqlite::{Connection, params};
 
-pub fn create_microcycles_table(conn: &Connection) -> Result<()> {
+pub fn create_microcycles_table(conn: &Connection) -> Result<(), MicrocycleError> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS microcycles (
             id INTEGER PRIMARY KEY,
             mesocycle_id INTEGER NOT NULL REFERENCES mesocycles(id),
-            position INTEGER NOT NULL
+            position INTEGER NOT NULL,
+            UNIQUE(mesocycle_id, position)
         )",
         (),
     )?;
     Ok(())
 }
 
-pub fn create_microcycle(conn: &Connection, mesocycle_id: i64) -> Result<Microcycle> {
+pub fn create_microcycle(conn: &Connection, mesocycle_id: i64) -> Result<Microcycle, MicrocycleError> {
+    if get_mesocycle(conn, mesocycle_id)?.is_none() {
+        return Err(MicrocycleError::MesocycleNotFound { id: mesocycle_id });
+    } 
+    
     let count: i64 = conn.query_row(
         "SELECT COUNT(*) FROM microcycles WHERE mesocycle_id = ?1",
         [mesocycle_id],
@@ -32,7 +37,7 @@ pub fn create_microcycle(conn: &Connection, mesocycle_id: i64) -> Result<Microcy
     Ok(Microcycle::new(id, position))
 }
 
-pub fn list_microcycles(conn: &Connection, mesocycle_id: i64) -> Result<Vec<Microcycle>> {
+pub fn list_microcycles(conn: &Connection, mesocycle_id: i64) -> Result<Vec<Microcycle>, MicrocycleError> {
     let mut stmt = conn.prepare(
         "SELECT id, position FROM microcycles WHERE mesocycle_id = ?1 ORDER BY position ASC",
     )?;
@@ -40,9 +45,8 @@ pub fn list_microcycles(conn: &Connection, mesocycle_id: i64) -> Result<Vec<Micr
     stmt.query_map([mesocycle_id], |row| {
         let id = row.get(0)?;
         let position: i64 = row.get(1)?;
-        let position = position as u32;
-        Ok(Microcycle::new(id, position))
-    })?
+        Ok(Microcycle::new(id, position as u32))
+    })?.map(|r| r.map_err(MicrocycleError::from)) //review this solution
     .collect()
 }
 
@@ -54,22 +58,20 @@ mod tests {
     fn setup_test_db() -> Connection {
         sqlite::init_db(":memory:").expect("Failed to create test database")
     }
-    
+
     #[test]
     fn list_microcycles_returns_empty_list_for_mesocycle_with_no_microcycles() {
         let conn = setup_test_db();
-        
         let mesocycle = create_mesocycle(&conn, "welcome to the gunshow").unwrap();
-        
+
         let result = list_microcycles(&conn, mesocycle.id()).unwrap();
-        
+
         assert!(result.is_empty());
     }
 
     #[test]
     fn create_microcycle_generates_microcycle_with_position_0_in_empty_mesocycle() {
         let conn = setup_test_db();
-
         let mesocycle = create_mesocycle(&conn, "hypertrophy").unwrap();
 
         let microcycle = create_microcycle(&conn, mesocycle.id()).unwrap();
@@ -80,7 +82,6 @@ mod tests {
     #[test]
     fn multiple_microcycles_in_same_mesocycle_gets_increasing_position_numbers() {
         let conn = setup_test_db();
-
         let mesocycle = create_mesocycle(&conn, "hypertrophy").unwrap();
 
         let microcycle_1 = create_microcycle(&conn, mesocycle.id()).unwrap();
@@ -95,7 +96,6 @@ mod tests {
     #[test]
     fn multiple_microcycles_in_same_mesocycle_gets_unique_ids() {
         let conn = setup_test_db();
-
         let mesocycle = create_mesocycle(&conn, "hypertrophy").unwrap();
 
         let microcycle_1 = create_microcycle(&conn, mesocycle.id()).unwrap();
@@ -107,11 +107,9 @@ mod tests {
     #[test]
     fn created_microcycle_appear_in_list_with_correct_id_and_position() {
         let conn = setup_test_db();
-
         let mesocycle = create_mesocycle(&conn, "hypertrophy").unwrap();
 
         let microcycle = create_microcycle(&conn, mesocycle.id()).unwrap();
-
         let result = list_microcycles(&conn, mesocycle.id()).unwrap();
 
         assert_eq!(microcycle.id(), result[0].id());
@@ -121,12 +119,10 @@ mod tests {
     #[test]
     fn multiple_microcycles_appear_in_list_with_correct_id_and_position() {
         let conn = setup_test_db();
-
         let mesocycle = create_mesocycle(&conn, "hypertrophy").unwrap();
 
         let microcycle_1 = create_microcycle(&conn, mesocycle.id()).unwrap();
         let microcycle_2 = create_microcycle(&conn, mesocycle.id()).unwrap();
-
         let result = list_microcycles(&conn, mesocycle.id()).unwrap();
 
         assert_eq!(microcycle_1.id(), result[0].id());

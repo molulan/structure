@@ -5,7 +5,9 @@ use crate::persistence::{
 };
 
 pub fn open_connection(db_path: &str) -> rusqlite::Result<Connection> {
-    Connection::open(db_path)
+    let conn = Connection::open(db_path)?;
+    conn.execute_batch("PRAGMA foreign_keys = ON")?;
+    Ok(conn)
 }
 
 pub fn init_db(db_path: &str) -> rusqlite::Result<Connection> {

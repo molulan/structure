@@ -39,7 +39,7 @@ pub fn create_microcycle(
         |row| row.get(0),
     )?;
 
-     // COUNT(*) is always non-negative and well within u32 range for this domain
+    // COUNT(*) is always non-negative and well within u32 range for this domain
     let position = count as u32;
 
     conn.execute(

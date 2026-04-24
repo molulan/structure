@@ -40,7 +40,7 @@ pub fn create_workout(
         |row| row.get(0),
     )?;
 
-     // COUNT(*) is always non-negative and well within u32 range for this domain
+    // COUNT(*) is always non-negative and well within u32 range for this domain
     let position = count as u32;
 
     conn.execute(
@@ -258,7 +258,6 @@ mod tests {
         let conn = setup_test_db();
 
         let result = create_workout(&conn, 1234, "CHEST");
-        dbg!(&result);
 
         assert!(result.is_err());
     }

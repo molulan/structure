@@ -1,7 +1,9 @@
-use crate::{domain::planning::Microcycle, errors::MicrocycleError, persistence::mesocycles::get_mesocycle};
-use rusqlite::{Connection, params};
+use crate::{
+    domain::planning::Microcycle, errors::MicrocycleError, persistence::mesocycles::get_mesocycle,
+};
+use rusqlite::{Connection, OptionalExtension, params};
 
-pub fn create_microcycles_table(conn: &Connection) -> Result<(), MicrocycleError> {
+pub(super) fn create_microcycles_table(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS microcycles (
             id INTEGER PRIMARY KEY,
@@ -14,17 +16,30 @@ pub fn create_microcycles_table(conn: &Connection) -> Result<(), MicrocycleError
     Ok(())
 }
 
-pub fn create_microcycle(conn: &Connection, mesocycle_id: i64) -> Result<Microcycle, MicrocycleError> {
-    if get_mesocycle(conn, mesocycle_id)?.is_none() {
-        return Err(MicrocycleError::MesocycleNotFound { id: mesocycle_id });
-    } 
-    
+fn mesocycle_exists(conn: &Connection, id: i64) -> rusqlite::Result<bool> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM mesocycles WHERE id = ?1",
+        [id],
+        |row| row.get(0),
+    )?;
+    Ok(count > 0)
+}
+
+pub fn create_microcycle(
+    conn: &Connection,
+    mesocycle_id: i64,
+) -> Result<Microcycle, MicrocycleError> {
+    if !mesocycle_exists(conn, mesocycle_id)? {
+        return Err(MicrocycleError::AssociatedMesocycleNotFound { id: mesocycle_id });
+    }
+
     let count: i64 = conn.query_row(
         "SELECT COUNT(*) FROM microcycles WHERE mesocycle_id = ?1",
         [mesocycle_id],
         |row| row.get(0),
     )?;
 
+     // COUNT(*) is always non-negative and well within u32 range for this domain
     let position = count as u32;
 
     conn.execute(
@@ -37,7 +52,27 @@ pub fn create_microcycle(conn: &Connection, mesocycle_id: i64) -> Result<Microcy
     Ok(Microcycle::new(id, position))
 }
 
-pub fn list_microcycles(conn: &Connection, mesocycle_id: i64) -> Result<Vec<Microcycle>, MicrocycleError> {
+pub fn get_microcycle(conn: &Connection, id: i64) -> rusqlite::Result<Option<Microcycle>> {
+    conn.query_row(
+        "SELECT id, position FROM microcycles WHERE id = ?1",
+        [id],
+        |row| {
+            let id = row.get(0)?;
+            let position: i64 = row.get(1)?;
+            Ok(Microcycle::new(id, position as u32))
+        },
+    )
+    .optional()
+}
+
+pub fn list_microcycles(
+    conn: &Connection,
+    mesocycle_id: i64,
+) -> Result<Vec<Microcycle>, MicrocycleError> {
+    if !mesocycle_exists(conn, mesocycle_id)? {
+        return Err(MicrocycleError::AssociatedMesocycleNotFound { id: mesocycle_id });
+    }
+
     let mut stmt = conn.prepare(
         "SELECT id, position FROM microcycles WHERE mesocycle_id = ?1 ORDER BY position ASC",
     )?;
@@ -46,7 +81,8 @@ pub fn list_microcycles(conn: &Connection, mesocycle_id: i64) -> Result<Vec<Micr
         let id = row.get(0)?;
         let position: i64 = row.get(1)?;
         Ok(Microcycle::new(id, position as u32))
-    })?.map(|r| r.map_err(MicrocycleError::from)) //review this solution
+    })?
+    .map(|result| result.map_err(MicrocycleError::from))
     .collect()
 }
 
@@ -57,6 +93,44 @@ mod tests {
 
     fn setup_test_db() -> Connection {
         sqlite::init_db(":memory:").expect("Failed to create test database")
+    }
+
+    #[test]
+    fn get_microcycle_returns_none_on_invalid_id() {
+        let conn = setup_test_db();
+
+        let result = get_microcycle(&conn, 1234).expect("Should return None");
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn get_microcycle_returns_correct_microcycle() {
+        let conn = setup_test_db();
+        let mesocycle_1 =
+            create_mesocycle(&conn, "small arms").expect("Should be able to create mesocycle");
+        let mesocycle_2 =
+            create_mesocycle(&conn, "BIG ARMS").expect("Should be able to create mesocycle");
+
+        let _ = create_microcycle(&conn, mesocycle_1.id())
+            .expect("Should be able to create microcycle");
+        let target = create_microcycle(&conn, mesocycle_2.id())
+            .expect("Should be able to create microcycle");
+
+        let result = get_microcycle(&conn, target.id())
+            .expect("DB query should not fail")
+            .expect("microcycle should exist");
+
+        assert_eq!(target, result);
+    }
+
+    #[test]
+    fn list_microcycles_returns_error_when_called_with_invalid_mesocycle_id() {
+        let conn = setup_test_db();
+
+        let result = list_microcycles(&conn, 1234);
+
+        assert!(result.is_err());
     }
 
     #[test]

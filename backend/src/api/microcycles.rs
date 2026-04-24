@@ -2,14 +2,9 @@ use flutter_rust_bridge::frb;
 
 use crate::{
     dto::planning::MicrocycleDTO,
+    errors::MicrocycleError,
     persistence::{microcycles as db, sqlite},
 };
-
-#[derive(Debug, thiserror::Error)]
-pub enum MicrocycleError {
-    #[error("database error: {0}")]
-    Database(#[from] rusqlite::Error),
-}
 
 #[frb(sync)]
 pub fn list_microcycles(mesocycle_id: i64) -> Result<Vec<MicrocycleDTO>, MicrocycleError> {

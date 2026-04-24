@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Mesocycle {
     id: i64,
     name: String,
@@ -23,7 +23,7 @@ impl Mesocycle {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Microcycle {
     id: i64,
     position: u32,
@@ -43,10 +43,11 @@ impl Microcycle {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Workout {
     id: i64,
     name: String,
+    position: u32,
 }
 
 impl Workout {
@@ -58,10 +59,15 @@ impl Workout {
         &self.name
     }
 
-    pub(crate) fn new(id: i64, name: impl Into<String>) -> Workout {
+    pub fn position(&self) -> u32 {
+        self.position
+    }
+
+    pub(crate) fn new(id: i64, name: impl Into<String>, position: u32) -> Workout {
         Workout {
             id,
             name: name.into(),
+            position,
         }
     }
 }
@@ -160,7 +166,7 @@ impl Weight {
         self.unit
     }
 
-    pub(crate) fn new(&self, value: f64, unit: WeightUnit) -> Weight {
+    pub(crate) fn new(value: f64, unit: WeightUnit) -> Weight {
         Weight { value, unit }
     }
 }
@@ -176,11 +182,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn new_workout_has_correct_name_and_id() {
-        let workout = Workout::new(1, "test workout");
+    fn new_workout_has_correct_name_and_id_and_position() {
+        let workout = Workout::new(1, "test workout", 0);
 
-        assert_eq!(workout.name(), "test workout");
         assert_eq!(workout.id(), 1);
+        assert_eq!(workout.name(), "test workout");
+        assert_eq!(workout.position(), 0);
     }
 
     #[test]

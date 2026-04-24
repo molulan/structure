@@ -1,14 +1,9 @@
 use crate::{
     dto::planning::MesocycleDTO,
+    errors::MesocycleError,
     persistence::{mesocycles as db, sqlite},
 };
 use flutter_rust_bridge::frb;
-
-#[derive(Debug, thiserror::Error)]
-pub enum MesocycleError {
-    #[error("database error: {0}")]
-    Database(#[from] rusqlite::Error),
-}
 
 #[frb(sync)]
 pub fn list_mesocycles() -> Result<Vec<MesocycleDTO>, MesocycleError> {

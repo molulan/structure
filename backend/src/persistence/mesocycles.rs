@@ -6,7 +6,7 @@ pub fn create_mesocycles_table(conn: &Connection) -> Result<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS mesocycles (
             id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL
+            name TEXT NOT NULL CHECK(length(name) > 0)
         )",
         (),
     )?;

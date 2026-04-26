@@ -21,3 +21,12 @@ pub fn create_mesocycle(name: String) -> Result<MesocycleDTO, MesocycleError> {
 
     Ok(MesocycleDTO::from(&mesocycle))
 }
+
+#[frb(sync)]
+pub fn get_mesocycle(id: i64) -> Result<MesocycleDTO, MesocycleError> {
+    let conn = sqlite::init_db("structure.db")?;
+
+    let mesocycle = db::get_mesocycle(&conn, id)?.ok_or(MesocycleError::NotFound { id })?;
+
+    Ok(MesocycleDTO::from(&mesocycle))
+}

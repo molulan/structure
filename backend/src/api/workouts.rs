@@ -23,3 +23,12 @@ pub fn create_workout(microcycle_id: i64, name: String) -> Result<WorkoutDTO, Wo
 
     Ok(WorkoutDTO::from(&workout))
 }
+
+#[frb(sync)]
+pub fn get_workout(id: i64) -> Result<WorkoutDTO, WorkoutError> {
+    let conn = sqlite::init_db("structure.db")?;
+
+    let workout = db::get_workout(&conn, id)?.ok_or(WorkoutError::NotFound { id })?;
+
+    Ok(WorkoutDTO::from(&workout))
+}

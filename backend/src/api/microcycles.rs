@@ -24,7 +24,7 @@ pub fn create_microcycle(mesocycle_id: i64) -> Result<MicrocycleDTO, MicrocycleE
     Ok(MicrocycleDTO::from(&microcycle))
 }
 
-#[frb{(sync)}]
+#[frb(sync)]
 pub fn get_microcycle(id: i64) -> Result<MicrocycleDTO, MicrocycleError> {
     let conn = sqlite::init_db("structure.db")?;
 

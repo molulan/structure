@@ -75,16 +75,17 @@ impl Workout {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub enum ExerciseType {
     Bodyweight,
+    WeightedBodyweight,
+    AssistedBodyweight,
     Weighted,
-    Assisted,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct Exercise {
     id: i64,
     name: String,
-    sets: Vec<Set>,
     exercise_type: ExerciseType,
+    sets: Vec<Set>,
 }
 
 impl Exercise {
@@ -104,7 +105,7 @@ impl Exercise {
         self.exercise_type
     }
 
-    pub fn bodyweight(id: i64, name: impl Into<String>) -> Exercise {
+    pub(crate) fn bodyweight(id: i64, name: impl Into<String>) -> Exercise {
         Exercise {
             id,
             name: name.into(),
@@ -113,7 +114,7 @@ impl Exercise {
         }
     }
 
-    pub fn weighted(id: i64, name: impl Into<String>) -> Exercise {
+    pub(crate) fn weighted(id: i64, name: impl Into<String>) -> Exercise {
         Exercise {
             id,
             name: name.into(),
@@ -122,33 +123,80 @@ impl Exercise {
         }
     }
 
-    pub fn assisted(id: i64, name: impl Into<String>) -> Exercise {
+    pub(crate) fn assisted_bodyweight(id: i64, name: impl Into<String>) -> Exercise {
         Exercise {
             id,
             name: name.into(),
             sets: Vec::new(),
-            exercise_type: ExerciseType::Assisted,
+            exercise_type: ExerciseType::AssistedBodyweight,
+        }
+    }
+
+    pub(crate) fn weighted_bodyweight(id: i64, name: impl Into<String>) -> Exercise {
+        Exercise {
+            id,
+            name: name.into(),
+            sets: Vec::new(),
+            exercise_type: ExerciseType::WeightedBodyweight,
         }
     }
 
     pub fn add_set(&mut self, set: Set) -> Result<(), String> {
-        match (&self.exercise_type, &set) {
-            (ExerciseType::Bodyweight, Set::Bodyweight { .. })
-            | (ExerciseType::Assisted, Set::Assisted { .. })
-            | (ExerciseType::Weighted, Set::Weighted { .. }) => {
+        match (&self.exercise_type, &set.load()) {
+            (ExerciseType::Bodyweight, Load::Bodyweight)
+            | (ExerciseType::WeightedBodyweight, Load::WeightedBodyweight { .. })
+            | (ExerciseType::AssistedBodyweight, Load::AssistedBodyweight { .. })
+            | (ExerciseType::Weighted, Load::Weighted { .. }) => {
                 self.sets.push(set);
                 Ok(())
             }
-            (exercise, set) => Err(format!("Cannot add {:?}set to {:?}exercise", set, exercise)),
+            (exercise, set) => Err(format!(
+                "Cannot add set with load {:?} to {:?} exercise type",
+                set, exercise
+            )),
         }
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub enum Set {
-    Bodyweight { reps: u32 },
-    Weighted { reps: u32, weight: Weight },
-    Assisted { reps: u32, assistance: Weight },
+    Regular {
+        load: Load,
+        reps: Option<u32>,
+        effort: Option<Effort>,
+    },
+    Myorep {
+        load: Load,
+        reps: Option<u32>,
+    },
+    MyorepMatch {
+        load: Load,
+        reps: Option<u32>,
+    },
+    Drop {
+        load: Load,
+        reps: Option<u32>,
+        effort: Option<Effort>,
+    },
+}
+
+impl Set {
+    pub fn load(&self) -> &Load {
+        match self {
+            Set::Regular { load, .. }
+            | Set::Myorep { load, .. }
+            | Set::MyorepMatch { load, .. }
+            | Set::Drop { load, .. } => load,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub enum Load {
+    Bodyweight,
+    WeightedBodyweight { added_weight: Option<Weight> },
+    AssistedBodyweight { assistance: Option<Weight> },
+    Weighted { weight: Option<Weight> },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
@@ -175,6 +223,43 @@ impl Weight {
 pub enum WeightUnit {
     Kg,
     Lbs,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub enum Effort {
+    Rir(Rir),
+    Rpe(Rpe),
+}
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct Rpe(u8);
+
+impl Rpe {
+    pub fn new(value: u8) -> Result<Rpe, String> {
+        if !(1..=11).contains(&value) {
+            return Err(String::from("rpe must be between 1 and 11"));
+        }
+        Ok(Rpe(value))
+    }
+
+    pub fn value(self) -> u8 {
+        self.0
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct Rir(i8);
+
+impl Rir {
+    pub fn new(value: i8) -> Result<Rir, String> {
+        if !(-1..=10).contains(&value) {
+            return Err(String::from("RIR must be between -1 and 10"));
+        }
+        Ok(Rir(value))
+    }
+
+    pub fn value(self) -> i8 {
+        self.0
+    }
 }
 
 #[cfg(test)]
@@ -225,11 +310,20 @@ mod tests {
     }
 
     #[test]
-    fn new_assisted_exercise_has_assisted_type_with_correct_name_and_id() {
-        let exercise = Exercise::assisted(1, "Squat");
+    fn new_assisted_bodyweight_exercise_has_assisted_bodyweight_type_with_correct_name_and_id() {
+        let exercise = Exercise::assisted_bodyweight(1, "Squat");
 
-        assert_eq!(exercise.exercise_type(), ExerciseType::Assisted);
+        assert_eq!(exercise.exercise_type(), ExerciseType::AssistedBodyweight);
         assert_eq!(exercise.name(), "Squat");
+        assert_eq!(exercise.id(), 1);
+    }
+
+    #[test]
+    fn new_weighted_bodyweight_exercise_has_weighted_bodyweight_type_with_correct_name_and_id() {
+        let exercise = Exercise::weighted_bodyweight(1, "Pull Ups");
+
+        assert_eq!(exercise.exercise_type(), ExerciseType::WeightedBodyweight);
+        assert_eq!(exercise.name(), "Pull Ups");
         assert_eq!(exercise.id(), 1);
     }
 
@@ -238,17 +332,38 @@ mod tests {
         let mut exercise = Exercise::bodyweight(1, "Bench Press");
         assert_eq!(exercise.sets().len(), 0);
 
-        exercise.add_set(Set::Bodyweight { reps: 42 }).unwrap();
+        let set = Set::Regular {
+            load: Load::Bodyweight,
+            reps: None,
+            effort: None,
+        };
+
+        exercise
+            .add_set(set)
+            .expect("adding matching set type should succeed");
 
         assert_eq!(exercise.sets().len(), 1);
-        assert_eq!(exercise.sets()[0], Set::Bodyweight { reps: 42 });
+        assert_eq!(
+            exercise.sets()[0],
+            Set::Regular {
+                load: Load::Bodyweight,
+                reps: None,
+                effort: None
+            }
+        );
     }
 
     #[test]
     fn add_set_to_exercise_with_mismatching_types_causes_error() {
         let mut exercise = Exercise::weighted(1, "Bench Press");
 
-        let result = exercise.add_set(Set::Bodyweight { reps: 42 });
+        let set = Set::Regular {
+            load: Load::Bodyweight,
+            reps: None,
+            effort: None,
+        };
+
+        let result = exercise.add_set(set);
 
         assert!(
             result.is_err(),

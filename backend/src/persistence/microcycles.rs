@@ -59,7 +59,8 @@ pub fn get_microcycle(conn: &Connection, id: i64) -> rusqlite::Result<Option<Mic
         |row| {
             let id = row.get(0)?;
             let position: i64 = row.get(1)?;
-            let position = u32::try_from(position).expect("position stored in DB was originally a u32");
+            let position =
+                u32::try_from(position).expect("position stored in DB was originally a u32");
             Ok(Microcycle::new(id, position))
         },
     )
@@ -138,9 +139,11 @@ mod tests {
     #[test]
     fn list_microcycles_returns_empty_list_for_mesocycle_with_no_microcycles() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "welcome to the gunshow").expect("mesocycle creation should succeed");
+        let mesocycle = create_mesocycle(&conn, "welcome to the gunshow")
+            .expect("mesocycle creation should succeed");
 
-        let result = list_microcycles(&conn, mesocycle.id()).expect("listing microcycles for a valid id should succeed");
+        let result = list_microcycles(&conn, mesocycle.id())
+            .expect("listing microcycles for a valid id should succeed");
 
         assert!(result.is_empty());
     }
@@ -148,9 +151,11 @@ mod tests {
     #[test]
     fn create_microcycle_generates_microcycle_with_position_0_in_empty_mesocycle() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "hypertrophy").expect("mesocycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "hypertrophy").expect("mesocycle creation should succeed");
 
-        let microcycle = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let microcycle =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
         assert_eq!(microcycle.position(), 0);
     }
@@ -158,11 +163,15 @@ mod tests {
     #[test]
     fn multiple_microcycles_in_same_mesocycle_gets_increasing_position_numbers() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "hypertrophy").expect("mesocycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "hypertrophy").expect("mesocycle creation should succeed");
 
-        let microcycle_1 = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let microcycle_2 = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let microcycle_3 = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let microcycle_1 =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let microcycle_2 =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let microcycle_3 =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
         assert_eq!(microcycle_1.position(), 0);
         assert_eq!(microcycle_2.position(), 1);
@@ -172,10 +181,13 @@ mod tests {
     #[test]
     fn multiple_microcycles_in_same_mesocycle_gets_unique_ids() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "hypertrophy").expect("mesocycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "hypertrophy").expect("mesocycle creation should succeed");
 
-        let microcycle_1 = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let microcycle_2 = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let microcycle_1 =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let microcycle_2 =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
         assert_ne!(microcycle_1.id(), microcycle_2.id());
     }
@@ -183,10 +195,13 @@ mod tests {
     #[test]
     fn created_microcycle_appear_in_list_with_correct_id_and_position() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "hypertrophy").expect("mesocycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "hypertrophy").expect("mesocycle creation should succeed");
 
-        let microcycle = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let result = list_microcycles(&conn, mesocycle.id()).expect("listing microcycles for a valid id should succeed");
+        let microcycle =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let result = list_microcycles(&conn, mesocycle.id())
+            .expect("listing microcycles for a valid id should succeed");
 
         assert_eq!(microcycle.id(), result[0].id());
         assert_eq!(microcycle.position(), result[0].position());
@@ -195,11 +210,15 @@ mod tests {
     #[test]
     fn multiple_microcycles_appear_in_list_with_correct_id_and_position() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "hypertrophy").expect("mesocycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "hypertrophy").expect("mesocycle creation should succeed");
 
-        let microcycle_1 = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let microcycle_2 = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let result = list_microcycles(&conn, mesocycle.id()).expect("listing microcycles for a valid id should succeed");
+        let microcycle_1 =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let microcycle_2 =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let result = list_microcycles(&conn, mesocycle.id())
+            .expect("listing microcycles for a valid id should succeed");
 
         assert_eq!(microcycle_1.id(), result[0].id());
         assert_eq!(microcycle_1.position(), result[0].position());
@@ -211,17 +230,23 @@ mod tests {
     fn microcycles_are_scoped_to_their_parent_mesocycle() {
         let conn = setup_test_db();
 
-        let mesocycle_1 = create_mesocycle(&conn, "hypertrophy").expect("mesocycle creation should succeed");
-        let microcycle_1 = create_microcycle(&conn, mesocycle_1.id()).expect("microcycle creation should succeed");
+        let mesocycle_1 =
+            create_mesocycle(&conn, "hypertrophy").expect("mesocycle creation should succeed");
+        let microcycle_1 =
+            create_microcycle(&conn, mesocycle_1.id()).expect("microcycle creation should succeed");
 
-        let mesocycle_2 = create_mesocycle(&conn, "strength").expect("mesocycle creation should succeed");
-        let microcycle_2 = create_microcycle(&conn, mesocycle_2.id()).expect("microcycle creation should succeed");
+        let mesocycle_2 =
+            create_mesocycle(&conn, "strength").expect("mesocycle creation should succeed");
+        let microcycle_2 =
+            create_microcycle(&conn, mesocycle_2.id()).expect("microcycle creation should succeed");
 
-        let result_1 = list_microcycles(&conn, mesocycle_1.id()).expect("listing microcycles for a valid id should succeed");
+        let result_1 = list_microcycles(&conn, mesocycle_1.id())
+            .expect("listing microcycles for a valid id should succeed");
         assert_eq!(result_1.len(), 1);
         assert_eq!(result_1[0].id(), microcycle_1.id());
 
-        let result_2 = list_microcycles(&conn, mesocycle_2.id()).expect("listing microcycles for a valid id should succeed");
+        let result_2 = list_microcycles(&conn, mesocycle_2.id())
+            .expect("listing microcycles for a valid id should succeed");
         assert_eq!(result_2.len(), 1);
         assert_eq!(result_2[0].id(), microcycle_2.id());
     }

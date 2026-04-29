@@ -67,7 +67,8 @@ mod tests {
     fn get_mesocycle_returns_correct_mesocycle() {
         let conn = setup_test_db();
         let _ = create_mesocycle(&conn, "small arms").expect("mesocycle creation should succeed");
-        let target = create_mesocycle(&conn, "BIG ARMS").expect("mesocycle creation should succeed");
+        let target =
+            create_mesocycle(&conn, "BIG ARMS").expect("mesocycle creation should succeed");
 
         let result = get_mesocycle(&conn, target.id())
             .expect("DB query should not fail")
@@ -79,7 +80,8 @@ mod tests {
     #[test]
     fn list_mesocycles_returns_empty_list_on_fresh_db() {
         let conn = setup_test_db();
-        let result = list_mesocycles(&conn).expect("listing mesoocycles for a valid id should succeed");
+        let result =
+            list_mesocycles(&conn).expect("listing mesoocycles for a valid id should succeed");
         assert!(result.is_empty())
     }
 
@@ -97,9 +99,11 @@ mod tests {
     fn created_mesocycle_appears_in_list_with_correct_id_and_name() {
         let conn = setup_test_db();
 
-        let mesocycle = create_mesocycle(&conn, "hypertrophy 1").expect("mesocycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "hypertrophy 1").expect("mesocycle creation should succeed");
 
-        let result = list_mesocycles(&conn).expect("listing mesocycles for a valid id should succeed");
+        let result =
+            list_mesocycles(&conn).expect("listing mesocycles for a valid id should succeed");
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id(), mesocycle.id());
@@ -110,11 +114,14 @@ mod tests {
     fn multiple_mesocycles_get_unique_ids_and_appear_in_list() {
         let conn = setup_test_db();
 
-        let mesocycle_1 = create_mesocycle(&conn, "Big Arms").expect("mesocycle creation should succeed");
-        let mesocycle_2 = create_mesocycle(&conn, "Bigger Arms!").expect("mesocycle creation should succeed");
+        let mesocycle_1 =
+            create_mesocycle(&conn, "Big Arms").expect("mesocycle creation should succeed");
+        let mesocycle_2 =
+            create_mesocycle(&conn, "Bigger Arms!").expect("mesocycle creation should succeed");
         assert_ne!(mesocycle_1.id(), mesocycle_2.id());
 
-        let mesocycles = list_mesocycles(&conn).expect("listing mesocycles for a valid id should succeed");
+        let mesocycles =
+            list_mesocycles(&conn).expect("listing mesocycles for a valid id should succeed");
         assert_eq!(mesocycles.len(), 2);
         assert_eq!(mesocycles[0].id(), mesocycle_1.id());
         assert_eq!(mesocycles[0].name(), mesocycle_1.name());

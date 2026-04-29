@@ -40,7 +40,8 @@ pub fn create_workout(
         |row| row.get(0),
     )?;
 
-    let position = u32::try_from(count).expect("COUNT(*) is always non-negative and no microcycle will have 4 billion workouts");
+    let position = u32::try_from(count)
+        .expect("COUNT(*) is always non-negative and no microcycle will have 4 billion workouts");
 
     conn.execute(
         "INSERT INTO workouts (microcycle_id, name, position) VALUES (?1, ?2, ?3)",
@@ -60,7 +61,8 @@ pub fn get_workout(conn: &Connection, id: i64) -> rusqlite::Result<Option<Workou
             let id = row.get(0)?;
             let name: String = row.get(1)?;
             let position: i64 = row.get(2)?;
-            let position = u32::try_from(position).expect("position stored in DB was originally a u32");
+            let position =
+                u32::try_from(position).expect("position stored in DB was originally a u32");
             Ok(Workout::new(id, name, position))
         },
     )
@@ -135,10 +137,13 @@ mod tests {
     #[test]
     fn list_workouts_returns_empty_list_for_microcycle_with_no_workouts() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
-        let microcycle = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
+        let microcycle =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
-        let result = list_workouts(&conn, microcycle.id()).expect("listing workouts for a valid id should succeed");
+        let result = list_workouts(&conn, microcycle.id())
+            .expect("listing workouts for a valid id should succeed");
 
         assert!(result.is_empty());
     }
@@ -155,10 +160,13 @@ mod tests {
     #[test]
     fn create_workout_generates_workout_with_position_0_in_empty_microcycle() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
-        let microcycle = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
+        let microcycle =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
-        let workout = create_workout(&conn, microcycle.id(), "CHEST").expect("workout creation should succeed");
+        let workout = create_workout(&conn, microcycle.id(), "CHEST")
+            .expect("workout creation should succeed");
 
         assert_eq!(workout.position(), 0);
     }
@@ -166,12 +174,17 @@ mod tests {
     #[test]
     fn multiple_workouts_in_same_microcycle_get_increasing_position_numbers() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
-        let microcycle = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
+        let microcycle =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
-        let workout_1 = create_workout(&conn, microcycle.id(), "CHEST").expect("workout creation should succeed");
-        let workout_2 = create_workout(&conn, microcycle.id(), "CHEST again").expect("workout creation should succeed");
-        let workout_3 = create_workout(&conn, microcycle.id(), "CHEST forever").expect("workout creation should succeed");
+        let workout_1 = create_workout(&conn, microcycle.id(), "CHEST")
+            .expect("workout creation should succeed");
+        let workout_2 = create_workout(&conn, microcycle.id(), "CHEST again")
+            .expect("workout creation should succeed");
+        let workout_3 = create_workout(&conn, microcycle.id(), "CHEST forever")
+            .expect("workout creation should succeed");
 
         assert_eq!(workout_1.position(), 0);
         assert_eq!(workout_2.position(), 1);
@@ -181,11 +194,15 @@ mod tests {
     #[test]
     fn multiple_workouts_in_same_microcycle_get_unique_ids() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
-        let microcycle = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
+        let microcycle =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
-        let workout_1 = create_workout(&conn, microcycle.id(), "CHEST").expect("workout creation should succeed");
-        let workout_2 = create_workout(&conn, microcycle.id(), "CHEST again").expect("workout creation should succeed");
+        let workout_1 = create_workout(&conn, microcycle.id(), "CHEST")
+            .expect("workout creation should succeed");
+        let workout_2 = create_workout(&conn, microcycle.id(), "CHEST again")
+            .expect("workout creation should succeed");
 
         assert_ne!(workout_1.id(), workout_2.id());
     }
@@ -193,11 +210,15 @@ mod tests {
     #[test]
     fn created_workout_appears_in_list_with_correct_id_name_and_position() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
-        let microcycle = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
+        let microcycle =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
-        let workout = create_workout(&conn, microcycle.id(), "CHEST").expect("workout creation should succeed");
-        let result = list_workouts(&conn, microcycle.id()).expect("listing workouts for a valid id should succeed");
+        let workout = create_workout(&conn, microcycle.id(), "CHEST")
+            .expect("workout creation should succeed");
+        let result = list_workouts(&conn, microcycle.id())
+            .expect("listing workouts for a valid id should succeed");
 
         assert_eq!(result[0].id(), workout.id());
         assert_eq!(result[0].name(), workout.name());
@@ -207,12 +228,17 @@ mod tests {
     #[test]
     fn multiple_workouts_appear_in_list_with_correct_id_name_and_position() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
-        let microcycle = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
+        let microcycle =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
-        let workout_1 = create_workout(&conn, microcycle.id(), "CHEST").expect("workout creation should succeed");
-        let workout_2 = create_workout(&conn, microcycle.id(), "CHEST again").expect("workout creation should succeed");
-        let result = list_workouts(&conn, microcycle.id()).expect("listing workouts for a valid id should succeed");
+        let workout_1 = create_workout(&conn, microcycle.id(), "CHEST")
+            .expect("workout creation should succeed");
+        let workout_2 = create_workout(&conn, microcycle.id(), "CHEST again")
+            .expect("workout creation should succeed");
+        let result = list_workouts(&conn, microcycle.id())
+            .expect("listing workouts for a valid id should succeed");
 
         assert_eq!(result[0].id(), workout_1.id());
         assert_eq!(result[0].name(), workout_1.name());
@@ -226,19 +252,26 @@ mod tests {
     #[test]
     fn workouts_are_scoped_to_their_parent_microcycle() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
 
-        let microcycle_1 = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let workout_1 = create_workout(&conn, microcycle_1.id(), "CHEST").expect("workout creation should succeed");
+        let microcycle_1 =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let workout_1 = create_workout(&conn, microcycle_1.id(), "CHEST")
+            .expect("workout creation should succeed");
 
-        let microcycle_2 = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let workout_2 = create_workout(&conn, microcycle_2.id(), "CHEST again").expect("workout creation should succeed");
+        let microcycle_2 =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let workout_2 = create_workout(&conn, microcycle_2.id(), "CHEST again")
+            .expect("workout creation should succeed");
 
-        let result_1 = list_workouts(&conn, microcycle_1.id()).expect("listing workouts for a valid id should succeed");
+        let result_1 = list_workouts(&conn, microcycle_1.id())
+            .expect("listing workouts for a valid id should succeed");
         assert_eq!(result_1.len(), 1);
         assert_eq!(result_1[0], workout_1);
 
-        let result_2 = list_workouts(&conn, microcycle_2.id()).expect("listing workouts for a valid id should succeed");
+        let result_2 = list_workouts(&conn, microcycle_2.id())
+            .expect("listing workouts for a valid id should succeed");
         assert_eq!(result_2.len(), 1);
         assert_eq!(result_2[0], workout_2);
     }
@@ -246,8 +279,10 @@ mod tests {
     #[test]
     fn creating_workout_with_empty_name_returns_error() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
-        let microcycle = create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "Pecosaurus Rex").expect("mesocycle creation should succeed");
+        let microcycle =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
         let result = create_workout(&conn, microcycle.id(), "");
 

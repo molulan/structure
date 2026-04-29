@@ -43,6 +43,7 @@ impl From<&Microcycle> for MicrocycleDTO {
 pub struct WorkoutDTO {
     pub(crate) id: i64,
     pub(crate) name: String,
+    pub(crate) position: u32,
 }
 
 impl From<&Workout> for WorkoutDTO {
@@ -50,6 +51,7 @@ impl From<&Workout> for WorkoutDTO {
         WorkoutDTO {
             id: value.id(),
             name: value.name().to_owned(),
+            position: value.position(),
         }
     }
 }
@@ -80,6 +82,7 @@ pub struct ExerciseDTO {
     pub(crate) id: i64,
     pub(crate) name: String,
     pub(crate) exercise_type: ExerciseTypeDTO,
+    pub(crate) position: u32,
     pub(crate) sets: Vec<SetDTO>,
 }
 
@@ -89,6 +92,7 @@ impl From<&Exercise> for ExerciseDTO {
             id: value.id(),
             name: value.name().to_owned(),
             exercise_type: ExerciseTypeDTO::from(value.exercise_type()),
+            position: value.position(),
             sets: value.sets().iter().copied().map(SetDTO::from).collect(),
         }
     }

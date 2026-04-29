@@ -85,6 +85,7 @@ pub struct Exercise {
     id: i64,
     name: String,
     exercise_type: ExerciseType,
+    position: u32,
     sets: Vec<Set>,
 }
 
@@ -105,39 +106,47 @@ impl Exercise {
         self.exercise_type
     }
 
-    pub(crate) fn bodyweight(id: i64, name: impl Into<String>) -> Exercise {
+    pub fn position(&self) -> u32 {
+        self.position
+    }
+
+    pub(crate) fn bodyweight(id: i64, name: impl Into<String>, position: u32) -> Exercise {
         Exercise {
             id,
             name: name.into(),
             sets: Vec::new(),
             exercise_type: ExerciseType::Bodyweight,
+            position,
         }
     }
 
-    pub(crate) fn weighted(id: i64, name: impl Into<String>) -> Exercise {
+    pub(crate) fn weighted(id: i64, name: impl Into<String>, position: u32) -> Exercise {
         Exercise {
             id,
             name: name.into(),
             sets: Vec::new(),
             exercise_type: ExerciseType::Weighted,
+            position,
         }
     }
 
-    pub(crate) fn assisted_bodyweight(id: i64, name: impl Into<String>) -> Exercise {
+    pub(crate) fn assisted_bodyweight(id: i64, name: impl Into<String>, position: u32) -> Exercise {
         Exercise {
             id,
             name: name.into(),
             sets: Vec::new(),
             exercise_type: ExerciseType::AssistedBodyweight,
+            position,
         }
     }
 
-    pub(crate) fn weighted_bodyweight(id: i64, name: impl Into<String>) -> Exercise {
+    pub(crate) fn weighted_bodyweight(id: i64, name: impl Into<String>, position: u32) -> Exercise {
         Exercise {
             id,
             name: name.into(),
             sets: Vec::new(),
             exercise_type: ExerciseType::WeightedBodyweight,
+            position,
         }
     }
 
@@ -292,44 +301,49 @@ mod tests {
     }
 
     #[test]
-    fn new_bodyweight_exercise_has_bodyweight_type_with_correct_name_and_id() {
-        let exercise = Exercise::bodyweight(1, "Squat");
+    fn new_bodyweight_exercise_has_bodyweight_type_with_correct_name_and_id_and_position() {
+        let exercise = Exercise::bodyweight(1, "Squat", 1);
 
         assert_eq!(exercise.exercise_type(), ExerciseType::Bodyweight);
         assert_eq!(exercise.name(), "Squat");
         assert_eq!(exercise.id(), 1);
+        assert_eq!(exercise.position(), 1);
     }
 
     #[test]
-    fn new_weighted_exercise_has_weighted_type_with_correct_name_and_id() {
-        let exercise = Exercise::weighted(1, "Squat");
+    fn new_weighted_exercise_has_weighted_type_with_correct_name_and_id_and_position() {
+        let exercise = Exercise::weighted(1, "Squat", 2);
 
         assert_eq!(exercise.exercise_type(), ExerciseType::Weighted);
         assert_eq!(exercise.name(), "Squat");
         assert_eq!(exercise.id(), 1);
+        assert_eq!(exercise.position(), 2);
     }
 
     #[test]
-    fn new_assisted_bodyweight_exercise_has_assisted_bodyweight_type_with_correct_name_and_id() {
-        let exercise = Exercise::assisted_bodyweight(1, "Squat");
+    fn new_assisted_bodyweight_exercise_has_assisted_bodyweight_type_with_correct_name_and_id_and_position()
+     {
+        let exercise = Exercise::assisted_bodyweight(3, "Squat", 5);
 
         assert_eq!(exercise.exercise_type(), ExerciseType::AssistedBodyweight);
         assert_eq!(exercise.name(), "Squat");
-        assert_eq!(exercise.id(), 1);
+        assert_eq!(exercise.id(), 3);
+        assert_eq!(exercise.position(), 5);
     }
 
     #[test]
     fn new_weighted_bodyweight_exercise_has_weighted_bodyweight_type_with_correct_name_and_id() {
-        let exercise = Exercise::weighted_bodyweight(1, "Pull Ups");
+        let exercise = Exercise::weighted_bodyweight(15, "Pull Ups", 9);
 
         assert_eq!(exercise.exercise_type(), ExerciseType::WeightedBodyweight);
         assert_eq!(exercise.name(), "Pull Ups");
-        assert_eq!(exercise.id(), 1);
+        assert_eq!(exercise.id(), 15);
+        assert_eq!(exercise.position(), 9);
     }
 
     #[test]
     fn add_set_to_exercise_with_matching_types_works() {
-        let mut exercise = Exercise::bodyweight(1, "Bench Press");
+        let mut exercise = Exercise::bodyweight(1, "Bench Press", 1);
         assert_eq!(exercise.sets().len(), 0);
 
         let set = Set::Regular {
@@ -355,7 +369,7 @@ mod tests {
 
     #[test]
     fn add_set_to_exercise_with_mismatching_types_causes_error() {
-        let mut exercise = Exercise::weighted(1, "Bench Press");
+        let mut exercise = Exercise::weighted(1, "Bench Press", 1);
 
         let set = Set::Regular {
             load: Load::Bodyweight,

@@ -76,7 +76,18 @@ impl From<ExerciseType> for ExerciseTypeDTO {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+impl From<ExerciseTypeDTO> for ExerciseType {
+    fn from(dto: ExerciseTypeDTO) -> Self {
+        match dto {
+            ExerciseTypeDTO::Bodyweight => Self::Bodyweight,
+            ExerciseTypeDTO::WeightedBodyweight => Self::WeightedBodyweight,
+            ExerciseTypeDTO::AssistedBodyweight => Self::AssistedBodyweight,
+            ExerciseTypeDTO::Weighted => Self::Weighted,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[frb]
 pub struct PlannedExerciseDTO {
     pub(crate) id: i64,
@@ -99,9 +110,9 @@ impl From<&PlannedExercise> for PlannedExerciseDTO {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[frb]
 pub struct ExerciseDTO {
-    id: i64,
-    name: String,
-    exercise_type: ExerciseTypeDTO,
+    pub(crate) id: i64,
+    pub(crate) name: String,
+    pub(crate) exercise_type: ExerciseTypeDTO,
 }
 
 impl From<&Exercise> for ExerciseDTO {
@@ -237,7 +248,7 @@ impl From<Effort> for EffortDTO {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[frb]
-pub struct RpeDTO(u8);
+pub struct RpeDTO(pub(crate) u8);
 
 impl From<Rpe> for RpeDTO {
     fn from(value: Rpe) -> Self {
@@ -247,7 +258,7 @@ impl From<Rpe> for RpeDTO {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[frb]
-pub struct RirDTO(i8);
+pub struct RirDTO(pub(crate) i8);
 
 impl From<Rir> for RirDTO {
     fn from(value: Rir) -> Self {

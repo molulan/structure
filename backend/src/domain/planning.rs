@@ -91,8 +91,8 @@ impl PlannedExercise {
         self.exercise.name()
     }
 
-    pub fn exercise_type(&self) -> ExerciseType {
-        self.exercise.exercise_type
+    pub fn exercise(&self) -> &Exercise {
+        &self.exercise
     }
 
     pub fn position(&self) -> u32 {
@@ -113,7 +113,7 @@ impl PlannedExercise {
     }
 
     pub fn add_set(&mut self, set: Set) -> Result<(), String> {
-        match (&self.exercise_type(), &set.load()) {
+        match (&self.exercise.exercise_type, &set.load()) {
             (ExerciseType::Bodyweight, Load::Bodyweight)
             | (ExerciseType::WeightedBodyweight, Load::WeightedBodyweight { .. })
             | (ExerciseType::AssistedBodyweight, Load::AssistedBodyweight { .. })
@@ -316,7 +316,7 @@ mod tests {
         let exercise = Exercise::new(2, "Squat", ExerciseType::Bodyweight);
         let planned_exercise = PlannedExercise::new(1, exercise, 1);
 
-        assert_eq!(planned_exercise.exercise_type(), ExerciseType::Bodyweight);
+        assert_eq!(planned_exercise.exercise().exercise_type(), ExerciseType::Bodyweight);
         assert_eq!(planned_exercise.name(), "Squat");
         assert_eq!(planned_exercise.id(), 1);
         assert_eq!(planned_exercise.position(), 1);
@@ -327,7 +327,7 @@ mod tests {
         let exercise = Exercise::new(2, "Squat", ExerciseType::Weighted);
         let planned_exercise = PlannedExercise::new(1, exercise, 2);
 
-        assert_eq!(planned_exercise.exercise_type(), ExerciseType::Weighted);
+        assert_eq!(planned_exercise.exercise().exercise_type(), ExerciseType::Weighted);
         assert_eq!(planned_exercise.name(), "Squat");
         assert_eq!(planned_exercise.id(), 1);
         assert_eq!(planned_exercise.position(), 2);
@@ -340,7 +340,7 @@ mod tests {
         let planned_exercise = PlannedExercise::new(3, exercise, 5);
 
         assert_eq!(
-            planned_exercise.exercise_type(),
+            planned_exercise.exercise().exercise_type(),
             ExerciseType::AssistedBodyweight
         );
         assert_eq!(planned_exercise.name(), "Squat");
@@ -354,7 +354,7 @@ mod tests {
         let planned_exercise = PlannedExercise::new(15, exercise, 9);
 
         assert_eq!(
-            planned_exercise.exercise_type(),
+            planned_exercise.exercise().exercise_type(),
             ExerciseType::WeightedBodyweight
         );
         assert_eq!(planned_exercise.name(), "Pull Ups");

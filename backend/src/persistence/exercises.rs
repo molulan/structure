@@ -433,7 +433,7 @@ mod tests {
         
         assert_eq!(result.id(), target.id());
         assert_eq!(result.name(), target.name());
-        assert_eq!(result.exercise_type(), target.exercise_type());
+        assert_eq!(result.exercise().exercise_type(), target.exercise().exercise_type());
         assert_eq!(result.position(), target.position());
     }
 

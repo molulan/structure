@@ -9,7 +9,7 @@ Strength training app for building long-term training plans and tracking workout
 _Linux only for now._
 
 ```sh
-./run_linux.sh
+./scripts/run_linux.sh
 ```
 
 Builds the Rust backend and launches the Flutter app on Linux.
@@ -19,7 +19,7 @@ Builds the Rust backend and launches the Flutter app on Linux.
 ### Rust
 
 ```sh
-cd application_core && cargo test
+cd backend && cargo test
 ```
 
 ### Flutter

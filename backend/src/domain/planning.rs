@@ -316,7 +316,10 @@ mod tests {
         let exercise = Exercise::new(2, "Squat", ExerciseType::Bodyweight);
         let planned_exercise = PlannedExercise::new(1, exercise, 1);
 
-        assert_eq!(planned_exercise.exercise().exercise_type(), ExerciseType::Bodyweight);
+        assert_eq!(
+            planned_exercise.exercise().exercise_type(),
+            ExerciseType::Bodyweight
+        );
         assert_eq!(planned_exercise.name(), "Squat");
         assert_eq!(planned_exercise.id(), 1);
         assert_eq!(planned_exercise.position(), 1);
@@ -327,7 +330,10 @@ mod tests {
         let exercise = Exercise::new(2, "Squat", ExerciseType::Weighted);
         let planned_exercise = PlannedExercise::new(1, exercise, 2);
 
-        assert_eq!(planned_exercise.exercise().exercise_type(), ExerciseType::Weighted);
+        assert_eq!(
+            planned_exercise.exercise().exercise_type(),
+            ExerciseType::Weighted
+        );
         assert_eq!(planned_exercise.name(), "Squat");
         assert_eq!(planned_exercise.id(), 1);
         assert_eq!(planned_exercise.position(), 2);

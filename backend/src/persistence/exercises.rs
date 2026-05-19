@@ -99,14 +99,10 @@ pub fn get_exercise(conn: &Connection, id: i64) -> rusqlite::Result<Option<Exerc
 }
 
 pub fn list_exercises(conn: &Connection) -> Result<Vec<Exercise>, ExerciseError> {
-    let mut stmt = conn.prepare(
-        "SELECT id, name, exercise_type FROM exercises ORDER BY name ASC",
-    )?;
+    let mut stmt =
+        conn.prepare("SELECT id, name, exercise_type FROM exercises ORDER BY name ASC")?;
 
-    let rows = stmt.query_map(
-        [],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-    )?;
+    let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
 
     let mut exercises = Vec::new();
     for row in rows {
@@ -135,40 +131,46 @@ pub fn create_planned_exercise(
                 [workout_id],
                 |row| row.get(0),
             )?;
-        
-            let position = u32::try_from(count)
-                .expect("COUNT(*) is always non-negative and no workout will have 4 billion exercises");
-            
+
+            let position = u32::try_from(count).expect(
+                "COUNT(*) is always non-negative and no workout will have 4 billion exercises",
+            );
+
             conn.execute(
                 "INSERT INTO planned_exercises (workout_id, exercise_id, position) VALUES (?1, ?2, ?3)",
                 params![workout_id, exercise_id, position],
             )?;
-        
+
             let id = conn.last_insert_rowid();
-        
+
             Ok(PlannedExercise::new(id, exercise, position))
         }
     }
 }
 
-pub fn get_planned_exercise(conn: &Connection, id: i64) -> rusqlite::Result<Option<PlannedExercise>> {
-    let row = conn.query_row(
-        "SELECT id, exercise_id, position FROM planned_exercises WHERE id = ?1",
-        [id],
-        |row| {
-            let id: i64 = row.get(0)?;
-            let exercise_id: i64 = row.get(1)?;
-            let position: i64 = row.get(2)?;
-            Ok((id, exercise_id, position))
-        }
-    ).optional()?;
+pub fn get_planned_exercise(
+    conn: &Connection,
+    id: i64,
+) -> rusqlite::Result<Option<PlannedExercise>> {
+    let row = conn
+        .query_row(
+            "SELECT id, exercise_id, position FROM planned_exercises WHERE id = ?1",
+            [id],
+            |row| {
+                let id: i64 = row.get(0)?;
+                let exercise_id: i64 = row.get(1)?;
+                let position: i64 = row.get(2)?;
+                Ok((id, exercise_id, position))
+            },
+        )
+        .optional()?;
 
     match row {
         None => Ok(None),
         Some((id, exercise_id, position)) => {
-            let position = u32::try_from(position)
-                .expect("position stored in DB was originally a u32");
-            
+            let position =
+                u32::try_from(position).expect("position stored in DB was originally a u32");
+
             let exercise = get_exercise(conn, exercise_id)?
                 .expect("exercise FK in planned_exercises points to nonexistent exercise");
 
@@ -177,7 +179,10 @@ pub fn get_planned_exercise(conn: &Connection, id: i64) -> rusqlite::Result<Opti
     }
 }
 
-pub fn list_planned_exercises(conn: &Connection, workout_id: i64) -> Result<Vec<PlannedExercise>, PlannedExerciseError> {
+pub fn list_planned_exercises(
+    conn: &Connection,
+    workout_id: i64,
+) -> Result<Vec<PlannedExercise>, PlannedExerciseError> {
     if !workout_exists(conn, workout_id)? {
         return Err(PlannedExerciseError::AssociatedWorkoutNotFound { id: workout_id });
     }
@@ -186,23 +191,22 @@ pub fn list_planned_exercises(conn: &Connection, workout_id: i64) -> Result<Vec<
         "SELECT id, exercise_id, position FROM planned_exercises WHERE workout_id = ?1 ORDER BY position ASC",
     )?;
 
-    let rows = stmt.query_map(
-        [workout_id],
-        |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?))
-    )?;
-    
+    let rows = stmt.query_map([workout_id], |row| {
+        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+    })?;
+
     let mut planned_exercises = Vec::new();
 
     for row in rows {
-        let (id, exercise_id, position): (i64, i64, i64) = row?; 
-        let position = u32::try_from(position)
-            .expect("position stored in DB was originally a u32");
-        let exercise = get_exercise(conn, exercise_id)?
-            .expect("exercise FK in planned_exercises points to nonexistent exercise — data corrupted");
+        let (id, exercise_id, position): (i64, i64, i64) = row?;
+        let position = u32::try_from(position).expect("position stored in DB was originally a u32");
+        let exercise = get_exercise(conn, exercise_id)?.expect(
+            "exercise FK in planned_exercises points to nonexistent exercise — data corrupted",
+        );
         planned_exercises.push(PlannedExercise::new(id, exercise, position));
     }
 
-    Ok(planned_exercises)    
+    Ok(planned_exercises)
 }
 
 #[cfg(test)]
@@ -215,11 +219,11 @@ mod tests {
             workouts::create_workout,
         },
     };
-    
+
     fn setup_test_db() -> Connection {
         sqlite::init_db(":memory:").expect("Failed to create test database")
     }
-    
+
     fn create_test_workout(conn: &Connection) -> Workout {
         let mesocycle =
             create_mesocycle(conn, "Test Mesocycle").expect("mesocycle creation should succeed");
@@ -228,7 +232,7 @@ mod tests {
         create_workout(conn, microcycle.id(), "Test Workout")
             .expect("workout creation should succeed")
     }
-    
+
     fn create_test_exercise(conn: &Connection) -> Exercise {
         create_exercise(conn, "Bench Press", ExerciseType::Weighted)
             .expect("exercise creation should succeed")
@@ -239,7 +243,7 @@ mod tests {
         let conn = setup_test_db();
         let exercise = create_exercise(&conn, "Squat", ExerciseType::Bodyweight)
             .expect("exercise creation should succeed");
-        
+
         assert_eq!(exercise.name(), "Squat");
         assert_eq!(exercise.exercise_type(), ExerciseType::Bodyweight);
     }
@@ -254,9 +258,9 @@ mod tests {
         let conn = setup_test_db();
         create_exercise(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("first exercise creation should succeed");
-        
+
         let result = create_exercise(&conn, "Bench Press", ExerciseType::Weighted);
-        
+
         assert!(matches!(result, Err(ExerciseError::DuplicateName { .. })));
     }
     #[test]
@@ -266,7 +270,7 @@ mod tests {
             .expect("first exercise creation should succeed");
         let exercise_2 = create_exercise(&conn, "Deadlift", ExerciseType::Weighted)
             .expect("second exercise creation should succeed");
-        
+
         assert_ne!(exercise_1.id(), exercise_2.id());
     }
     #[test]
@@ -274,16 +278,24 @@ mod tests {
         let conn = setup_test_db();
         let bodyweight = create_exercise(&conn, "Push Up", ExerciseType::Bodyweight)
             .expect("bodyweight exercise creation should succeed");
-        let weighted_bodyweight = create_exercise(&conn, "Pull Up", ExerciseType::WeightedBodyweight)
-            .expect("weighted bodyweight exercise creation should succeed");
-        let assisted_bodyweight = create_exercise(&conn, "Assisted Pull Up", ExerciseType::AssistedBodyweight)
-            .expect("assisted bodyweight exercise creation should succeed");
+        let weighted_bodyweight =
+            create_exercise(&conn, "Pull Up", ExerciseType::WeightedBodyweight)
+                .expect("weighted bodyweight exercise creation should succeed");
+        let assisted_bodyweight =
+            create_exercise(&conn, "Assisted Pull Up", ExerciseType::AssistedBodyweight)
+                .expect("assisted bodyweight exercise creation should succeed");
         let weighted = create_exercise(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("weighted exercise creation should succeed");
-        
+
         assert_eq!(bodyweight.exercise_type(), ExerciseType::Bodyweight);
-        assert_eq!(weighted_bodyweight.exercise_type(), ExerciseType::WeightedBodyweight);
-        assert_eq!(assisted_bodyweight.exercise_type(), ExerciseType::AssistedBodyweight);
+        assert_eq!(
+            weighted_bodyweight.exercise_type(),
+            ExerciseType::WeightedBodyweight
+        );
+        assert_eq!(
+            assisted_bodyweight.exercise_type(),
+            ExerciseType::AssistedBodyweight
+        );
         assert_eq!(weighted.exercise_type(), ExerciseType::Weighted);
     }
 
@@ -300,11 +312,11 @@ mod tests {
             .expect("first exercise creation should succeed");
         let target = create_exercise(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("second exercise creation should succeed");
-        
+
         let result = get_exercise(&conn, target.id())
             .expect("DB query should not fail")
             .expect("exercise should exist");
-        
+
         assert_eq!(result.id(), target.id());
         assert_eq!(result.name(), target.name());
         assert_eq!(result.exercise_type(), target.exercise_type());
@@ -323,9 +335,9 @@ mod tests {
             .expect("first exercise creation should succeed");
         let exercise_2 = create_exercise(&conn, "Deadlift", ExerciseType::Weighted)
             .expect("second exercise creation should succeed");
-        
+
         let result = list_exercises(&conn).expect("listing exercises should succeed");
-        
+
         assert_eq!(result.len(), 2);
         assert!(result.iter().any(|e| e.id() == exercise_1.id()));
         assert!(result.iter().any(|e| e.id() == exercise_2.id()));
@@ -339,9 +351,9 @@ mod tests {
             .expect("exercise creation should succeed");
         create_exercise(&conn, "Deadlift", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
-        
+
         let result = list_exercises(&conn).expect("listing exercises should succeed");
-        
+
         assert_eq!(result[0].name(), "Bench Press");
         assert_eq!(result[1].name(), "Deadlift");
         assert_eq!(result[2].name(), "Squat");
@@ -352,14 +364,20 @@ mod tests {
         let conn = setup_test_db();
         let exercise = create_test_exercise(&conn);
         let result = create_planned_exercise(&conn, 9999, exercise.id());
-        assert!(matches!(result, Err(PlannedExerciseError::AssociatedWorkoutNotFound { .. })));
+        assert!(matches!(
+            result,
+            Err(PlannedExerciseError::AssociatedWorkoutNotFound { .. })
+        ));
     }
     #[test]
     fn create_planned_exercise_for_nonexistent_exercise_returns_error() {
         let conn = setup_test_db();
         let workout = create_test_workout(&conn);
         let result = create_planned_exercise(&conn, workout.id(), 9999);
-        assert!(matches!(result, Err(PlannedExerciseError::AssociatedExerciseNotFound { .. })));
+        assert!(matches!(
+            result,
+            Err(PlannedExerciseError::AssociatedExerciseNotFound { .. })
+        ));
     }
     #[test]
     fn first_planned_exercise_in_workout_gets_position_0() {
@@ -368,7 +386,7 @@ mod tests {
         let exercise = create_test_exercise(&conn);
         let planned = create_planned_exercise(&conn, workout.id(), exercise.id())
             .expect("planned exercise creation should succeed");
-        
+
         assert_eq!(planned.position(), 0);
     }
     #[test]
@@ -387,7 +405,7 @@ mod tests {
             .expect("second planned exercise creation should succeed");
         let planned_3 = create_planned_exercise(&conn, workout.id(), exercise_3.id())
             .expect("third planned exercise creation should succeed");
-        
+
         assert_eq!(planned_1.position(), 0);
         assert_eq!(planned_2.position(), 1);
         assert_eq!(planned_3.position(), 2);
@@ -404,7 +422,7 @@ mod tests {
             .expect("first planned exercise creation should succeed");
         let planned_2 = create_planned_exercise(&conn, workout.id(), exercise_2.id())
             .expect("second planned exercise creation should succeed");
-        
+
         assert_ne!(planned_1.id(), planned_2.id());
     }
 
@@ -426,14 +444,17 @@ mod tests {
             .expect("first planned exercise creation should succeed");
         let target = create_planned_exercise(&conn, workout.id(), exercise_2.id())
             .expect("second planned exercise creation should succeed");
-        
+
         let result = get_planned_exercise(&conn, target.id())
             .expect("DB query should not fail")
             .expect("planned exercise should exist");
-        
+
         assert_eq!(result.id(), target.id());
         assert_eq!(result.name(), target.name());
-        assert_eq!(result.exercise().exercise_type(), target.exercise().exercise_type());
+        assert_eq!(
+            result.exercise().exercise_type(),
+            target.exercise().exercise_type()
+        );
         assert_eq!(result.position(), target.position());
     }
 
@@ -441,45 +462,55 @@ mod tests {
     fn list_planned_exercises_returns_empty_list_for_workout_with_no_planned_exercises() {
         let conn = setup_test_db();
         let workout = create_test_workout(&conn);
-        
+
         let result = list_planned_exercises(&conn, workout.id())
             .expect("listing planned exercises for a existing workout id should succeed");
-        
+
         assert!(result.is_empty());
     }
     #[test]
     fn list_planned_exercises_returns_error_when_workout_does_not_exist() {
         let conn = setup_test_db();
         let result = list_planned_exercises(&conn, 9999);
-        assert!(matches!(result, Err(PlannedExerciseError::AssociatedWorkoutNotFound { .. })));
+        assert!(matches!(
+            result,
+            Err(PlannedExerciseError::AssociatedWorkoutNotFound { .. })
+        ));
     }
     #[test]
     fn list_planned_exercises_returns_all_planned_exercises_for_a_specific_workout() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "Arms, Arms, Arms")
-            .expect("mesocycle creation should succeed");
-        let microcycle = create_microcycle(&conn, mesocycle.id())
-            .expect("microcycle creation should succeed");
+        let mesocycle =
+            create_mesocycle(&conn, "Arms, Arms, Arms").expect("mesocycle creation should succeed");
+        let microcycle =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
         let target_workout = create_workout(&conn, microcycle.id(), "Arms & Arms")
             .expect("workout creation should succeed");
         let workout_2 = create_workout(&conn, microcycle.id(), "legs..")
             .expect("workout creation should succeed");
-        let exercise_1 = create_exercise(&conn, "Arnolds Favorite Armblaster", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
-        let exercise_2 = create_exercise(&conn, "Arnolds Second Favorite Armblaster", ExerciseType::Bodyweight)
-            .expect("exercise creation should succeed");
+        let exercise_1 =
+            create_exercise(&conn, "Arnolds Favorite Armblaster", ExerciseType::Weighted)
+                .expect("exercise creation should succeed");
+        let exercise_2 = create_exercise(
+            &conn,
+            "Arnolds Second Favorite Armblaster",
+            ExerciseType::Bodyweight,
+        )
+        .expect("exercise creation should succeed");
         let exercise_3 = create_exercise(&conn, "squat", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
-        let planned_exercise_1 = create_planned_exercise(&conn, target_workout.id(), exercise_1.id())
-            .expect("planned_exercise creation should succeed");
-        let planned_exercise_2 = create_planned_exercise(&conn, target_workout.id(), exercise_2.id())
-            .expect("planned_exercise creation should succeed");
+        let planned_exercise_1 =
+            create_planned_exercise(&conn, target_workout.id(), exercise_1.id())
+                .expect("planned_exercise creation should succeed");
+        let planned_exercise_2 =
+            create_planned_exercise(&conn, target_workout.id(), exercise_2.id())
+                .expect("planned_exercise creation should succeed");
         let _ = create_planned_exercise(&conn, workout_2.id(), exercise_3.id())
             .expect("planned_exercise creation should succeed");
-        
+
         let result = list_planned_exercises(&conn, target_workout.id())
             .expect("listing planned exercises should succeed");
-        
+
         assert_eq!(2, result.len());
         assert_eq!(planned_exercise_1, result[0]);
         assert_eq!(planned_exercise_2, result[1]);

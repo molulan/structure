@@ -2,7 +2,8 @@ use flutter_rust_bridge::frb;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::planning::{
-    Effort, Exercise, ExerciseType, Load, Mesocycle, Microcycle, PlannedExercise, Rir, Rpe, Set, Weight, WeightUnit, Workout
+    Effort, Exercise, ExerciseType, Load, Mesocycle, Microcycle, PlannedExercise, Rir, Rpe, Set,
+    Weight, WeightUnit, Workout,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -54,7 +55,6 @@ impl From<&Workout> for WorkoutDTO {
         }
     }
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[frb]
@@ -117,10 +117,11 @@ pub struct ExerciseDTO {
 
 impl From<&Exercise> for ExerciseDTO {
     fn from(value: &Exercise) -> Self {
-        ExerciseDTO { 
+        ExerciseDTO {
             id: value.id(),
-            name: value.name().to_owned(), 
-            exercise_type: ExerciseTypeDTO::from(value.exercise_type()) }
+            name: value.name().to_owned(),
+            exercise_type: ExerciseTypeDTO::from(value.exercise_type()),
+        }
     }
 }
 

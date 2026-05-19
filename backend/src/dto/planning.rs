@@ -2,8 +2,7 @@ use flutter_rust_bridge::frb;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::planning::{
-    Effort, Exercise, ExerciseType, Load, Mesocycle, Microcycle, PlannedExercise, Rir, Rpe, Set,
-    Weight, WeightUnit, Workout,
+    Effort, Exercise, ExerciseType, Load, Mesocycle, MesocycleMode, Microcycle, PlannedExercise, Rir, Rpe, Set, Weight, WeightUnit, Workout
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -11,6 +10,7 @@ use crate::domain::planning::{
 pub struct MesocycleDTO {
     pub(crate) id: i64,
     pub(crate) name: String,
+    pub(crate) mode: MesocycleModeDTO,
 }
 
 impl From<&Mesocycle> for MesocycleDTO {
@@ -18,6 +18,32 @@ impl From<&Mesocycle> for MesocycleDTO {
         MesocycleDTO {
             id: value.id(),
             name: value.name().to_owned(),
+            mode: MesocycleModeDTO::from(value.mode()),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[frb]
+pub enum MesocycleModeDTO {
+    Algorithmic,
+    Manual,
+}
+
+impl From<MesocycleMode> for MesocycleModeDTO {
+    fn from(value: MesocycleMode) -> Self {
+        match value {
+            MesocycleMode::Algorithmic => Self::Algorithmic,
+            MesocycleMode::Manual => Self::Manual,
+        }
+    }
+}
+
+impl From<MesocycleModeDTO> for MesocycleMode {
+    fn from(value: MesocycleModeDTO) -> Self {
+        match value {
+            MesocycleModeDTO::Algorithmic => Self::Algorithmic,
+            MesocycleModeDTO::Manual => Self::Manual,
         }
     }
 }

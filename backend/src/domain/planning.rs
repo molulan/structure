@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub struct Mesocycle {
     id: i64,
     name: String,
+    mode: MesocycleMode,
 }
 
 impl Mesocycle {
@@ -17,11 +18,32 @@ impl Mesocycle {
         &self.name
     }
 
-    pub(crate) fn new(id: i64, name: impl Into<String>) -> Mesocycle {
+    pub fn mode(&self) -> MesocycleMode {
+        self.mode
+    }
+
+    pub(crate) fn new(id: i64, name: impl Into<String>, mode: MesocycleMode) -> Mesocycle {
         Mesocycle {
             id,
             name: name.into(),
+            mode,
         }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub enum MesocycleMode {
+    Algorithmic,
+    Manual,
+}
+
+impl Display for MesocycleMode {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::Algorithmic => "Algorithmic",
+            Self::Manual => "Manual",
+        };
+        f.write_str(s)
     }
 }
 
@@ -304,11 +326,12 @@ mod tests {
     }
 
     #[test]
-    fn new_mesocycle_has_correct_name_and_id() {
-        let mesocycle = Mesocycle::new(1, "test mesocycle");
+    fn new_mesocycle_has_correct_name_id_and_mode() {
+        let mesocycle = Mesocycle::new(1, "test mesocycle", MesocycleMode::Algorithmic);
 
         assert_eq!(mesocycle.name(), "test mesocycle");
-        assert_eq!(mesocycle.id(), 1)
+        assert_eq!(mesocycle.id(), 1);
+        assert_eq!(mesocycle.mode(), MesocycleMode::Algorithmic);
     }
 
     #[test]

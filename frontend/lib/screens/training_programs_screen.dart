@@ -4,7 +4,8 @@ import 'package:structure/providers/selected_training_program_provider.dart';
 import 'package:structure/providers/training_program_list_provider.dart';
 import 'package:structure/screens/widgets/create_training_program_dialog.dart';
 import 'package:structure/src/bridge/dto/planning.dart';
-import 'package:structure/src/bridge/api/mesocycles.dart' as bridge;
+import 'package:structure/src/bridge/api/mesocycles.dart' as bridgeMeso;
+import 'package:structure/src/bridge/api/microcycles.dart' as bridgeMicro;
 
 class TrainingProgramsScreen extends ConsumerStatefulWidget {
   const TrainingProgramsScreen({super.key});
@@ -17,24 +18,50 @@ class TrainingProgramsScreen extends ConsumerStatefulWidget {
 class _TrainingProgramsScreenState
     extends ConsumerState<TrainingProgramsScreen> {
   void _createTrainingProgram() async {
-    final name = await showDialog(
+    final result = await showDialog<ProgramCreationResult>(
       context: context,
       builder: (context) => const CreateTrainingProgramDialog(),
     );
 
-    if (name != null && name.isNotEmpty) {
-      //bridge calls should have errorhandling in case rust returns some error
-      try {
-        bridge.createMesocycle(name: name);
-        ref.invalidate(trainingProgramListProvider);
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to create program: $e')),
-          );
-        }
+    if (result == null) return;
+
+    MesocycleDTO? mesocycle;
+    //bridge calls should have errorhandling in case rust returns some error
+    try {
+      mesocycle = bridgeMeso.createMesocycle(
+        name: result.name,
+        mode: result.mode,
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Failed to create program: $e')));
       }
-      
+      return;
+    }
+    try {
+      for (var i = 0; i < result.durationWeeks; i++) {
+        bridgeMicro.createMicrocycle(mesocycleId: mesocycle.id);
+      }
+    } catch (e) {
+      ref.invalidate(trainingProgramListProvider);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Program partially created (weeks incomplete): $e'),
+          ),
+        );
+      }
+      return;
+    }
+    ref.invalidate(trainingProgramListProvider);
+
+    if (mounted) {
+      //TODO: navigate to builder screen
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Program created!')));
     }
   }
 
@@ -113,7 +140,7 @@ class _TrainingProgramDetail extends ConsumerWidget {
       );
     }
 
-    final effectiveIndex = (selectedIndex ?? 0).clamp(0, programs.length -1 );
+    final effectiveIndex = (selectedIndex ?? 0).clamp(0, programs.length - 1);
     final program = programs[effectiveIndex];
     return Padding(
       padding: const EdgeInsets.all(24),

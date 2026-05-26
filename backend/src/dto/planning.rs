@@ -2,7 +2,7 @@ use flutter_rust_bridge::frb;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::planning::{
-    Effort, Exercise, ExerciseType, Load, Mesocycle, MesocycleMode, Microcycle, PlannedExercise, Rir, Rpe, Set, Weight, WeightUnit, Workout
+    Effort, Exercise, ExerciseType, Load, MesocycleMode, Microcycle, PlannedExercise, Rir, Rpe, Set, Weight, WeightUnit, Workout
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -11,17 +11,9 @@ pub struct MesocycleDTO {
     pub(crate) id: i64,
     pub(crate) name: String,
     pub(crate) mode: MesocycleModeDTO,
+    pub(crate) microcycle_count: u32,
 }
 
-impl From<&Mesocycle> for MesocycleDTO {
-    fn from(value: &Mesocycle) -> Self {
-        MesocycleDTO {
-            id: value.id(),
-            name: value.name().to_owned(),
-            mode: MesocycleModeDTO::from(value.mode()),
-        }
-    }
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[frb]

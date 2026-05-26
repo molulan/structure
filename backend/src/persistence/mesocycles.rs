@@ -2,6 +2,13 @@ use rusqlite::{Connection, OptionalExtension, Result, params};
 
 use crate::domain::planning::{Mesocycle, MesocycleMode};
 
+pub(crate) struct MesocycleRow {
+    pub(crate) id: i64,
+    pub(crate) name: String,
+    pub(crate) mode: MesocycleMode,
+    pub(crate) microcycle_count: u32,
+}
+
 pub(super) fn create_mesocycles_table(conn: &Connection) -> Result<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS mesocycles (
@@ -27,30 +34,46 @@ pub fn create_mesocycle(conn: &Connection, name: &str, mode: MesocycleMode) -> R
     Ok(Mesocycle::new(id, name, mode))
 }
 
-pub fn get_mesocycle(conn: &Connection, id: i64) -> Result<Option<Mesocycle>> {
+pub fn get_mesocycle(conn: &Connection, id: i64) -> Result<Option<MesocycleRow>> {
     conn.query_row(
-        "SELECT id, name, mode FROM mesocycles WHERE id = ?1",
+        "SELECT meso.id, meso.name, meso.mode, COUNT(micro.id) as microcycle_count
+        FROM mesocycles meso
+        LEFT JOIN microcycles micro ON micro.mesocycle_id = meso.id
+        WHERE meso.id = ?1
+        GROUP BY meso.id",
         [id],
         |row| {
             let id = row.get(0)?;
             let name: String = row.get(1)?;
             let mode: String = row.get(2)?;
             let mode = mesocycle_mode_from_str(&mode);
-            Ok(Mesocycle::new(id, name, mode))
+            let count: i64 = row.get(3)?;
+            let microcycle_count = u32::try_from(count)
+                .expect("COUNT(*) is always non-negative and no program will have 4 billion microcycles");
+            Ok(MesocycleRow { id, name, mode, microcycle_count })
         },
     )
     .optional()
 }
 
-pub fn list_mesocycles(conn: &Connection) -> Result<Vec<Mesocycle>> {
-    let mut stmt = conn.prepare("SELECT id, name, mode FROM mesocycles ORDER BY id ASC")?;
+pub fn list_mesocycles(conn: &Connection) -> Result<Vec<MesocycleRow>> {
+    let mut stmt = conn.prepare(
+        "SELECT meso.id, meso.name, meso.mode, COUNT(micro.id) as microcycle_count
+         FROM mesocycles meso
+         LEFT JOIN microcycles micro ON micro.mesocycle_id = meso.id
+         GROUP BY meso.id
+         ORDER BY meso.id ASC",
+    )?;
 
     stmt.query_map([], |row| {
         let id = row.get(0)?;
         let name: String = row.get(1)?;
         let mode: String = row.get(2)?;
         let mode = mesocycle_mode_from_str(&mode);
-        Ok(Mesocycle::new(id, name, mode))
+        let count: i64 = row.get(3)?;
+        let microcycle_count = u32::try_from(count)
+            .expect("COUNT(*) is always non-negative and no program will have 4 billion microcycles");
+        Ok(MesocycleRow { id, name, mode, microcycle_count })
     })?
     .collect()
 }
@@ -94,7 +117,10 @@ mod tests {
             .expect("DB query should not fail")
             .expect("mesocycle should exist");
 
-        assert_eq!(target, result)
+        assert_eq!(target.id(), result.id);
+        assert_eq!(target.name(), result.name);
+        assert_eq!(target.mode(), result.mode);
+        assert_eq!(result.microcycle_count, 0);
     }
 
     #[test]
@@ -128,9 +154,10 @@ mod tests {
             list_mesocycles(&conn).expect("listing mesocycles for a valid id should succeed");
 
         assert_eq!(result.len(), 1);
-        assert_eq!(result[0].id(), mesocycle.id());
-        assert_eq!(result[0].name(), mesocycle.name());
-        assert_eq!(result[0].mode(), mesocycle.mode());
+        assert_eq!(result[0].id, mesocycle.id());
+        assert_eq!(result[0].name, mesocycle.name());
+        assert_eq!(result[0].mode, mesocycle.mode());
+        assert_eq!(result[0].microcycle_count, 0);
     }
 
     #[test]
@@ -147,9 +174,40 @@ mod tests {
         let mesocycles =
             list_mesocycles(&conn).expect("listing mesocycles for a valid id should succeed");
         assert_eq!(mesocycles.len(), 2);
-        assert_eq!(mesocycles[0].id(), mesocycle_1.id());
-        assert_eq!(mesocycles[0].name(), mesocycle_1.name());
-        assert_eq!(mesocycles[1].id(), mesocycle_2.id());
-        assert_eq!(mesocycles[1].name(), mesocycle_2.name());
+        assert_eq!(mesocycles[0].id, mesocycle_1.id());
+        assert_eq!(mesocycles[0].name, mesocycle_1.name());
+        assert_eq!(mesocycles[1].id, mesocycle_2.id());
+        assert_eq!(mesocycles[1].name, mesocycle_2.name());
+    }
+
+    #[test]
+    fn list_mesocycles_includes_correct_microcycle_count() {
+        let conn = setup_test_db();
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+        crate::persistence::microcycles::create_microcycle(&conn, mesocycle.id())
+            .expect("microcycle creation should succeed");
+        crate::persistence::microcycles::create_microcycle(&conn, mesocycle.id())
+            .expect("microcycle creation should succeed");
+    
+        let result = list_mesocycles(&conn).expect("listing should succeed");
+    
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0].microcycle_count, 2);
+    }
+
+    #[test]
+    fn get_mesocycle_includes_correct_microcycle_count() {
+        let conn = setup_test_db();
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+        crate::persistence::microcycles::create_microcycle(&conn, mesocycle.id())
+            .expect("microcycle creation should succeed");
+    
+        let result = get_mesocycle(&conn, mesocycle.id())
+            .expect("query should succeed")
+            .expect("mesocycle should exist");
+    
+        assert_eq!(result.microcycle_count, 1);
     }
 }

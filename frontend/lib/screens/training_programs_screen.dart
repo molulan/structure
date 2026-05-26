@@ -4,8 +4,8 @@ import 'package:structure/providers/selected_training_program_provider.dart';
 import 'package:structure/providers/training_program_list_provider.dart';
 import 'package:structure/screens/widgets/create_training_program_dialog.dart';
 import 'package:structure/src/bridge/dto/planning.dart';
-import 'package:structure/src/bridge/api/mesocycles.dart' as bridgeMeso;
-import 'package:structure/src/bridge/api/microcycles.dart' as bridgeMicro;
+import 'package:structure/src/bridge/api/mesocycles.dart' as bridge_meso;
+import 'package:structure/src/bridge/api/microcycles.dart' as bridge_micro;
 
 class TrainingProgramsScreen extends ConsumerStatefulWidget {
   const TrainingProgramsScreen({super.key});
@@ -28,7 +28,7 @@ class _TrainingProgramsScreenState
     MesocycleDTO? mesocycle;
     //bridge calls should have errorhandling in case rust returns some error
     try {
-      mesocycle = bridgeMeso.createMesocycle(
+      mesocycle = bridge_meso.createMesocycle(
         name: result.name,
         mode: result.mode,
       );
@@ -42,7 +42,7 @@ class _TrainingProgramsScreenState
     }
     try {
       for (var i = 0; i < result.durationWeeks; i++) {
-        bridgeMicro.createMicrocycle(mesocycleId: mesocycle.id);
+        bridge_micro.createMicrocycle(mesocycleId: mesocycle.id);
       }
     } catch (e) {
       ref.invalidate(trainingProgramListProvider);
@@ -108,21 +108,101 @@ class _TrainingProgramList extends ConsumerWidget {
     return ListView.separated(
       padding: const EdgeInsets.all(8),
       itemCount: programs.length,
-      separatorBuilder: (_, _) => const Divider(),
+      separatorBuilder: (_, _) => const SizedBox(height: 6),
       itemBuilder: (_, index) {
         final isSelected = (selectedIndex ?? 0) == index;
-        return Card(
-          elevation: isSelected ? 4 : 0,
-          child: ListTile(
-            title: Text(programs[index].name),
+        final colorScheme = Theme.of(context).colorScheme;
+        return Ink(
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.secondaryContainer
+                : colorScheme.surfaceContainerLow,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.outlineVariant,
+              width: 1,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: isSelected ? 0.12 : 0.06),
+                blurRadius: isSelected ? 4 : 2,
+                offset: Offset(0, isSelected ? 2 : 1),
+              ),
+            ],
+          ),
+          child: InkWell(
             onTap: () => ref
                 .read(selectedTrainingProgramProvider.notifier)
                 .select(index),
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    programs[index].name,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    spacing: 6,
+                    children: [
+                      _ModeBadge(mode: programs[index].mode),
+                      _WeekCountBadge(count: programs[index].microcycleCount),
+                    ],
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },
     );
   }
+}
+
+class _ModeBadge extends StatelessWidget {
+  final MesocycleModeDTO mode;
+  const _ModeBadge({required this.mode});
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final label = switch (mode) {
+      MesocycleModeDTO.algorithmic => 'Algorithmic',
+      MesocycleModeDTO.manual => 'Manual',
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(label, style: Theme.of(context).textTheme.labelSmall),
+    );
+  }
+}
+
+class _WeekCountBadge extends StatelessWidget {
+  final int count;
+  const _WeekCountBadge({required this.count});
+
+  @override
+    Widget build(BuildContext context) {
+      final colorScheme = Theme.of(context).colorScheme;
+      final label = '$count ${count == 1 ? 'week' : 'weeks'}';
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        decoration: BoxDecoration(
+          color: colorScheme.primaryContainer,
+          borderRadius: BorderRadius.circular(4),
+        ),
+        child: Text(label, style: Theme.of(context).textTheme.labelSmall),
+      );
+    }
 }
 
 class _TrainingProgramDetail extends ConsumerWidget {

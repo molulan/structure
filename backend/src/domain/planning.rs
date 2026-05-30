@@ -135,7 +135,7 @@ impl PlannedExercise {
     }
 
     pub fn add_set(&mut self, set: Set) -> Result<(), String> {
-        match (&self.exercise.exercise_type, &set.load()) {
+        match (&self.exercise.exercise_type, set.load()) {
             (ExerciseType::Bodyweight, Load::Bodyweight)
             | (ExerciseType::WeightedBodyweight, Load::WeightedBodyweight { .. })
             | (ExerciseType::AssistedBodyweight, Load::AssistedBodyweight { .. })
@@ -201,36 +201,58 @@ impl Display for ExerciseType {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
-pub enum Set {
-    Regular {
-        load: Load,
-        reps: Option<u32>,
-        effort: Option<Effort>,
-    },
-    Myorep {
-        load: Load,
-        reps: Option<u32>,
-    },
-    MyorepMatch {
-        load: Load,
-        reps: Option<u32>,
-    },
-    Drop {
-        load: Load,
-        reps: Option<u32>,
-        effort: Option<Effort>,
-    },
+pub struct Set {
+    id: i64,
+    position: u32,
+    load: Load,
+    reps: Option<u32>,
+    set_type: SetType,
 }
 
 impl Set {
-    pub fn load(&self) -> &Load {
-        match self {
-            Set::Regular { load, .. }
-            | Set::Myorep { load, .. }
-            | Set::MyorepMatch { load, .. }
-            | Set::Drop { load, .. } => load,
+    pub(crate) fn new(
+        id: i64,
+        position: u32,
+        load: Load,
+        reps: Option<u32>,
+        set_type: SetType,
+    ) -> Self {
+        Self {
+            id,
+            position,
+            load,
+            reps,
+            set_type,
         }
     }
+
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    pub fn position(&self) -> u32 {
+        self.position
+    }
+
+    pub fn load(&self) -> Load {
+        self.load
+    }
+
+    pub fn reps(&self) -> Option<u32> {
+        self.reps
+    }
+
+    pub fn set_type(&self) -> SetType {
+        self.set_type
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub enum SetType {
+    Regular { effort: Option<Effort> },
+    Myorep,
+    MyorepMatch,
+    Drop { effort: Option<Effort> },
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
@@ -397,25 +419,20 @@ mod tests {
         let mut planned_exercise = PlannedExercise::new(1, exercise, 1);
         assert_eq!(planned_exercise.sets().len(), 0);
 
-        let set = Set::Regular {
-            load: Load::Bodyweight,
-            reps: None,
-            effort: None,
-        };
+        let set = Set::new(
+            1,
+            1,
+            Load::Bodyweight,
+            None,
+            SetType::Regular { effort: None },
+        );
 
         planned_exercise
             .add_set(set)
             .expect("adding matching set type should succeed");
 
         assert_eq!(planned_exercise.sets().len(), 1);
-        assert_eq!(
-            planned_exercise.sets()[0],
-            Set::Regular {
-                load: Load::Bodyweight,
-                reps: None,
-                effort: None
-            }
-        );
+        assert_eq!(planned_exercise.sets()[0], set);
     }
 
     #[test]
@@ -423,11 +440,13 @@ mod tests {
         let exercise = Exercise::new(2, "Bench Press", ExerciseType::Weighted);
         let mut planned_exercise = PlannedExercise::new(1, exercise, 1);
 
-        let set = Set::Regular {
-            load: Load::Bodyweight,
-            reps: None,
-            effort: None,
-        };
+        let set = Set::new(
+            1,
+            1,
+            Load::Bodyweight,
+            None,
+            SetType::Regular { effort: None },
+        );
 
         let result = planned_exercise.add_set(set);
 

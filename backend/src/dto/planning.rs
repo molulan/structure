@@ -2,7 +2,8 @@ use flutter_rust_bridge::frb;
 use serde::{Deserialize, Serialize};
 
 use crate::domain::planning::{
-    Effort, Exercise, ExerciseType, Load, MesocycleMode, Microcycle, PlannedExercise, Rir, Rpe, Set, Weight, WeightUnit, Workout
+    Effort, Exercise, ExerciseType, Load, MesocycleMode, Microcycle, PlannedExercise, Rir, Rpe,
+    Set, SetType, Weight, WeightUnit, Workout,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -13,7 +14,6 @@ pub struct MesocycleDTO {
     pub(crate) mode: MesocycleModeDTO,
     pub(crate) microcycle_count: u32,
 }
-
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[frb]
@@ -145,48 +145,42 @@ impl From<&Exercise> for ExerciseDTO {
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[frb]
-pub enum SetDTO {
-    Regular {
-        load: LoadDTO,
-        reps: Option<u32>,
-        effort: Option<EffortDTO>,
-    },
-    Myorep {
-        load: LoadDTO,
-        reps: Option<u32>,
-    },
-    MyorepMatch {
-        load: LoadDTO,
-        reps: Option<u32>,
-    },
-    Drop {
-        load: LoadDTO,
-        reps: Option<u32>,
-        effort: Option<EffortDTO>,
-    },
+pub struct SetDTO {
+    pub(crate) id: i64,
+    pub(crate) position: u32,
+    pub(crate) load: LoadDTO,
+    pub(crate) reps: Option<u32>,
+    pub(crate) set_type: SetTypeDTO,
 }
 
 impl From<Set> for SetDTO {
     fn from(value: Set) -> Self {
+        SetDTO { 
+            id: value.id(),
+            position: value.position(),
+            load: LoadDTO::from(value.load()), 
+            reps: value.reps(),
+            set_type: SetTypeDTO::from(value.set_type()) 
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[frb]
+pub enum SetTypeDTO {
+    Regular { effort: Option<EffortDTO> },
+    Myorep,
+    MyorepMatch,
+    Drop { effort: Option<EffortDTO> },
+}
+
+impl From<SetType> for SetTypeDTO {
+    fn from(value: SetType) -> Self {
         match value {
-            Set::Regular { load, reps, effort } => SetDTO::Regular {
-                load: LoadDTO::from(load),
-                reps,
-                effort: effort.map(EffortDTO::from),
-            },
-            Set::Drop { load, reps, effort } => SetDTO::Drop {
-                load: LoadDTO::from(load),
-                reps,
-                effort: effort.map(EffortDTO::from),
-            },
-            Set::MyorepMatch { load, reps } => SetDTO::MyorepMatch {
-                load: LoadDTO::from(load),
-                reps,
-            },
-            Set::Myorep { load, reps } => SetDTO::Myorep {
-                load: LoadDTO::from(load),
-                reps,
-            },
+            SetType::Regular { effort } => Self::Regular { effort: effort.map(EffortDTO::from) },
+            SetType::Myorep => Self::Myorep,
+            SetType::MyorepMatch => Self::MyorepMatch,
+            SetType::Drop { effort } => Self::Drop { effort: effort.map(EffortDTO::from) },
         }
     }
 }

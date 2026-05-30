@@ -1,3 +1,4 @@
+pub mod sets;
 pub mod exercises;
 pub mod mesocycles;
 pub mod microcycles;

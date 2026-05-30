@@ -47,3 +47,13 @@ pub enum ExerciseError {
     #[error("exercise {id} not found")]
     NotFound { id: i64 },
 }
+
+#[derive(Debug, thiserror::Error)]
+pub enum PlannedSetError {
+    #[error("database error: {0}")]
+    Database(#[from] rusqlite::Error),
+    #[error("associated planned exercise {id} not found")]
+    AssociatedPlannedExerciseNotFound { id: i64 },
+    #[error("planned set {id} not found")]
+    NotFound { id: i64 },
+}

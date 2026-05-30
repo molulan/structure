@@ -1,6 +1,6 @@
 use crate::{
     domain::planning::{Effort, Load, Rir, Rpe, Set, SetType, Weight, WeightUnit},
-    errors::PlannedSetError,
+    errors::SetError,
 };
 use rusqlite::{Connection, params};
 
@@ -84,9 +84,9 @@ pub fn create_planned_set(
     load: Load,
     reps: Option<u32>,
     set_type: SetType,
-) -> Result<Set, PlannedSetError> {
+) -> Result<Set, SetError> {
     if !planned_exercise_exists(conn, planned_exercise_id)? {
-        return Err(PlannedSetError::AssociatedPlannedExerciseNotFound {
+        return Err(SetError::AssociatedPlannedExerciseNotFound {
             id: planned_exercise_id,
         });
     }
@@ -214,9 +214,9 @@ fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<Set> {
 pub fn list_planned_sets(
     conn: &Connection,
     planned_exercise_id: i64,
-) -> Result<Vec<Set>, PlannedSetError> {
+) -> Result<Vec<Set>, SetError> {
     if !planned_exercise_exists(conn, planned_exercise_id)? {
-        return Err(PlannedSetError::AssociatedPlannedExerciseNotFound {
+        return Err(SetError::AssociatedPlannedExerciseNotFound {
             id: planned_exercise_id,
         });
     }

@@ -49,7 +49,7 @@ pub enum ExerciseError {
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum PlannedSetError {
+pub enum SetError {
     #[error("database error: {0}")]
     Database(#[from] rusqlite::Error),
     #[error("associated planned exercise {id} not found")]

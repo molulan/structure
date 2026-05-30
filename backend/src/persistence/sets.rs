@@ -2,7 +2,7 @@ use crate::{
     domain::planning::{Effort, Load, Rir, Rpe, Set, SetType, Weight, WeightUnit},
     errors::PlannedSetError,
 };
-use rusqlite::{Connection, OptionalExtension, params};
+use rusqlite::{Connection, params};
 
 pub(super) fn create_planned_sets_table(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute(

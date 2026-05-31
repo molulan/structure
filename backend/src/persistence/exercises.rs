@@ -1,8 +1,8 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::{
-    domain::planning::{Exercise, ExerciseType, PlannedExercise, Set},
-    errors::{ExerciseError, PlannedExerciseError, SetError},
+    domain::planning::{Exercise, ExerciseType, PlannedExercise},
+    errors::{ExerciseError, PlannedExerciseError},
 };
 
 pub(super) fn create_exercises_table(conn: &Connection) -> rusqlite::Result<()> {
@@ -217,7 +217,7 @@ pub fn list_planned_exercises(
 mod tests {
     use super::*;
     use crate::{
-        domain::planning::{Workout, MesocycleMode},
+        domain::planning::{MesocycleMode, Workout},
         persistence::{
             mesocycles::create_mesocycle, microcycles::create_microcycle, sqlite,
             workouts::create_workout,
@@ -229,10 +229,9 @@ mod tests {
     }
 
     fn create_test_workout(conn: &Connection) -> Workout {
-        let mesocycle =
-            create_mesocycle(conn, "Test Mesocycle", MesocycleMode::Algorithmic)
-                .expect("mesocycle creation should succeed");
-        
+        let mesocycle = create_mesocycle(conn, "Test Mesocycle", MesocycleMode::Algorithmic)
+            .expect("mesocycle creation should succeed");
+
         let microcycle =
             create_microcycle(conn, mesocycle.id()).expect("microcycle creation should succeed");
         create_workout(conn, microcycle.id(), "Test Workout")
@@ -486,42 +485,41 @@ mod tests {
     #[test]
     fn list_planned_exercises_returns_all_planned_exercises_for_a_specific_workout() {
         let conn = setup_test_db();
-        
-        let mesocycle =
-            create_mesocycle(&conn, "Arms, Arms, Arms", MesocycleMode::Algorithmic)
-                .expect("mesocycle creation should succeed");
-        
+
+        let mesocycle = create_mesocycle(&conn, "Arms, Arms, Arms", MesocycleMode::Algorithmic)
+            .expect("mesocycle creation should succeed");
+
         let microcycle =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        
+
         let target_workout = create_workout(&conn, microcycle.id(), "Arms & Arms")
             .expect("workout creation should succeed");
-        
+
         let workout_2 = create_workout(&conn, microcycle.id(), "legs..")
             .expect("workout creation should succeed");
-        
+
         let exercise_1 =
             create_exercise(&conn, "Arnolds Favorite Armblaster", ExerciseType::Weighted)
                 .expect("exercise creation should succeed");
-        
+
         let exercise_2 = create_exercise(
             &conn,
             "Arnolds Second Favorite Armblaster",
             ExerciseType::Bodyweight,
         )
         .expect("exercise creation should succeed");
-        
+
         let exercise_3 = create_exercise(&conn, "squat", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
-        
+
         let planned_exercise_1 =
             create_planned_exercise(&conn, target_workout.id(), exercise_1.id())
                 .expect("planned_exercise creation should succeed");
-        
+
         let planned_exercise_2 =
             create_planned_exercise(&conn, target_workout.id(), exercise_2.id())
                 .expect("planned_exercise creation should succeed");
-        
+
         let _ = create_planned_exercise(&conn, workout_2.id(), exercise_3.id())
             .expect("planned_exercise creation should succeed");
 

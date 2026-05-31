@@ -155,12 +155,12 @@ pub struct SetDTO {
 
 impl From<Set> for SetDTO {
     fn from(value: Set) -> Self {
-        SetDTO { 
+        SetDTO {
             id: value.id(),
             position: value.position(),
-            load: LoadDTO::from(value.load()), 
+            load: LoadDTO::from(value.load()),
             reps: value.reps(),
-            set_type: SetTypeDTO::from(value.set_type()) 
+            set_type: SetTypeDTO::from(value.set_type()),
         }
     }
 }
@@ -177,10 +177,14 @@ pub enum SetTypeDTO {
 impl From<SetType> for SetTypeDTO {
     fn from(value: SetType) -> Self {
         match value {
-            SetType::Regular { effort } => Self::Regular { effort: effort.map(EffortDTO::from) },
+            SetType::Regular { effort } => Self::Regular {
+                effort: effort.map(EffortDTO::from),
+            },
             SetType::Myorep => Self::Myorep,
             SetType::MyorepMatch => Self::MyorepMatch,
-            SetType::Drop { effort } => Self::Drop { effort: effort.map(EffortDTO::from) },
+            SetType::Drop { effort } => Self::Drop {
+                effort: effort.map(EffortDTO::from),
+            },
         }
     }
 }

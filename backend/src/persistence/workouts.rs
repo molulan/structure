@@ -1,6 +1,6 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::{domain::planning::{Workout, MesocycleMode}, errors::WorkoutError};
+use crate::{domain::planning::Workout, errors::WorkoutError};
 
 pub(super) fn create_workouts_table(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute(
@@ -92,8 +92,9 @@ pub fn list_workouts(conn: &Connection, microcycle_id: i64) -> Result<Vec<Workou
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::persistence::{
-        mesocycles::create_mesocycle, microcycles::create_microcycle, sqlite,
+    use crate::{
+        domain::planning::MesocycleMode,
+        persistence::{mesocycles::create_mesocycle, microcycles::create_microcycle, sqlite},
     };
 
     fn setup_test_db() -> Connection {
@@ -113,9 +114,9 @@ mod tests {
     fn get_workout_returns_correct_workout() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Manual;
-        
-        let mesocycle_1 =
-            create_mesocycle(&conn, "small arms", mode).expect("Should be able to create mesoocycle");
+
+        let mesocycle_1 = create_mesocycle(&conn, "small arms", mode)
+            .expect("Should be able to create mesoocycle");
         let mesocycle_2 =
             create_mesocycle(&conn, "BIG ARMS", mode).expect("Should be able to create mesoocycle");
 
@@ -140,9 +141,9 @@ mod tests {
     fn list_workouts_returns_empty_list_for_microcycle_with_no_workouts() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Manual;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "Pecosaurus Rex", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex", mode)
+            .expect("mesocycle creation should succeed");
         let microcycle =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
@@ -165,9 +166,9 @@ mod tests {
     fn create_workout_generates_workout_with_position_0_in_empty_microcycle() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Manual;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "Pecosaurus Rex", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex", mode)
+            .expect("mesocycle creation should succeed");
         let microcycle =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
@@ -181,9 +182,9 @@ mod tests {
     fn multiple_workouts_in_same_microcycle_get_increasing_position_numbers() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Algorithmic;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "Pecosaurus Rex", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex", mode)
+            .expect("mesocycle creation should succeed");
         let microcycle =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
@@ -203,9 +204,9 @@ mod tests {
     fn multiple_workouts_in_same_microcycle_get_unique_ids() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Algorithmic;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "Pecosaurus Rex", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex", mode)
+            .expect("mesocycle creation should succeed");
         let microcycle =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
@@ -221,9 +222,9 @@ mod tests {
     fn created_workout_appears_in_list_with_correct_id_name_and_position() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Algorithmic;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "Pecosaurus Rex", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex", mode)
+            .expect("mesocycle creation should succeed");
         let microcycle =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
@@ -241,9 +242,9 @@ mod tests {
     fn multiple_workouts_appear_in_list_with_correct_id_name_and_position() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Algorithmic;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "Pecosaurus Rex", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex", mode)
+            .expect("mesocycle creation should succeed");
         let microcycle =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
@@ -267,9 +268,9 @@ mod tests {
     fn workouts_are_scoped_to_their_parent_microcycle() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Algorithmic;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "Pecosaurus Rex", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex", mode)
+            .expect("mesocycle creation should succeed");
 
         let microcycle_1 =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
@@ -296,9 +297,9 @@ mod tests {
     fn creating_workout_with_empty_name_returns_error() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Algorithmic;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "Pecosaurus Rex", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "Pecosaurus Rex", mode)
+            .expect("mesocycle creation should succeed");
         let microcycle =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 

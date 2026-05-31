@@ -92,7 +92,10 @@ pub fn list_microcycles(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{domain::planning::MesocycleMode, persistence::{mesocycles::create_mesocycle, sqlite}};
+    use crate::{
+        domain::planning::MesocycleMode,
+        persistence::{mesocycles::create_mesocycle, sqlite},
+    };
 
     fn setup_test_db() -> Connection {
         sqlite::init_db(":memory:").expect("Failed to create test database")
@@ -111,16 +114,16 @@ mod tests {
     fn get_microcycle_returns_correct_microcycle() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Algorithmic;
-        
-        let mesocycle_1 =
-            create_mesocycle(&conn, "small arms", mode).expect("Should be able to create mesocycle");
-        
+
+        let mesocycle_1 = create_mesocycle(&conn, "small arms", mode)
+            .expect("Should be able to create mesocycle");
+
         let mesocycle_2 =
             create_mesocycle(&conn, "BIG ARMS", mode).expect("Should be able to create mesocycle");
 
         let _ = create_microcycle(&conn, mesocycle_1.id())
             .expect("Should be able to create microcycle");
-        
+
         let target = create_microcycle(&conn, mesocycle_2.id())
             .expect("Should be able to create microcycle");
 
@@ -144,9 +147,9 @@ mod tests {
     fn list_microcycles_returns_empty_list_for_mesocycle_with_no_microcycles() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Manual;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "welcome to the gunshow", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "welcome to the gunshow", mode)
+            .expect("mesocycle creation should succeed");
 
         let result = list_microcycles(&conn, mesocycle.id())
             .expect("listing microcycles for a valid id should succeed");
@@ -158,9 +161,9 @@ mod tests {
     fn create_microcycle_generates_microcycle_with_position_0_in_empty_mesocycle() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Manual;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "hypertrophy", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", mode)
+            .expect("mesocycle creation should succeed");
 
         let microcycle =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
@@ -172,9 +175,9 @@ mod tests {
     fn multiple_microcycles_in_same_mesocycle_gets_increasing_position_numbers() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Algorithmic;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "hypertrophy", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", mode)
+            .expect("mesocycle creation should succeed");
 
         let microcycle_1 =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
@@ -192,9 +195,9 @@ mod tests {
     fn multiple_microcycles_in_same_mesocycle_gets_unique_ids() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Manual;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "hypertrophy", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", mode)
+            .expect("mesocycle creation should succeed");
 
         let microcycle_1 =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
@@ -208,9 +211,9 @@ mod tests {
     fn created_microcycle_appear_in_list_with_correct_id_and_position() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Algorithmic;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "hypertrophy", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", mode)
+            .expect("mesocycle creation should succeed");
 
         let microcycle =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
@@ -225,9 +228,9 @@ mod tests {
     fn multiple_microcycles_appear_in_list_with_correct_id_and_position() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Manual;
-        
-        let mesocycle =
-            create_mesocycle(&conn, "hypertrophy", mode).expect("mesocycle creation should succeed");
+
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", mode)
+            .expect("mesocycle creation should succeed");
 
         let microcycle_1 =
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
@@ -246,10 +249,9 @@ mod tests {
     fn microcycles_are_scoped_to_their_parent_mesocycle() {
         let conn = setup_test_db();
         let mode = MesocycleMode::Manual;
-        
 
-        let mesocycle_1 =
-            create_mesocycle(&conn, "hypertrophy", mode).expect("mesocycle creation should succeed");
+        let mesocycle_1 = create_mesocycle(&conn, "hypertrophy", mode)
+            .expect("mesocycle creation should succeed");
         let microcycle_1 =
             create_microcycle(&conn, mesocycle_1.id()).expect("microcycle creation should succeed");
 

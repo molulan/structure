@@ -2,8 +2,10 @@ use flutter_rust_bridge::frb;
 
 use crate::{
     dto::planning::MicrocycleDTO,
-    errors::MicrocycleError,
-    persistence::{microcycles as db, sqlite},
+    persistence::{
+        microcycles::{self as db, MicrocycleError},
+        sqlite,
+    },
 };
 
 #[frb(sync)]

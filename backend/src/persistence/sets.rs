@@ -1,8 +1,15 @@
-use crate::{
-    domain::planning::{Effort, Load, Rir, Rpe, Set, SetType, Weight, WeightUnit},
-    errors::SetError,
-};
+use crate::domain::planning::{Effort, Load, Rir, Rpe, Set, SetType, Weight, WeightUnit};
 use rusqlite::{Connection, params};
+
+#[derive(Debug, thiserror::Error)]
+pub enum SetError {
+    #[error("database error: {0}")]
+    Database(#[from] rusqlite::Error),
+    #[error("associated planned exercise {id} not found")]
+    AssociatedPlannedExerciseNotFound { id: i64 },
+    #[error("planned set {id} not found")]
+    NotFound { id: i64 },
+}
 
 pub(super) fn create_planned_sets_table(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute(

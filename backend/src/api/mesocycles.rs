@@ -1,8 +1,10 @@
 use crate::{
     domain::planning::MesocycleMode,
     dto::planning::{MesocycleDTO, MesocycleModeDTO},
-    errors::MesocycleError,
-    persistence::{mesocycles as db, sqlite},
+    persistence::{
+        mesocycles::{self as db, MesocycleError},
+        sqlite,
+    },
 };
 use flutter_rust_bridge::frb;
 

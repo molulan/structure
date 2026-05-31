@@ -1,6 +1,16 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::{domain::planning::Workout, errors::WorkoutError};
+use crate::domain::planning::Workout;
+
+#[derive(Debug, thiserror::Error)]
+pub enum WorkoutError {
+    #[error("database error: {0}")]
+    Database(#[from] rusqlite::Error),
+    #[error("associated microcycle {id} not found")]
+    AssociatedMicrocycleNotFound { id: i64 },
+    #[error("workout {id} not found")]
+    NotFound { id: i64 },
+}
 
 pub(super) fn create_workouts_table(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute(

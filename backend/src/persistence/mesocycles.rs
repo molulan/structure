@@ -2,6 +2,14 @@ use rusqlite::{Connection, OptionalExtension, Result, params};
 
 use crate::domain::planning::{Mesocycle, MesocycleMode};
 
+#[derive(Debug, thiserror::Error)]
+pub enum MesocycleError {
+    #[error("database error: {0}")]
+    Database(#[from] rusqlite::Error),
+    #[error("mesocycle {id} not found")]
+    NotFound { id: i64 },
+}
+
 pub(crate) struct MesocycleRow {
     pub(crate) id: i64,
     pub(crate) name: String,

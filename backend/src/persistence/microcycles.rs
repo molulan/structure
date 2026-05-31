@@ -1,5 +1,15 @@
-use crate::{domain::planning::Microcycle, errors::MicrocycleError};
+use crate::domain::planning::Microcycle;
 use rusqlite::{Connection, OptionalExtension, params};
+
+#[derive(Debug, thiserror::Error)]
+pub enum MicrocycleError {
+    #[error("database error: {0}")]
+    Database(#[from] rusqlite::Error),
+    #[error("associated mesocycle {id} not found")]
+    AssociatedMesocycleNotFound { id: i64 },
+    #[error("microcycle {id} not found")]
+    NotFound { id: i64 },
+}
 
 pub(super) fn create_microcycles_table(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute(

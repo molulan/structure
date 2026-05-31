@@ -2,8 +2,10 @@ use flutter_rust_bridge::frb;
 
 use crate::{
     dto::planning::{LoadDTO, SetDTO, SetTypeDTO},
-    errors::SetError,
-    persistence::{sets as db, sqlite},
+    persistence::{
+        sets::{self as db, SetError},
+        sqlite,
+    },
 };
 
 #[frb(sync)]
@@ -15,7 +17,13 @@ pub fn create_planned_set(
 ) -> Result<SetDTO, SetError> {
     let conn = sqlite::init_db("structure.db")?;
 
-    let set = db::create_planned_set(&conn, planned_exercise_id, load.into(), reps, set_type.into())?;
+    let set = db::create_planned_set(
+        &conn,
+        planned_exercise_id,
+        load.into(),
+        reps,
+        set_type.into(),
+    )?;
 
     Ok(SetDTO::from(set))
 }

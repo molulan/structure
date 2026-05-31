@@ -3,8 +3,10 @@ use flutter_rust_bridge::frb;
 use crate::{
     domain::planning::ExerciseType,
     dto::planning::{ExerciseDTO, ExerciseTypeDTO, PlannedExerciseDTO},
-    errors::{ExerciseError, PlannedExerciseError},
-    persistence::{exercises as db, sqlite},
+    persistence::{
+        exercises::{self as db, ExerciseError, PlannedExerciseError},
+        sqlite,
+    },
 };
 
 #[frb(sync)]

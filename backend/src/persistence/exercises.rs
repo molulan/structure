@@ -1,9 +1,36 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::{
-    domain::planning::{Exercise, ExerciseType, PlannedExercise},
-    errors::{ExerciseError, PlannedExerciseError},
+use crate::domain::planning::{
+    Exercise, ExerciseType, PlannedExercise, PlannedExerciseValidationError,
 };
+
+#[derive(Debug, thiserror::Error)]
+pub enum ExerciseError {
+    #[error("database error: {0}")]
+    Database(#[from] rusqlite::Error),
+    #[error("exercise with name '{name}' already exists")]
+    DuplicateName { name: String },
+    #[error("exercise {id} not found")]
+    NotFound { id: i64 },
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum PlannedExerciseError {
+    #[error("database error: {0}")]
+    Database(#[from] rusqlite::Error),
+    #[error("associated workout {id} not found")]
+    AssociatedWorkoutNotFound { id: i64 },
+    #[error("associated exercise {id} not found")]
+    AssociatedExerciseNotFound { id: i64 },
+    #[error("planned exercise {id} not found")]
+    NotFound { id: i64 },
+    #[error("data corruption: {0}")]
+    DataCorruption(String), //should this still be here? it's not currenlty used
+    #[error("set error: {0}")]
+    SetOperation(#[from] super::sets::SetError),
+    #[error("validation error: {0}")]
+    ValidationError(#[from] PlannedExerciseValidationError),
+}
 
 pub(super) fn create_exercises_table(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute(

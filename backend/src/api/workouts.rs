@@ -2,8 +2,10 @@ use flutter_rust_bridge::frb;
 
 use crate::{
     dto::planning::WorkoutDTO,
-    errors::WorkoutError,
-    persistence::{sqlite, workouts as db},
+    persistence::{
+        sqlite,
+        workouts::{self as db, WorkoutError},
+    },
 };
 
 #[frb(sync)]

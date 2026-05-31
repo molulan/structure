@@ -236,3 +236,223 @@ pub fn list_planned_sets(
     }
     Ok(sets)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{
+        domain::planning::{ExerciseType, MesocycleMode, PlannedExercise, Weight, WeightUnit},
+        persistence::{
+            exercises::{create_exercise, create_planned_exercise},
+            mesocycles::create_mesocycle,
+            microcycles::create_microcycle,
+            sqlite,
+            workouts::create_workout,
+        },
+    };
+
+    fn setup_test_db() -> Connection {
+        sqlite::init_db(":memory:").expect("failed to create test database")
+    }
+
+    fn create_test_planned_exercise(conn: &Connection) -> PlannedExercise {
+        let mesocycle = create_mesocycle(conn, "Test Mesocycle", MesocycleMode::Algorithmic)
+            .expect("mesocycle creation should succeed");
+        let microcycle =
+            create_microcycle(conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let workout = create_workout(conn, microcycle.id(), "Test Workout")
+            .expect("workout creation should succeed");
+        let exercise = create_exercise(conn, "Bench Press", ExerciseType::Weighted)
+            .expect("exercise creation should succeed");
+        let planned = create_planned_exercise(conn, workout.id(), exercise.id())
+            .expect("planned exercise creation should succeed");
+        planned
+    }
+
+    #[test]
+    fn create_planned_set_on_existing_planned_exercise_succeeds() {
+        let conn = setup_test_db();
+        let planned_exercise = create_test_planned_exercise(&conn);
+
+        let result = create_planned_set(
+            &conn,
+            planned_exercise.id(),
+            Load::Weighted {
+                weight: Some(Weight::new(100.0, WeightUnit::Kg)),
+            },
+            Some(5),
+            SetType::Regular { effort: None },
+        );
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn create_planned_set_for_nonexistent_planned_exercise_returns_error() {
+        let conn = setup_test_db();
+
+        let result = create_planned_set(
+            &conn,
+            9999,
+            Load::Bodyweight,
+            Some(10),
+            SetType::Regular { effort: None },
+        );
+
+        assert!(matches!(
+            result,
+            Err(SetError::AssociatedPlannedExerciseNotFound { .. })
+        ));
+    }
+
+    #[test]
+    fn first_planned_set_gets_position_0() {
+        let conn = setup_test_db();
+        let planned_exercise = create_test_planned_exercise(&conn);
+
+        let set = create_planned_set(
+            &conn,
+            planned_exercise.id(),
+            Load::Weighted { weight: None },
+            Some(8),
+            SetType::Regular { effort: None },
+        )
+        .expect("set creation should succeed");
+
+        assert_eq!(set.position(), 0);
+    }
+
+    #[test]
+    fn multiple_planned_sets_for_same_exercise_get_sequential_positions() {
+        let conn = setup_test_db();
+        let planned_exercise = create_test_planned_exercise(&conn);
+
+        let set_1 = create_planned_set(
+            &conn,
+            planned_exercise.id(),
+            Load::Weighted { weight: None },
+            Some(5),
+            SetType::Regular { effort: None },
+        )
+        .expect("first set creation should succeed");
+        let set_2 = create_planned_set(
+            &conn,
+            planned_exercise.id(),
+            Load::Weighted { weight: None },
+            Some(5),
+            SetType::Regular { effort: None },
+        )
+        .expect("second set creation should succeed");
+        let set_3 = create_planned_set(
+            &conn,
+            planned_exercise.id(),
+            Load::Weighted { weight: None },
+            Some(5),
+            SetType::Myorep,
+        )
+        .expect("third set creation should succeed");
+
+        assert_eq!(set_1.position(), 0);
+        assert_eq!(set_2.position(), 1);
+        assert_eq!(set_3.position(), 2);
+    }
+
+    #[test]
+    fn list_planned_sets_returns_empty_list_for_planned_exercise_with_no_sets() {
+        let conn = setup_test_db();
+        let planned_exercise = create_test_planned_exercise(&conn);
+
+        let result = list_planned_sets(&conn, planned_exercise.id())
+            .expect("listing sets for an existing planned exercise should succeed");
+
+        assert!(result.is_empty());
+    }
+
+    #[test]
+    fn list_planned_sets_returns_error_when_planned_exercise_does_not_exist() {
+        let conn = setup_test_db();
+
+        let result = list_planned_sets(&conn, 9999);
+
+        assert!(matches!(
+            result,
+            Err(SetError::AssociatedPlannedExerciseNotFound { .. })
+        ));
+    }
+
+    #[test]
+    fn list_planned_sets_returns_all_sets_for_a_planned_exercise() {
+        let conn = setup_test_db();
+        let planned_exercise = create_test_planned_exercise(&conn);
+
+        let set_1 = create_planned_set(
+            &conn,
+            planned_exercise.id(),
+            Load::Weighted {
+                weight: Some(Weight::new(80.0, WeightUnit::Kg)),
+            },
+            Some(5),
+            SetType::Regular { effort: None },
+        )
+        .expect("first set creation should succeed");
+        let set_2 = create_planned_set(
+            &conn,
+            planned_exercise.id(),
+            Load::Weighted { weight: None },
+            Some(8),
+            SetType::Drop { effort: None },
+        )
+        .expect("second set creation should succeed");
+
+        let result =
+            list_planned_sets(&conn, planned_exercise.id()).expect("listing sets should succeed");
+
+        assert_eq!(result.len(), 2);
+        assert_eq!(result[0], set_1);
+        assert_eq!(result[1], set_2);
+    }
+
+    #[test]
+    fn list_planned_sets_returns_only_sets_belonging_to_the_requested_planned_exercise() {
+        let conn = setup_test_db();
+
+        let mesocycle = create_mesocycle(&conn, "Test Mesocycle", MesocycleMode::Algorithmic)
+            .expect("mesocycle creation should succeed");
+        let microcycle =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let workout = create_workout(&conn, microcycle.id(), "Test Workout")
+            .expect("workout creation should succeed");
+        let exercise_1 = create_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+            .expect("first exercise creation should succeed");
+        let exercise_2 = create_exercise(&conn, "Squat", ExerciseType::Weighted)
+            .expect("second exercise creation should succeed");
+
+        let target_planned = create_planned_exercise(&conn, workout.id(), exercise_1.id())
+            .expect("first planned exercise creation should succeed");
+        let other_planned = create_planned_exercise(&conn, workout.id(), exercise_2.id())
+            .expect("second planned exercise creation should succeed");
+
+        let target_set = create_planned_set(
+            &conn,
+            target_planned.id(),
+            Load::Weighted { weight: None },
+            Some(5),
+            SetType::Regular { effort: None },
+        )
+        .expect("set creation for target exercise should succeed");
+        let _ = create_planned_set(
+            &conn,
+            other_planned.id(),
+            Load::Weighted { weight: None },
+            Some(10),
+            SetType::Myorep,
+        )
+        .expect("set creation for other exercise should succeed");
+
+        let result =
+            list_planned_sets(&conn, target_planned.id()).expect("listing sets should succeed");
+
+        assert_eq!(result.len(), 1);
+        assert_eq!(result[0], target_set);
+    }
+}

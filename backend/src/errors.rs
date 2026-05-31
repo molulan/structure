@@ -1,3 +1,5 @@
+use crate::domain::planning::PlannedExerciseValidationError;
+
 #[derive(Debug, thiserror::Error)]
 pub enum MesocycleError {
     #[error("database error: {0}")]
@@ -36,6 +38,12 @@ pub enum PlannedExerciseError {
     AssociatedExerciseNotFound { id: i64 },
     #[error("planned exercise {id} not found")]
     NotFound { id: i64 },
+    #[error("data corruption: {0}")]
+    DataCorruption(String),
+    #[error("set error: {0}")]
+    SetOperation(#[from] SetError),
+    #[error("validation error: {0}")]
+    ValidationError(#[from] PlannedExerciseValidationError),
 }
 
 #[derive(Debug, thiserror::Error)]

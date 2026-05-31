@@ -1,8 +1,8 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::{
-    domain::planning::{Exercise, ExerciseType, PlannedExercise},
-    errors::{ExerciseError, PlannedExerciseError},
+    domain::planning::{Exercise, ExerciseType, PlannedExercise, Set},
+    errors::{ExerciseError, PlannedExerciseError, SetError},
 };
 
 pub(super) fn create_exercises_table(conn: &Connection) -> rusqlite::Result<()> {
@@ -143,7 +143,8 @@ pub fn create_planned_exercise(
 
             let id = conn.last_insert_rowid();
 
-            Ok(PlannedExercise::new(id, exercise, position))
+            Ok(PlannedExercise::new(id, exercise, position, Vec::new())
+                .expect("newly created exercise has no sets, so validation cannot fail"))
         }
     }
 }
@@ -151,7 +152,7 @@ pub fn create_planned_exercise(
 pub fn get_planned_exercise(
     conn: &Connection,
     id: i64,
-) -> rusqlite::Result<Option<PlannedExercise>> {
+) -> Result<Option<PlannedExercise>, PlannedExerciseError> {
     let row = conn
         .query_row(
             "SELECT id, exercise_id, position FROM planned_exercises WHERE id = ?1",
@@ -170,11 +171,12 @@ pub fn get_planned_exercise(
         Some((id, exercise_id, position)) => {
             let position =
                 u32::try_from(position).expect("position stored in DB was originally a u32");
-
             let exercise = get_exercise(conn, exercise_id)?
                 .expect("exercise FK in planned_exercises points to nonexistent exercise");
+            let sets = super::sets::list_planned_sets(conn, id)?;
+            let planned_exercise = PlannedExercise::new(id, exercise, position, sets)?;
 
-            Ok(Some(PlannedExercise::new(id, exercise, position)))
+            Ok(Some(planned_exercise))
         }
     }
 }
@@ -203,7 +205,9 @@ pub fn list_planned_exercises(
         let exercise = get_exercise(conn, exercise_id)?.expect(
             "exercise FK in planned_exercises points to nonexistent exercise — data corrupted",
         );
-        planned_exercises.push(PlannedExercise::new(id, exercise, position));
+        let sets = super::sets::list_planned_sets(conn, id)?;
+        let planned_exercise = PlannedExercise::new(id, exercise, position, sets)?;
+        planned_exercises.push(planned_exercise);
     }
 
     Ok(planned_exercises)

@@ -189,6 +189,21 @@ impl From<SetType> for SetTypeDTO {
     }
 }
 
+impl From<SetTypeDTO> for SetType {
+    fn from(value: SetTypeDTO) -> Self {
+        match value {
+            SetTypeDTO::Regular { effort } => SetType::Regular {
+                effort: effort.map(Effort::from),
+            },
+            SetTypeDTO::Myorep => SetType::Myorep,
+            SetTypeDTO::MyorepMatch => SetType::MyorepMatch,
+            SetTypeDTO::Drop { effort } => SetType::Drop {
+                effort: effort.map(Effort::from),
+            },
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[frb]
 pub enum LoadDTO {
@@ -215,6 +230,23 @@ impl From<Load> for LoadDTO {
     }
 }
 
+impl From<LoadDTO> for Load {
+    fn from(value: LoadDTO) -> Self {
+        match value {
+            LoadDTO::Bodyweight => Load::Bodyweight,
+            LoadDTO::WeightedBodyweight { added_weight } => Load::WeightedBodyweight {
+                added_weight: added_weight.map(Weight::from),
+            },
+            LoadDTO::AssistedBodyweight { assistance } => Load::AssistedBodyweight {
+                assistance: assistance.map(Weight::from),
+            },
+            LoadDTO::Weighted { weight } => Load::Weighted {
+                weight: weight.map(Weight::from),
+            },
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[frb]
 pub struct WeightDTO {
@@ -231,6 +263,12 @@ impl From<Weight> for WeightDTO {
     }
 }
 
+impl From<WeightDTO> for Weight {
+    fn from(value: WeightDTO) -> Self {
+        Weight::new(value.value, WeightUnit::from(value.unit))
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[frb]
 pub enum WeightUnitDTO {
@@ -243,6 +281,15 @@ impl From<WeightUnit> for WeightUnitDTO {
         match value {
             WeightUnit::Kg => WeightUnitDTO::Kg,
             WeightUnit::Lbs => WeightUnitDTO::Lbs,
+        }
+    }
+}
+
+impl From<WeightUnitDTO> for WeightUnit {
+    fn from(value: WeightUnitDTO) -> Self {
+        match value {
+            WeightUnitDTO::Kg => Self::Kg,
+            WeightUnitDTO::Lbs => Self::Lbs,
         }
     }
 }
@@ -263,6 +310,15 @@ impl From<Effort> for EffortDTO {
     }
 }
 
+impl From<EffortDTO> for Effort {
+    fn from(value: EffortDTO) -> Self {
+        match value {
+            EffortDTO::Rir(rir) => Effort::Rir(Rir::from(rir)),
+            EffortDTO::Rpe(rpe) => Effort::Rpe(Rpe::from(rpe)),
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[frb]
 pub struct RpeDTO(pub(crate) u8);
@@ -273,6 +329,12 @@ impl From<Rpe> for RpeDTO {
     }
 }
 
+impl From<RpeDTO> for Rpe {
+    fn from(value: RpeDTO) -> Self {
+        Rpe::new(value.0).expect("RpeDTO value out of valid range (1..=11)")
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[frb]
 pub struct RirDTO(pub(crate) i8);
@@ -280,5 +342,11 @@ pub struct RirDTO(pub(crate) i8);
 impl From<Rir> for RirDTO {
     fn from(value: Rir) -> Self {
         RirDTO(value.value())
+    }
+}
+
+impl From<RirDTO> for Rir {
+    fn from(value: RirDTO) -> Self {
+        Rir::new(value.0).expect("RirDTO value out of valid range (-1..=10)")
     }
 }

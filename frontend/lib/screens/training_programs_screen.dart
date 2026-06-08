@@ -6,6 +6,7 @@ import 'package:structure/screens/widgets/create_training_program_dialog.dart';
 import 'package:structure/src/bridge/dto/planning.dart';
 import 'package:structure/src/bridge/api/mesocycles.dart' as bridge_meso;
 import 'package:structure/src/bridge/api/microcycles.dart' as bridge_micro;
+import 'package:structure/screens/training_program_builder_screen.dart';
 
 class TrainingProgramsScreen extends ConsumerStatefulWidget {
   const TrainingProgramsScreen({super.key});
@@ -58,10 +59,12 @@ class _TrainingProgramsScreenState
     ref.invalidate(trainingProgramListProvider);
 
     if (mounted) {
-      //TODO: navigate to builder screen
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Program created!')));
+      final createdMesocycle = mesocycle;
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => TrainingProgramBuilderScreen(mesocycle: createdMesocycle),
+        ),
+      );
     }
   }
 
@@ -191,18 +194,18 @@ class _WeekCountBadge extends StatelessWidget {
   const _WeekCountBadge({required this.count});
 
   @override
-    Widget build(BuildContext context) {
-      final colorScheme = Theme.of(context).colorScheme;
-      final label = '$count ${count == 1 ? 'week' : 'weeks'}';
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-        decoration: BoxDecoration(
-          color: colorScheme.primaryContainer,
-          borderRadius: BorderRadius.circular(4),
-        ),
-        child: Text(label, style: Theme.of(context).textTheme.labelSmall),
-      );
-    }
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final label = '$count ${count == 1 ? 'week' : 'weeks'}';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: colorScheme.primaryContainer,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(label, style: Theme.of(context).textTheme.labelSmall),
+    );
+  }
 }
 
 class _TrainingProgramDetail extends ConsumerWidget {

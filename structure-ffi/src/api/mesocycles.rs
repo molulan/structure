@@ -1,17 +1,16 @@
+use crate::dto::planning::{MesocycleDTO, MesocycleModeDTO};
 use flutter_rust_bridge::frb;
 use structure_core::{
     domain::planning::MesocycleMode,
     persistence::{
+        connection,
         mesocycles::{self as db, MesocycleError},
-        sqlite,
     },
 };
-use crate::dto::planning::{MesocycleDTO, MesocycleModeDTO};
-
 
 #[frb(sync)]
 pub fn list_mesocycles() -> Result<Vec<MesocycleDTO>, MesocycleError> {
-    let conn = sqlite::init_db("structure.db")?;
+    let conn = connection::init_db("structure.db")?;
     let rows = db::list_mesocycles(&conn)?;
     Ok(rows
         .into_iter()
@@ -29,7 +28,7 @@ pub fn create_mesocycle(
     name: String,
     mode: MesocycleModeDTO,
 ) -> Result<MesocycleDTO, MesocycleError> {
-    let conn = sqlite::init_db("structure.db")?;
+    let conn = connection::init_db("structure.db")?;
     let mesocycle = db::create_mesocycle(&conn, &name, MesocycleMode::from(mode))?;
     Ok(MesocycleDTO {
         id: mesocycle.id(),
@@ -41,7 +40,7 @@ pub fn create_mesocycle(
 
 #[frb(sync)]
 pub fn get_mesocycle(id: i64) -> Result<MesocycleDTO, MesocycleError> {
-    let conn = sqlite::init_db("structure.db")?;
+    let conn = connection::init_db("structure.db")?;
     let row = db::get_mesocycle(&conn, id)?.ok_or(MesocycleError::NotFound { id })?;
     Ok(MesocycleDTO {
         id: row.id,

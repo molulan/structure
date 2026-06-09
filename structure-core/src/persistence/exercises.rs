@@ -246,13 +246,13 @@ mod tests {
     use crate::{
         domain::planning::{MesocycleMode, Workout},
         persistence::{
-            mesocycles::create_mesocycle, microcycles::create_microcycle, sqlite,
+            connection, mesocycles::create_mesocycle, microcycles::create_microcycle,
             workouts::create_workout,
         },
     };
 
     fn setup_test_db() -> Connection {
-        sqlite::init_db(":memory:").expect("Failed to create test database")
+        connection::init_db(":memory:").expect("Failed to create test database")
     }
 
     fn create_test_workout(conn: &Connection) -> Workout {

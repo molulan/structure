@@ -109,10 +109,10 @@ fn mesocycle_mode_from_str(s: &str) -> MesocycleMode {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::persistence::sqlite;
+    use crate::persistence::connection;
 
     fn setup_test_db() -> Connection {
-        sqlite::init_db(":memory:").expect("Failed to create test database")
+        connection::init_db(":memory:").expect("Failed to create test database")
     }
 
     #[test]

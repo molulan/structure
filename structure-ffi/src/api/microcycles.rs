@@ -1,11 +1,13 @@
-use flutter_rust_bridge::frb;
-use structure_core::persistence::{sqlite, microcycles::{self as db, MicrocycleError}};
 use crate::dto::planning::MicrocycleDTO;
-
+use flutter_rust_bridge::frb;
+use structure_core::persistence::{
+    connection,
+    microcycles::{self as db, MicrocycleError},
+};
 
 #[frb(sync)]
 pub fn list_microcycles(mesocycle_id: i64) -> Result<Vec<MicrocycleDTO>, MicrocycleError> {
-    let conn = sqlite::init_db("structure.db")?;
+    let conn = connection::init_db("structure.db")?;
 
     let microcycles = db::list_microcycles(&conn, mesocycle_id)?;
 
@@ -14,7 +16,7 @@ pub fn list_microcycles(mesocycle_id: i64) -> Result<Vec<MicrocycleDTO>, Microcy
 
 #[frb(sync)]
 pub fn create_microcycle(mesocycle_id: i64) -> Result<MicrocycleDTO, MicrocycleError> {
-    let conn = sqlite::init_db("structure.db")?;
+    let conn = connection::init_db("structure.db")?;
 
     let microcycle = db::create_microcycle(&conn, mesocycle_id)?;
 
@@ -23,7 +25,7 @@ pub fn create_microcycle(mesocycle_id: i64) -> Result<MicrocycleDTO, MicrocycleE
 
 #[frb(sync)]
 pub fn get_microcycle(id: i64) -> Result<MicrocycleDTO, MicrocycleError> {
-    let conn = sqlite::init_db("structure.db")?;
+    let conn = connection::init_db("structure.db")?;
 
     let microcycle = db::get_microcycle(&conn, id)?.ok_or(MicrocycleError::NotFound { id })?;
 

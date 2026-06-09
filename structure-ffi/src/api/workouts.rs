@@ -1,11 +1,13 @@
-use flutter_rust_bridge::frb;
-use structure_core::persistence::{sqlite, workouts::{self as db, WorkoutError}};
 use crate::dto::planning::WorkoutDTO;
-
+use flutter_rust_bridge::frb;
+use structure_core::persistence::{
+    connection,
+    workouts::{self as db, WorkoutError},
+};
 
 #[frb(sync)]
 pub fn list_workouts(microcycle_id: i64) -> Result<Vec<WorkoutDTO>, WorkoutError> {
-    let conn = sqlite::init_db("structure.db")?;
+    let conn = connection::init_db("structure.db")?;
 
     let workouts = db::list_workouts(&conn, microcycle_id)?;
 
@@ -14,7 +16,7 @@ pub fn list_workouts(microcycle_id: i64) -> Result<Vec<WorkoutDTO>, WorkoutError
 
 #[frb(sync)]
 pub fn create_workout(microcycle_id: i64, name: String) -> Result<WorkoutDTO, WorkoutError> {
-    let conn = sqlite::init_db("structure.db")?;
+    let conn = connection::init_db("structure.db")?;
 
     let workout = db::create_workout(&conn, microcycle_id, &name)?;
 
@@ -23,7 +25,7 @@ pub fn create_workout(microcycle_id: i64, name: String) -> Result<WorkoutDTO, Wo
 
 #[frb(sync)]
 pub fn get_workout(id: i64) -> Result<WorkoutDTO, WorkoutError> {
-    let conn = sqlite::init_db("structure.db")?;
+    let conn = connection::init_db("structure.db")?;
 
     let workout = db::get_workout(&conn, id)?.ok_or(WorkoutError::NotFound { id })?;
 

@@ -5,7 +5,6 @@ use structure_core::domain::planning::{
     Set, SetType, Weight, WeightUnit, Workout,
 };
 
-
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[frb]
 pub struct MesocycleDTO {

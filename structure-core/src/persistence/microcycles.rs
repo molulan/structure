@@ -104,11 +104,11 @@ mod tests {
     use super::*;
     use crate::{
         domain::planning::MesocycleMode,
-        persistence::{mesocycles::create_mesocycle, sqlite},
+        persistence::{connection, mesocycles::create_mesocycle},
     };
 
     fn setup_test_db() -> Connection {
-        sqlite::init_db(":memory:").expect("Failed to create test database")
+        connection::init_db(":memory:").expect("Failed to create test database")
     }
 
     #[test]

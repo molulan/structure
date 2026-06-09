@@ -1,3 +1,0 @@
-rust_root: backend/
-rust_input: crate::api
-dart_output: frontend/lib/src/bridge/

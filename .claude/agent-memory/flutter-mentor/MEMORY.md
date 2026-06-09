@@ -1,2 +1,0 @@
-- [User profile](user_profile.md) — writes own code; concrete recommendations preferred; working Flutter/Riverpod knowledge
-- [App structure](project_app_structure.md) — imperative nav, Riverpod FutureProviders, screen inventory as of 2026-05-27

@@ -1,0 +1,16 @@
+[package]
+name = "structure-ffi"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+crate-type = ["cdylib", "staticlib", "rlib"]
+
+[dependencies]
+structure-core = { path = "../structure-core" }
+flutter_rust_bridge = "=2.11.1"
+serde = { version = "1.0", features = ["derive"] }
+
+[lints.rust]
+unexpected_cfgs = { level = "allow", check-cfg = ['cfg(frb_expand)'] }
+

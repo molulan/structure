@@ -3,58 +3,39 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## What this is
-## Product Context
-- `structure` is a strength-training app for:
-  - building long-term training plans (`Mesocycle`s)
-  - tracking workouts through those plans
-- Domain hierarchy: mesocycle -> microcycles -> workouts -> exercises -> sets.
-- Workout tracking is primarily mobile.
-- Plan creation should work on mobile and desktop; desktop matters for overview on larger screens.
-- Training history, PR tracking, and history-based planning/auto-adjustment are intended features, not current guarantees.
+
+A strength-training app for building long-term training plans and tracking workouts. Active development, not a finished product. The Rust workspace holds the core logic; the frontend is not in the tree yet (`mobile/` and `web/` are empty placeholders).
 
 ## Commands
 
-```sh
-# Run the app (Linux only)
-./scripts/run_linux.sh          # cargo build backend + flutter run -d linux
+Rust workspace (edition 2024, resolver 3):
 
-# Backend
-cd backend && cargo test        # run Rust tests
-cd backend && cargo build       # build only
-
-# Frontend
-cd frontend && flutter test     # run Flutter tests
-cd frontend && flutter analyze  # lint
-
-# Regenerate FRB bridge (after changing backend/src/api.rs or types it exposes)
-flutter_rust_bridge_codegen generate
+```bash
+cargo build                       # build all crates
+cargo test --workspace            # run all tests
+cargo test -p structure-core      # test a single crate
+cargo test mesocycle              # run tests matching a substring
+cargo test created_mesocycle_appears_in_list_with_correct_id_name_and_mode  # single test
+cargo fmt
+cargo clippy --workspace
 ```
+
+Tests live next to the code in `#[cfg(test)] mod tests` blocks. Persistence tests use an in-memory SQLite database via `sqlite::init_db(":memory:")` — no fixtures or external DB needed.
 
 ## Architecture
 
-Flutter app (`frontend/`) + Rust library (`backend/`) connected via [flutter_rust_bridge](https://github.com/fzyzcjy/flutter_rust_bridge).
+Three crates, layered domain → persistence → FFI:
 
-**Rust layers** (innermost → outermost):
-- `domain/planning.rs` — pure domain types (`Mesocycle`, `Workout`, `Set`, `Load`, `Effort`, etc.)
-- `persistence/` — SQLite via `rusqlite`; works only with domain types
-- `dto/planning.rs` — DTOs for FRB transport (all fields `pub(crate)`, all types `Copy` or derive it as needed)
-- `api/` — orchestrates persistence, converts domain → DTO at the boundary, returned to Flutter
+- **`structure-core`** — the heart of the app. Pure domain model plus SQLite persistence. No FFI or framework dependencies.
+  - `domain/planning.rs` — the domain types: `Mesocycle` → `Microcycle` → `Workout` → `PlannedExercise` → `Set`, plus `Exercise`, `Load`, `Effort` (`Rir`/`Rpe`), `Weight`. This is the training-plan hierarchy.
+  - `persistence/` — one module per entity (`mesocycles`, `microcycles`, `workouts`, `exercises`, `sets`). `sqlite.rs` owns connection setup (`open_connection`, `init_db`) and creates every table.
+- **`structure-ffi`** — `flutter_rust_bridge` bindings (pinned `=2.11.1`) over `structure-core`. Compiled as `cdylib`/`staticlib`/`rlib` for the future Flutter app. `api/` mirrors the persistence modules; `dto/planning.rs` holds the wire types.
+- **`structure-server`** — backend server, currently a stub (`main` just prints).
 
-**Flutter layers:**
-- `lib/src/bridge/` — **generated**, do not edit; Dart bindings for `crate::api`
-- `lib/providers/` — Riverpod providers
-- `lib/screens/` — UI screens and widgets
+### Conventions to follow when extending
 
-**Bridge config** (`flutter_rust_bridge.yaml`): `rust_input: crate::api`, `dart_output: frontend/lib/src/bridge/`. Only `pub` items in `backend/src/api.rs` (and its sub-modules) are exposed to Dart.
-
-## Key rules
-
-- **Never hand-edit generated files**: `backend/src/frb_generated.rs` and `frontend/lib/src/bridge/*`. Change Rust source, then regenerate.
-- Always route feature requests, bug reports, and project tasks 
-through the project-orchestrator agent by default.
-- **Domain constructors are `pub(crate)`** (`Mesocycle::new`, `Workout::new`, etc.) — only callable from within the crate (i.e., persistence layer). DTOs use `pub` fields for FRB visibility; that is not a back-door to construction.
-- **DDL functions are `pub(super)`** — visible to `sqlite.rs` for bootstrap only.
-- **Table creation order** in `init_db`: mesocycles → microcycles → workouts → exercises → planned_exercises (parents before children).
-- **`LD_LIBRARY_PATH`** in `run_linux.sh` points at `target/debug`; generated Dart loader in `frb_generated.dart` points at `../backend/target/release/`. Keep build mode and library path aligned when running manually.
-- **SQLite FK enforcement**: `PRAGMA foreign_keys = ON` is set in `open_connection`. Do not rely on FK constraint errors as app signals — add explicit existence checks that produce meaningful `DomainError` variants (see `create_workout` pattern).
-- **`Exercise` vs `PlannedExercise`**: `Exercise` is the browsable catalogue item; `PlannedExercise` is the workout-scoped instance with position and sets.
+- **Domain types are encapsulated.** Fields are private with getter methods; constructors are `pub(crate) fn new(...)`. Invariants are enforced in the constructor — e.g. `PlannedExercise::new` and `add_set` reject a `Set` whose `Load` doesn't match the `Exercise`'s `ExerciseType` (see `load_matches_exercise_type`), returning `PlannedExerciseValidationError`. Add validation here, not in callers.
+- **Persistence modules share a shape.** Each has a `pub(super) fn create_*_table(conn)` (called from `sqlite::init_db`), public CRUD functions taking `&Connection`, and `#[cfg(test)] mod tests`. Functions that return joined/computed columns (e.g. `microcycle_count`) return a dedicated `*Row` struct rather than a domain type.
+- **Enums are stored as TEXT with `CHECK` constraints**, not integers (see the table DDL). Rust↔string conversion is manual: `Display`/`to_string()` to write, a hand-written `*_from_str` to read (which `panic!`s on unexpected values, treating it as DB corruption).
+- **Errors use `thiserror`, one enum per persistence module** (`MesocycleError`, `SetError`, …), each wrapping `rusqlite::Error` via `#[from]` and adding domain variants like `NotFound { id }`. Keep each error type in the module that produces it (a prior refactor split a shared `error.rs` apart deliberately).
+- **The FFI layer is a thin DTO-mapping shell.** For each domain type `X` there's an `XDTO` in `dto/planning.rs` annotated `#[frb]`, with `From<&X> for XDTO` and (where input is needed) `From<XDTO> for X`. `api/` functions are `#[frb(sync)]`, open the DB (`sqlite::init_db("structure.db")`), call into `structure-core`, and map rows/domain types to DTOs. Put no business logic here.

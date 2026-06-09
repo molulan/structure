@@ -9,13 +9,15 @@ pub enum MicrocycleError {
     AssociatedMesocycleNotFound { id: i64 },
     #[error("microcycle {id} not found")]
     NotFound { id: i64 },
+    #[error("reorder list does not match the microcycles of mesocycle {mesocycle_id}")]
+    ReorderMismatch { mesocycle_id: i64 },
 }
 
 pub(super) fn create_microcycles_table(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS microcycles (
             id INTEGER PRIMARY KEY,
-            mesocycle_id INTEGER NOT NULL REFERENCES mesocycles(id),
+            mesocycle_id INTEGER NOT NULL REFERENCES mesocycles(id) ON DELETE CASCADE,
             position INTEGER NOT NULL,
             UNIQUE(mesocycle_id, position)
         )",
@@ -41,15 +43,14 @@ pub fn create_microcycle(
         return Err(MicrocycleError::AssociatedMesocycleNotFound { id: mesocycle_id });
     }
 
-    let count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM microcycles WHERE mesocycle_id = ?1",
+    let next_position: i64 = conn.query_row(
+        "SELECT COALESCE(MAX(position), -1) + 1 FROM microcycles WHERE mesocycle_id = ?1",
         [mesocycle_id],
         |row| row.get(0),
     )?;
 
-    // COUNT(*) is always non-negative and well within u32 range for this domain
-    let position = u32::try_from(count).expect(
-        "COUNT(*) is always non-negative and no training program will have 4 billion microcycles",
+    let position = u32::try_from(next_position).expect(
+        "positions are non-negative and no training program will have 4 billion microcycles",
     );
 
     conn.execute(
@@ -97,6 +98,36 @@ pub fn list_microcycles(
     })?
     .map(|result| result.map_err(MicrocycleError::from))
     .collect()
+}
+
+pub fn delete_microcycle(conn: &Connection, id: i64) -> Result<(), MicrocycleError> {
+    let deleted = conn.execute("DELETE FROM microcycles WHERE id = ?1", [id])?;
+
+    if deleted == 0 {
+        return Err(MicrocycleError::NotFound { id });
+    }
+
+    Ok(())
+}
+
+pub fn reorder_microcycles(
+    conn: &mut Connection,
+    mesocycle_id: i64,
+    ordered_ids: &[i64],
+) -> Result<(), MicrocycleError> {
+    let matched = super::positions::reorder(
+        conn,
+        "microcycles",
+        "mesocycle_id",
+        mesocycle_id,
+        ordered_ids,
+    )?;
+
+    if matched {
+        Ok(())
+    } else {
+        Err(MicrocycleError::ReorderMismatch { mesocycle_id })
+    }
 }
 
 #[cfg(test)]
@@ -279,5 +310,85 @@ mod tests {
             .expect("listing microcycles for a valid id should succeed");
         assert_eq!(result_2.len(), 1);
         assert_eq!(result_2[0].id(), microcycle_2.id());
+    }
+
+    #[test]
+    fn create_microcycle_after_delete_does_not_reuse_a_position() {
+        let conn = setup_test_db();
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+
+        let _first = create_microcycle(&conn, mesocycle.id()).expect("creation should succeed");
+        let middle = create_microcycle(&conn, mesocycle.id()).expect("creation should succeed");
+        let _last = create_microcycle(&conn, mesocycle.id()).expect("creation should succeed");
+
+        delete_microcycle(&conn, middle.id()).expect("delete should succeed");
+
+        // MAX(position) is still 2, so the next position is 3 — a COUNT-based
+        // scheme would compute 2 and collide with the surviving last microcycle.
+        let next = create_microcycle(&conn, mesocycle.id()).expect("creation should succeed");
+        assert_eq!(next.position(), 3);
+    }
+
+    #[test]
+    fn delete_microcycle_removes_it() {
+        let conn = setup_test_db();
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+        let microcycle =
+            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+
+        delete_microcycle(&conn, microcycle.id()).expect("delete should succeed");
+
+        let result = get_microcycle(&conn, microcycle.id()).expect("query should succeed");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn delete_microcycle_returns_not_found_when_microcycle_does_not_exist() {
+        let conn = setup_test_db();
+
+        let result = delete_microcycle(&conn, 1234);
+
+        assert!(matches!(
+            result,
+            Err(MicrocycleError::NotFound { id: 1234 })
+        ));
+    }
+
+    #[test]
+    fn reorder_microcycles_rewrites_positions_in_the_given_order() {
+        let mut conn = setup_test_db();
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+        let a = create_microcycle(&conn, mesocycle.id()).expect("creation should succeed");
+        let b = create_microcycle(&conn, mesocycle.id()).expect("creation should succeed");
+        let c = create_microcycle(&conn, mesocycle.id()).expect("creation should succeed");
+
+        reorder_microcycles(&mut conn, mesocycle.id(), &[c.id(), a.id(), b.id()])
+            .expect("reorder should succeed");
+
+        let ordered = list_microcycles(&conn, mesocycle.id()).expect("listing should succeed");
+        let ids: Vec<i64> = ordered.iter().map(|m| m.id()).collect();
+        assert_eq!(ids, vec![c.id(), a.id(), b.id()]);
+        assert_eq!(ordered[0].position(), 0);
+        assert_eq!(ordered[1].position(), 1);
+        assert_eq!(ordered[2].position(), 2);
+    }
+
+    #[test]
+    fn reorder_microcycles_returns_mismatch_when_ids_do_not_match_children() {
+        let mut conn = setup_test_db();
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+        let a = create_microcycle(&conn, mesocycle.id()).expect("creation should succeed");
+        let _b = create_microcycle(&conn, mesocycle.id()).expect("creation should succeed");
+
+        let result = reorder_microcycles(&mut conn, mesocycle.id(), &[a.id()]);
+
+        assert!(matches!(
+            result,
+            Err(MicrocycleError::ReorderMismatch { .. })
+        ));
     }
 }

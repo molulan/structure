@@ -98,6 +98,34 @@ pub fn list_mesocycles(conn: &Connection) -> Result<Vec<MesocycleRow>> {
     .collect()
 }
 
+pub fn update_mesocycle(
+    conn: &Connection,
+    id: i64,
+    name: &str,
+    mode: MesocycleMode,
+) -> Result<Mesocycle, MesocycleError> {
+    let updated = conn.execute(
+        "UPDATE mesocycles SET name = ?1, mode = ?2 WHERE id = ?3",
+        params![name, mode.to_string(), id],
+    )?;
+
+    if updated == 0 {
+        return Err(MesocycleError::NotFound { id });
+    }
+
+    Ok(Mesocycle::new(id, name, mode))
+}
+
+pub fn delete_mesocycle(conn: &Connection, id: i64) -> Result<(), MesocycleError> {
+    let deleted = conn.execute("DELETE FROM mesocycles WHERE id = ?1", [id])?;
+
+    if deleted == 0 {
+        return Err(MesocycleError::NotFound { id });
+    }
+
+    Ok(())
+}
+
 fn mesocycle_mode_from_str(s: &str) -> MesocycleMode {
     match s {
         "Algorithmic" => MesocycleMode::Algorithmic,
@@ -227,5 +255,74 @@ mod tests {
             .expect("mesocycle should exist");
 
         assert_eq!(result.microcycle_count, 1);
+    }
+
+    #[test]
+    fn update_mesocycle_changes_name_and_mode() {
+        let conn = setup_test_db();
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+
+        let updated = update_mesocycle(
+            &conn,
+            mesocycle.id(),
+            "strength",
+            MesocycleMode::Algorithmic,
+        )
+        .expect("update should succeed");
+
+        assert_eq!(updated.name(), "strength");
+        assert_eq!(updated.mode(), MesocycleMode::Algorithmic);
+
+        let persisted = get_mesocycle(&conn, mesocycle.id())
+            .expect("query should succeed")
+            .expect("mesocycle should exist");
+        assert_eq!(persisted.name, "strength");
+        assert_eq!(persisted.mode, MesocycleMode::Algorithmic);
+    }
+
+    #[test]
+    fn update_mesocycle_returns_not_found_when_mesocycle_does_not_exist() {
+        let conn = setup_test_db();
+
+        let result = update_mesocycle(&conn, 1234, "strength", MesocycleMode::Manual);
+
+        assert!(matches!(result, Err(MesocycleError::NotFound { id: 1234 })));
+    }
+
+    #[test]
+    fn delete_mesocycle_removes_it() {
+        let conn = setup_test_db();
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+
+        delete_mesocycle(&conn, mesocycle.id()).expect("delete should succeed");
+
+        let result = get_mesocycle(&conn, mesocycle.id()).expect("query should succeed");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn delete_mesocycle_returns_not_found_when_mesocycle_does_not_exist() {
+        let conn = setup_test_db();
+
+        let result = delete_mesocycle(&conn, 1234);
+
+        assert!(matches!(result, Err(MesocycleError::NotFound { id: 1234 })));
+    }
+
+    #[test]
+    fn delete_mesocycle_cascades_to_its_microcycles() {
+        let conn = setup_test_db();
+        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+        let microcycle = crate::persistence::microcycles::create_microcycle(&conn, mesocycle.id())
+            .expect("microcycle creation should succeed");
+
+        delete_mesocycle(&conn, mesocycle.id()).expect("delete should succeed");
+
+        let orphan = crate::persistence::microcycles::get_microcycle(&conn, microcycle.id())
+            .expect("query should succeed");
+        assert!(orphan.is_none());
     }
 }

@@ -1,5 +1,5 @@
 use crate::domain::planning::{Effort, Load, Rir, Rpe, Set, SetType, Weight, WeightUnit};
-use rusqlite::{Connection, params};
+use rusqlite::{Connection, OptionalExtension, params};
 
 #[derive(Debug, thiserror::Error)]
 pub enum SetError {
@@ -9,13 +9,15 @@ pub enum SetError {
     AssociatedPlannedExerciseNotFound { id: i64 },
     #[error("planned set {id} not found")]
     NotFound { id: i64 },
+    #[error("reorder list does not match the sets of planned exercise {planned_exercise_id}")]
+    ReorderMismatch { planned_exercise_id: i64 },
 }
 
 pub(super) fn create_planned_sets_table(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS planned_sets (
             id INTEGER PRIMARY KEY,
-            planned_exercise_id INTEGER NOT NULL REFERENCES planned_exercises(id),
+            planned_exercise_id INTEGER NOT NULL REFERENCES planned_exercises(id) ON DELETE CASCADE,
             position INTEGER NOT NULL,
             set_type TEXT NOT NULL CHECK(
                 set_type IN ('Regular', 'Myorep', 'MyorepMatch', 'Drop')
@@ -85,6 +87,59 @@ fn planned_exercise_exists(conn: &Connection, id: i64) -> rusqlite::Result<bool>
     Ok(count > 0)
 }
 
+/// The persisted column values for a set's `load` and `set_type`, shared by
+/// `create_planned_set` and `update_planned_set` so the decomposition lives in
+/// one place.
+struct SetColumns {
+    set_type: &'static str,
+    load_type: &'static str,
+    weight_value: Option<f64>,
+    weight_unit: Option<&'static str>,
+    effort_type: Option<&'static str>,
+    effort_value: Option<i64>,
+}
+
+fn set_columns(load: Load, set_type: SetType) -> SetColumns {
+    let effort = match set_type {
+        SetType::Regular { effort } | SetType::Drop { effort } => effort,
+        SetType::Myorep | SetType::MyorepMatch => None,
+    };
+
+    let (effort_type, effort_value) = match effort {
+        None => (None, None),
+        Some(effort) => {
+            let value = match effort {
+                Effort::Rpe(rpe) => rpe.value() as i64,
+                Effort::Rir(rir) => rir.value() as i64,
+            };
+            (Some(effort_type_to_str(&effort)), Some(value))
+        }
+    };
+
+    let (weight_value, weight_unit) = match load {
+        Load::Bodyweight => (None, None),
+        Load::WeightedBodyweight {
+            added_weight: weight,
+        }
+        | Load::AssistedBodyweight { assistance: weight }
+        | Load::Weighted { weight } => weight.map_or((None, None), |weight| {
+            (
+                Some(weight.value()),
+                Some(weight_unit_to_str(weight.unit())),
+            )
+        }),
+    };
+
+    SetColumns {
+        set_type: set_type_to_str(set_type),
+        load_type: load_type_to_str(&load),
+        weight_value,
+        weight_unit,
+        effort_type,
+        effort_value,
+    }
+}
+
 pub fn create_planned_set(
     conn: &Connection,
     planned_exercise_id: i64,
@@ -98,45 +153,15 @@ pub fn create_planned_set(
         });
     }
 
-    let count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM planned_sets WHERE planned_exercise_id = ?1",
+    let next_position: i64 = conn.query_row(
+        "SELECT COALESCE(MAX(position), -1) + 1 FROM planned_sets WHERE planned_exercise_id = ?1",
         [planned_exercise_id],
         |row| row.get(0),
     )?;
-    let position = u32::try_from(count)
-        .expect("COUNT(*) is always non-negative and no exercise will have 4 billion sets");
+    let position = u32::try_from(next_position)
+        .expect("positions are non-negative and no exercise will have 4 billion sets");
 
-    let set_type_str = set_type_to_str(set_type);
-
-    let effort = match set_type {
-        SetType::Regular { effort } => effort,
-        SetType::Myorep => None,
-        SetType::MyorepMatch => None,
-        SetType::Drop { effort } => effort,
-    };
-
-    let (effort_type_str, effort_value): (Option<&'static str>, Option<i64>) = match effort {
-        None => (None, None),
-        Some(e) => {
-            let t = effort_type_to_str(&e);
-            let v: i64 = match e {
-                Effort::Rpe(rpe) => rpe.value() as i64,
-                Effort::Rir(rir) => rir.value() as i64,
-            };
-            (Some(t), Some(v))
-        }
-    };
-
-    let load_type_str = load_type_to_str(&load);
-    let (weight_value, weight_unit_str): (Option<f64>, Option<&'static str>) = match load {
-        Load::Bodyweight => (None, None),
-        Load::WeightedBodyweight { added_weight: w }
-        | Load::AssistedBodyweight { assistance: w }
-        | Load::Weighted { weight: w } => w.map_or((None, None), |w| {
-            (Some(w.value()), Some(weight_unit_to_str(w.unit())))
-        }),
-    };
-
+    let columns = set_columns(load, set_type);
     let reps_db: Option<i64> = reps.map(|r| r as i64);
 
     conn.execute(
@@ -147,18 +172,91 @@ pub fn create_planned_set(
         params![
             planned_exercise_id,
             position,
-            set_type_str,
-            load_type_str,
-            weight_value,
-            weight_unit_str,
+            columns.set_type,
+            columns.load_type,
+            columns.weight_value,
+            columns.weight_unit,
             reps_db,
-            effort_type_str,
-            effort_value,
+            columns.effort_type,
+            columns.effort_value,
         ],
     )?;
 
     let id = conn.last_insert_rowid();
     Ok(Set::new(id, position, load, reps, set_type))
+}
+
+pub fn update_planned_set(
+    conn: &Connection,
+    id: i64,
+    load: Load,
+    reps: Option<u32>,
+    set_type: SetType,
+) -> Result<Set, SetError> {
+    let columns = set_columns(load, set_type);
+    let reps_db: Option<i64> = reps.map(|r| r as i64);
+
+    let position: Option<i64> = conn
+        .query_row(
+            "UPDATE planned_sets SET
+                set_type = ?1, load_type = ?2, weight_value = ?3, weight_unit = ?4,
+                reps = ?5, effort_type = ?6, effort_value = ?7
+             WHERE id = ?8
+             RETURNING position",
+            params![
+                columns.set_type,
+                columns.load_type,
+                columns.weight_value,
+                columns.weight_unit,
+                reps_db,
+                columns.effort_type,
+                columns.effort_value,
+                id,
+            ],
+            |row| row.get(0),
+        )
+        .optional()?;
+
+    let position = match position {
+        Some(position) => {
+            u32::try_from(position).expect("position stored in DB was originally a u32")
+        }
+        None => return Err(SetError::NotFound { id }),
+    };
+
+    Ok(Set::new(id, position, load, reps, set_type))
+}
+
+pub fn delete_planned_set(conn: &Connection, id: i64) -> Result<(), SetError> {
+    let deleted = conn.execute("DELETE FROM planned_sets WHERE id = ?1", [id])?;
+
+    if deleted == 0 {
+        return Err(SetError::NotFound { id });
+    }
+
+    Ok(())
+}
+
+pub fn reorder_planned_sets(
+    conn: &mut Connection,
+    planned_exercise_id: i64,
+    ordered_ids: &[i64],
+) -> Result<(), SetError> {
+    let matched = super::positions::reorder(
+        conn,
+        "planned_sets",
+        "planned_exercise_id",
+        planned_exercise_id,
+        ordered_ids,
+    )?;
+
+    if matched {
+        Ok(())
+    } else {
+        Err(SetError::ReorderMismatch {
+            planned_exercise_id,
+        })
+    }
 }
 
 fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<Set> {
@@ -235,7 +333,7 @@ pub fn list_planned_sets(
          ORDER BY position ASC",
     )?;
 
-    let rows = stmt.query_map([planned_exercise_id], |row| row_to_set(row))?;
+    let rows = stmt.query_map([planned_exercise_id], row_to_set)?;
 
     let mut sets = Vec::new();
     for row in rows {
@@ -461,5 +559,139 @@ mod tests {
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0], target_set);
+    }
+
+    /// Returns the planned exercise id and three of its sets (positions 0, 1, 2).
+    fn planned_exercise_with_three_sets(conn: &Connection) -> (i64, Set, Set, Set) {
+        let planned = create_test_planned_exercise(conn);
+        let new_set = |conn: &Connection| {
+            create_planned_set(
+                conn,
+                planned.id(),
+                Load::Weighted { weight: None },
+                Some(5),
+                SetType::Regular { effort: None },
+            )
+            .expect("set creation should succeed")
+        };
+        (planned.id(), new_set(conn), new_set(conn), new_set(conn))
+    }
+
+    #[test]
+    fn update_planned_set_changes_load_reps_and_set_type_and_keeps_position() {
+        let conn = setup_test_db();
+        let planned = create_test_planned_exercise(&conn);
+        let set = create_planned_set(
+            &conn,
+            planned.id(),
+            Load::Weighted { weight: None },
+            Some(5),
+            SetType::Regular { effort: None },
+        )
+        .expect("set creation should succeed");
+
+        let new_load = Load::Weighted {
+            weight: Some(Weight::new(100.0, WeightUnit::Kg)),
+        };
+        let updated = update_planned_set(&conn, set.id(), new_load, Some(8), SetType::Myorep)
+            .expect("update should succeed");
+
+        assert_eq!(updated.load(), new_load);
+        assert_eq!(updated.reps(), Some(8));
+        assert_eq!(updated.set_type(), SetType::Myorep);
+        assert_eq!(updated.position(), set.position());
+
+        // Reading it back proves set_columns wrote every column correctly.
+        let sets = list_planned_sets(&conn, planned.id()).expect("listing should succeed");
+        assert_eq!(sets.len(), 1);
+        assert_eq!(sets[0], updated);
+    }
+
+    #[test]
+    fn update_planned_set_returns_not_found_when_set_does_not_exist() {
+        let conn = setup_test_db();
+
+        let result = update_planned_set(&conn, 9999, Load::Bodyweight, None, SetType::Myorep);
+
+        assert!(matches!(result, Err(SetError::NotFound { id: 9999 })));
+    }
+
+    #[test]
+    fn create_planned_set_after_delete_does_not_reuse_a_position() {
+        let conn = setup_test_db();
+        let (planned_id, _a, middle, _c) = planned_exercise_with_three_sets(&conn);
+
+        delete_planned_set(&conn, middle.id()).expect("delete should succeed");
+
+        let next = create_planned_set(
+            &conn,
+            planned_id,
+            Load::Weighted { weight: None },
+            Some(5),
+            SetType::Regular { effort: None },
+        )
+        .expect("set creation should succeed");
+        assert_eq!(next.position(), 3);
+    }
+
+    #[test]
+    fn delete_planned_set_removes_it() {
+        let conn = setup_test_db();
+        let (planned_id, set, _b, _c) = planned_exercise_with_three_sets(&conn);
+
+        delete_planned_set(&conn, set.id()).expect("delete should succeed");
+
+        let sets = list_planned_sets(&conn, planned_id).expect("listing should succeed");
+        assert!(!sets.iter().any(|s| s.id() == set.id()));
+    }
+
+    #[test]
+    fn delete_planned_set_returns_not_found_when_set_does_not_exist() {
+        let conn = setup_test_db();
+
+        let result = delete_planned_set(&conn, 9999);
+
+        assert!(matches!(result, Err(SetError::NotFound { id: 9999 })));
+    }
+
+    #[test]
+    fn delete_planned_exercise_cascades_to_its_sets() {
+        let conn = setup_test_db();
+        let (planned_id, _a, _b, _c) = planned_exercise_with_three_sets(&conn);
+
+        crate::persistence::exercises::delete_planned_exercise(&conn, planned_id)
+            .expect("delete should succeed");
+
+        let result = list_planned_sets(&conn, planned_id);
+        assert!(matches!(
+            result,
+            Err(SetError::AssociatedPlannedExerciseNotFound { .. })
+        ));
+    }
+
+    #[test]
+    fn reorder_planned_sets_rewrites_positions_in_the_given_order() {
+        let mut conn = setup_test_db();
+        let (planned_id, a, b, c) = planned_exercise_with_three_sets(&conn);
+
+        reorder_planned_sets(&mut conn, planned_id, &[c.id(), a.id(), b.id()])
+            .expect("reorder should succeed");
+
+        let ordered = list_planned_sets(&conn, planned_id).expect("listing should succeed");
+        let ids: Vec<i64> = ordered.iter().map(|s| s.id()).collect();
+        assert_eq!(ids, vec![c.id(), a.id(), b.id()]);
+        assert_eq!(ordered[0].position(), 0);
+        assert_eq!(ordered[1].position(), 1);
+        assert_eq!(ordered[2].position(), 2);
+    }
+
+    #[test]
+    fn reorder_planned_sets_returns_mismatch_when_ids_do_not_match_children() {
+        let mut conn = setup_test_db();
+        let (planned_id, a, _b, _c) = planned_exercise_with_three_sets(&conn);
+
+        let result = reorder_planned_sets(&mut conn, planned_id, &[a.id()]);
+
+        assert!(matches!(result, Err(SetError::ReorderMismatch { .. })));
     }
 }

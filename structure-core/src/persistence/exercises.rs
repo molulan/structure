@@ -12,6 +12,8 @@ pub enum ExerciseError {
     DuplicateName { name: String },
     #[error("exercise {id} not found")]
     NotFound { id: i64 },
+    #[error("exercise {id} is used by one or more planned exercises and cannot be deleted")]
+    InUse { id: i64 },
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -24,8 +26,8 @@ pub enum PlannedExerciseError {
     AssociatedExerciseNotFound { id: i64 },
     #[error("planned exercise {id} not found")]
     NotFound { id: i64 },
-    #[error("data corruption: {0}")]
-    DataCorruption(String), //should this still be here? it's not currenlty used
+    #[error("reorder list does not match the planned exercises of workout {workout_id}")]
+    ReorderMismatch { workout_id: i64 },
     #[error("set error: {0}")]
     SetOperation(#[from] super::sets::SetError),
     #[error("validation error: {0}")]
@@ -52,7 +54,7 @@ pub(super) fn create_planned_exercises_table(conn: &Connection) -> rusqlite::Res
     conn.execute(
         "CREATE TABLE IF NOT EXISTS planned_exercises (
             id INTEGER PRIMARY KEY,
-            workout_id INTEGER NOT NULL REFERENCES workouts(id),
+            workout_id INTEGER NOT NULL REFERENCES workouts(id) ON DELETE CASCADE,
             exercise_id INTEGER NOT NULL REFERENCES exercises(id),
             position INTEGER NOT NULL,
             UNIQUE(workout_id, position)
@@ -141,6 +143,53 @@ pub fn list_exercises(conn: &Connection) -> Result<Vec<Exercise>, ExerciseError>
     Ok(exercises)
 }
 
+pub fn update_exercise(
+    conn: &Connection,
+    id: i64,
+    name: &str,
+    exercise_type: ExerciseType,
+) -> Result<Exercise, ExerciseError> {
+    if get_exercise(conn, id)?.is_none() {
+        return Err(ExerciseError::NotFound { id });
+    }
+
+    let name_taken: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM exercises WHERE name = ?1 AND id != ?2",
+        params![name, id],
+        |row| row.get(0),
+    )?;
+    if name_taken > 0 {
+        return Err(ExerciseError::DuplicateName {
+            name: name.to_string(),
+        });
+    }
+
+    conn.execute(
+        "UPDATE exercises SET name = ?1, exercise_type = ?2 WHERE id = ?3",
+        params![name, exercise_type.to_string(), id],
+    )?;
+
+    Ok(Exercise::new(id, name, exercise_type))
+}
+
+pub fn delete_exercise(conn: &Connection, id: i64) -> Result<(), ExerciseError> {
+    let in_use: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM planned_exercises WHERE exercise_id = ?1",
+        [id],
+        |row| row.get(0),
+    )?;
+    if in_use > 0 {
+        return Err(ExerciseError::InUse { id });
+    }
+
+    let deleted = conn.execute("DELETE FROM exercises WHERE id = ?1", [id])?;
+    if deleted == 0 {
+        return Err(ExerciseError::NotFound { id });
+    }
+
+    Ok(())
+}
+
 pub fn create_planned_exercise(
     conn: &Connection,
     workout_id: i64,
@@ -153,15 +202,14 @@ pub fn create_planned_exercise(
     match get_exercise(conn, exercise_id)? {
         None => Err(PlannedExerciseError::AssociatedExerciseNotFound { id: exercise_id }),
         Some(exercise) => {
-            let count: i64 = conn.query_row(
-                "SELECT COUNT(*) FROM planned_exercises WHERE workout_id = ?1",
+            let next_position: i64 = conn.query_row(
+                "SELECT COALESCE(MAX(position), -1) + 1 FROM planned_exercises WHERE workout_id = ?1",
                 [workout_id],
                 |row| row.get(0),
             )?;
 
-            let position = u32::try_from(count).expect(
-                "COUNT(*) is always non-negative and no workout will have 4 billion exercises",
-            );
+            let position = u32::try_from(next_position)
+                .expect("positions are non-negative and no workout will have 4 billion exercises");
 
             conn.execute(
                 "INSERT INTO planned_exercises (workout_id, exercise_id, position) VALUES (?1, ?2, ?3)",
@@ -238,6 +286,36 @@ pub fn list_planned_exercises(
     }
 
     Ok(planned_exercises)
+}
+
+pub fn delete_planned_exercise(conn: &Connection, id: i64) -> Result<(), PlannedExerciseError> {
+    let deleted = conn.execute("DELETE FROM planned_exercises WHERE id = ?1", [id])?;
+
+    if deleted == 0 {
+        return Err(PlannedExerciseError::NotFound { id });
+    }
+
+    Ok(())
+}
+
+pub fn reorder_planned_exercises(
+    conn: &mut Connection,
+    workout_id: i64,
+    ordered_ids: &[i64],
+) -> Result<(), PlannedExerciseError> {
+    let matched = super::positions::reorder(
+        conn,
+        "planned_exercises",
+        "workout_id",
+        workout_id,
+        ordered_ids,
+    )?;
+
+    if matched {
+        Ok(())
+    } else {
+        Err(PlannedExerciseError::ReorderMismatch { workout_id })
+    }
 }
 
 #[cfg(test)]
@@ -556,5 +634,191 @@ mod tests {
         assert_eq!(2, result.len());
         assert_eq!(planned_exercise_1, result[0]);
         assert_eq!(planned_exercise_2, result[1]);
+    }
+
+    /// Returns the workout id and three planned exercises (positions 0, 1, 2),
+    /// all referencing the same library exercise.
+    fn workout_with_three_planned_exercises(
+        conn: &Connection,
+    ) -> (i64, PlannedExercise, PlannedExercise, PlannedExercise) {
+        let workout = create_test_workout(conn);
+        let exercise = create_test_exercise(conn);
+        let a = create_planned_exercise(conn, workout.id(), exercise.id())
+            .expect("creation should succeed");
+        let b = create_planned_exercise(conn, workout.id(), exercise.id())
+            .expect("creation should succeed");
+        let c = create_planned_exercise(conn, workout.id(), exercise.id())
+            .expect("creation should succeed");
+        (workout.id(), a, b, c)
+    }
+
+    #[test]
+    fn create_planned_exercise_after_delete_does_not_reuse_a_position() {
+        let conn = setup_test_db();
+        let (workout_id, _a, middle, _c) = workout_with_three_planned_exercises(&conn);
+
+        delete_planned_exercise(&conn, middle.id()).expect("delete should succeed");
+
+        let exercise = create_exercise(&conn, "Squat", ExerciseType::Weighted)
+            .expect("exercise creation should succeed");
+        let next = create_planned_exercise(&conn, workout_id, exercise.id())
+            .expect("creation should succeed");
+        assert_eq!(next.position(), 3);
+    }
+
+    #[test]
+    fn delete_planned_exercise_removes_it() {
+        let conn = setup_test_db();
+        let (_workout_id, planned, _b, _c) = workout_with_three_planned_exercises(&conn);
+
+        delete_planned_exercise(&conn, planned.id()).expect("delete should succeed");
+
+        let result = get_planned_exercise(&conn, planned.id()).expect("query should succeed");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn delete_planned_exercise_returns_not_found_when_it_does_not_exist() {
+        let conn = setup_test_db();
+
+        let result = delete_planned_exercise(&conn, 9999);
+
+        assert!(matches!(
+            result,
+            Err(PlannedExerciseError::NotFound { id: 9999 })
+        ));
+    }
+
+    #[test]
+    fn delete_workout_cascades_to_its_planned_exercises() {
+        let conn = setup_test_db();
+        let (workout_id, planned, _b, _c) = workout_with_three_planned_exercises(&conn);
+
+        crate::persistence::workouts::delete_workout(&conn, workout_id)
+            .expect("delete should succeed");
+
+        let result = get_planned_exercise(&conn, planned.id()).expect("query should succeed");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn reorder_planned_exercises_rewrites_positions_in_the_given_order() {
+        let mut conn = setup_test_db();
+        let (workout_id, a, b, c) = workout_with_three_planned_exercises(&conn);
+
+        reorder_planned_exercises(&mut conn, workout_id, &[c.id(), a.id(), b.id()])
+            .expect("reorder should succeed");
+
+        let ordered = list_planned_exercises(&conn, workout_id).expect("listing should succeed");
+        let ids: Vec<i64> = ordered.iter().map(|p| p.id()).collect();
+        assert_eq!(ids, vec![c.id(), a.id(), b.id()]);
+        assert_eq!(ordered[0].position(), 0);
+        assert_eq!(ordered[1].position(), 1);
+        assert_eq!(ordered[2].position(), 2);
+    }
+
+    #[test]
+    fn reorder_planned_exercises_returns_mismatch_when_ids_do_not_match_children() {
+        let mut conn = setup_test_db();
+        let (workout_id, a, _b, _c) = workout_with_three_planned_exercises(&conn);
+
+        let result = reorder_planned_exercises(&mut conn, workout_id, &[a.id()]);
+
+        assert!(matches!(
+            result,
+            Err(PlannedExerciseError::ReorderMismatch { .. })
+        ));
+    }
+
+    #[test]
+    fn update_exercise_changes_name_and_type() {
+        let conn = setup_test_db();
+        let exercise = create_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+            .expect("exercise creation should succeed");
+
+        let updated = update_exercise(
+            &conn,
+            exercise.id(),
+            "Incline Press",
+            ExerciseType::Bodyweight,
+        )
+        .expect("update should succeed");
+
+        assert_eq!(updated.name(), "Incline Press");
+        assert_eq!(updated.exercise_type(), ExerciseType::Bodyweight);
+
+        let persisted = get_exercise(&conn, exercise.id())
+            .expect("query should succeed")
+            .expect("exercise should exist");
+        assert_eq!(persisted.name(), "Incline Press");
+        assert_eq!(persisted.exercise_type(), ExerciseType::Bodyweight);
+    }
+
+    #[test]
+    fn update_exercise_keeping_its_own_name_succeeds() {
+        let conn = setup_test_db();
+        let exercise = create_exercise(&conn, "Squat", ExerciseType::Weighted)
+            .expect("exercise creation should succeed");
+
+        let updated = update_exercise(&conn, exercise.id(), "Squat", ExerciseType::Bodyweight)
+            .expect("renaming to its own name should succeed");
+
+        assert_eq!(updated.exercise_type(), ExerciseType::Bodyweight);
+    }
+
+    #[test]
+    fn update_exercise_returns_duplicate_name_when_name_taken_by_another() {
+        let conn = setup_test_db();
+        create_exercise(&conn, "Squat", ExerciseType::Weighted)
+            .expect("first exercise creation should succeed");
+        let other = create_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+            .expect("second exercise creation should succeed");
+
+        let result = update_exercise(&conn, other.id(), "Squat", ExerciseType::Weighted);
+
+        assert!(matches!(result, Err(ExerciseError::DuplicateName { .. })));
+    }
+
+    #[test]
+    fn update_exercise_returns_not_found_when_exercise_does_not_exist() {
+        let conn = setup_test_db();
+
+        let result = update_exercise(&conn, 9999, "Squat", ExerciseType::Weighted);
+
+        assert!(matches!(result, Err(ExerciseError::NotFound { id: 9999 })));
+    }
+
+    #[test]
+    fn delete_exercise_removes_it() {
+        let conn = setup_test_db();
+        let exercise = create_exercise(&conn, "Squat", ExerciseType::Weighted)
+            .expect("exercise creation should succeed");
+
+        delete_exercise(&conn, exercise.id()).expect("delete should succeed");
+
+        let result = get_exercise(&conn, exercise.id()).expect("query should succeed");
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn delete_exercise_returns_not_found_when_exercise_does_not_exist() {
+        let conn = setup_test_db();
+
+        let result = delete_exercise(&conn, 9999);
+
+        assert!(matches!(result, Err(ExerciseError::NotFound { id: 9999 })));
+    }
+
+    #[test]
+    fn delete_exercise_returns_in_use_when_referenced_by_a_planned_exercise() {
+        let conn = setup_test_db();
+        let workout = create_test_workout(&conn);
+        let exercise = create_test_exercise(&conn);
+        create_planned_exercise(&conn, workout.id(), exercise.id())
+            .expect("planned exercise creation should succeed");
+
+        let result = delete_exercise(&conn, exercise.id());
+
+        assert!(matches!(result, Err(ExerciseError::InUse { .. })));
     }
 }

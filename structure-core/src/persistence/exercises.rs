@@ -1,7 +1,7 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::domain::planning::{
-    ExerciseType, LibraryExercise, PlannedExercise, PlannedExerciseValidationError,
+    ExerciseType, LibraryExercise, Name, NameError, PlannedExercise, PlannedExerciseValidationError,
 };
 
 #[derive(Debug, thiserror::Error)]
@@ -14,6 +14,8 @@ pub enum LibraryExerciseError {
     NotFound { id: i64 },
     #[error("exercise {id} is used by one or more planned exercises and cannot be deleted")]
     InUse { id: i64 },
+    #[error(transparent)]
+    InvalidName(#[from] NameError),
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -96,15 +98,17 @@ pub fn create_library_exercise(
     name: &str,
     exercise_type: ExerciseType,
 ) -> Result<LibraryExercise, LibraryExerciseError> {
-    if library_exercise_name_exists(conn, name)? {
+    let name = Name::new(name)?;
+
+    if library_exercise_name_exists(conn, name.as_str())? {
         return Err(LibraryExerciseError::DuplicateName {
-            name: name.to_string(),
+            name: name.as_str().to_string(),
         });
     }
 
     conn.execute(
         "INSERT INTO library_exercises (name, exercise_type) VALUES (?1, ?2)",
-        params![name, exercise_type.to_string()],
+        params![name.as_str(), exercise_type.to_string()],
     )?;
 
     let id = conn.last_insert_rowid();
@@ -124,6 +128,7 @@ pub fn get_library_exercise(
             let name: String = row.get(1)?;
             let exercise_type: String = row.get(2)?;
             let exercise_type = exercise_type_from_str(exercise_type.as_str());
+            let name = Name::new(name).expect("name stored in the database was validated on write");
             Ok(LibraryExercise::new(id, name, exercise_type))
         },
     )
@@ -142,6 +147,7 @@ pub fn list_library_exercises(
     for row in rows {
         let (id, name, exercise_type): (i64, String, String) = row?;
         let exercise_type = exercise_type_from_str(exercise_type.as_str());
+        let name = Name::new(name).expect("name stored in the database was validated on write");
         exercises.push(LibraryExercise::new(id, name, exercise_type));
     }
 
@@ -154,24 +160,26 @@ pub fn update_library_exercise(
     name: &str,
     exercise_type: ExerciseType,
 ) -> Result<LibraryExercise, LibraryExerciseError> {
+    let name = Name::new(name)?;
+
     if get_library_exercise(conn, id)?.is_none() {
         return Err(LibraryExerciseError::NotFound { id });
     }
 
     let name_taken: i64 = conn.query_row(
         "SELECT COUNT(*) FROM library_exercises WHERE name = ?1 AND id != ?2",
-        params![name, id],
+        params![name.as_str(), id],
         |row| row.get(0),
     )?;
     if name_taken > 0 {
         return Err(LibraryExerciseError::DuplicateName {
-            name: name.to_string(),
+            name: name.as_str().to_string(),
         });
     }
 
     conn.execute(
         "UPDATE library_exercises SET name = ?1, exercise_type = ?2 WHERE id = ?3",
-        params![name, exercise_type.to_string(), id],
+        params![name.as_str(), exercise_type.to_string(), id],
     )?;
 
     Ok(LibraryExercise::new(id, name, exercise_type))

@@ -1,7 +1,7 @@
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::Serialize;
 
-use crate::domain::planning::{Mesocycle, MesocycleMode};
+use crate::domain::planning::{Mesocycle, MesocycleMode, Name, NameError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum MesocycleError {
@@ -9,6 +9,8 @@ pub enum MesocycleError {
     Database(#[from] rusqlite::Error),
     #[error("mesocycle {id} not found")]
     NotFound { id: i64 },
+    #[error(transparent)]
+    InvalidName(#[from] NameError),
 }
 
 #[derive(Serialize)]
@@ -38,9 +40,11 @@ pub fn create_mesocycle(
     name: &str,
     mode: MesocycleMode,
 ) -> Result<Mesocycle, MesocycleError> {
+    let name = Name::new(name)?;
+
     conn.execute(
         "INSERT INTO mesocycles (name, mode) VALUES (?1, ?2)",
-        params![name, mode.to_string()],
+        params![name.as_str(), mode.to_string()],
     )?;
 
     let id = conn.last_insert_rowid();
@@ -112,9 +116,11 @@ pub fn update_mesocycle(
     name: &str,
     mode: MesocycleMode,
 ) -> Result<Mesocycle, MesocycleError> {
+    let name = Name::new(name)?;
+
     let updated = conn.execute(
         "UPDATE mesocycles SET name = ?1, mode = ?2 WHERE id = ?3",
-        params![name, mode.to_string(), id],
+        params![name.as_str(), mode.to_string(), id],
     )?;
 
     if updated == 0 {

@@ -1,6 +1,6 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::domain::planning::Workout;
+use crate::domain::planning::{Name, NameError, Workout};
 
 #[derive(Debug, thiserror::Error)]
 pub enum WorkoutError {
@@ -12,6 +12,8 @@ pub enum WorkoutError {
     NotFound { id: i64 },
     #[error("reorder list does not match the workouts of microcycle {microcycle_id}")]
     ReorderMismatch { microcycle_id: i64 },
+    #[error(transparent)]
+    InvalidName(#[from] NameError),
 }
 
 pub(super) fn create_workouts_table(conn: &Connection) -> rusqlite::Result<()> {
@@ -42,6 +44,8 @@ pub fn create_workout(
     microcycle_id: i64,
     name: &str,
 ) -> Result<Workout, WorkoutError> {
+    let name = Name::new(name)?;
+
     if !microcycle_exists(conn, microcycle_id)? {
         return Err(WorkoutError::AssociatedMicrocycleNotFound { id: microcycle_id });
     }
@@ -57,7 +61,7 @@ pub fn create_workout(
 
     conn.execute(
         "INSERT INTO workouts (microcycle_id, name, position) VALUES (?1, ?2, ?3)",
-        params![microcycle_id, name, position],
+        params![microcycle_id, name.as_str(), position],
     )?;
 
     let id = conn.last_insert_rowid();
@@ -75,6 +79,7 @@ pub fn get_workout(conn: &Connection, id: i64) -> rusqlite::Result<Option<Workou
             let position: i64 = row.get(2)?;
             let position =
                 u32::try_from(position).expect("position stored in DB was originally a u32");
+            let name = Name::new(name).expect("name stored in the database was validated on write");
             Ok(Workout::new(id, name, position))
         },
     )
@@ -95,6 +100,7 @@ pub fn list_workouts(conn: &Connection, microcycle_id: i64) -> Result<Vec<Workou
         let name: String = row.get(1)?;
         let position: i64 = row.get(2)?;
         let position = u32::try_from(position).expect("position stored in DB was originally a u32");
+        let name = Name::new(name).expect("name stored in the database was validated on write");
         Ok(Workout::new(id, name, position))
     })?
     .map(|result| result.map_err(WorkoutError::from))
@@ -102,9 +108,11 @@ pub fn list_workouts(conn: &Connection, microcycle_id: i64) -> Result<Vec<Workou
 }
 
 pub fn update_workout(conn: &Connection, id: i64, name: &str) -> Result<Workout, WorkoutError> {
+    let name = Name::new(name)?;
+
     let updated = conn.execute(
         "UPDATE workouts SET name = ?1 WHERE id = ?2",
-        params![name, id],
+        params![name.as_str(), id],
     )?;
 
     if updated == 0 {

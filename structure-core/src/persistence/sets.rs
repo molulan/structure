@@ -349,7 +349,7 @@ mod tests {
         domain::planning::{ExerciseType, MesocycleMode, PlannedExercise, Weight, WeightUnit},
         persistence::{
             connection,
-            exercises::{create_exercise, create_planned_exercise},
+            exercises::{create_library_exercise, create_planned_exercise},
             mesocycles::create_mesocycle,
             microcycles::create_microcycle,
             workouts::create_workout,
@@ -367,7 +367,7 @@ mod tests {
             create_microcycle(conn, mesocycle.id()).expect("microcycle creation should succeed");
         let workout = create_workout(conn, microcycle.id(), "Test Workout")
             .expect("workout creation should succeed");
-        let exercise = create_exercise(conn, "Bench Press", ExerciseType::Weighted)
+        let exercise = create_library_exercise(conn, "Bench Press", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
         let planned = create_planned_exercise(conn, workout.id(), exercise.id())
             .expect("planned exercise creation should succeed");
@@ -527,9 +527,9 @@ mod tests {
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
         let workout = create_workout(&conn, microcycle.id(), "Test Workout")
             .expect("workout creation should succeed");
-        let exercise_1 = create_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+        let exercise_1 = create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("first exercise creation should succeed");
-        let exercise_2 = create_exercise(&conn, "Squat", ExerciseType::Weighted)
+        let exercise_2 = create_library_exercise(&conn, "Squat", ExerciseType::Weighted)
             .expect("second exercise creation should succeed");
 
         let target_planned = create_planned_exercise(&conn, workout.id(), exercise_1.id())

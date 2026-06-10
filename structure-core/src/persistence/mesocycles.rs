@@ -1,4 +1,5 @@
-use rusqlite::{Connection, OptionalExtension, Result, params};
+use rusqlite::{Connection, OptionalExtension, params};
+use serde::Serialize;
 
 use crate::domain::planning::{Mesocycle, MesocycleMode};
 
@@ -10,6 +11,7 @@ pub enum MesocycleError {
     NotFound { id: i64 },
 }
 
+#[derive(Serialize)]
 pub struct MesocycleRow {
     pub id: i64,
     pub name: String,
@@ -17,7 +19,7 @@ pub struct MesocycleRow {
     pub microcycle_count: u32,
 }
 
-pub(super) fn create_mesocycles_table(conn: &Connection) -> Result<()> {
+pub(super) fn create_mesocycles_table(conn: &Connection) -> rusqlite::Result<()> {
     conn.execute(
         "CREATE TABLE IF NOT EXISTS mesocycles (
             id INTEGER PRIMARY KEY,
@@ -31,7 +33,11 @@ pub(super) fn create_mesocycles_table(conn: &Connection) -> Result<()> {
     Ok(())
 }
 
-pub fn create_mesocycle(conn: &Connection, name: &str, mode: MesocycleMode) -> Result<Mesocycle> {
+pub fn create_mesocycle(
+    conn: &Connection,
+    name: &str,
+    mode: MesocycleMode,
+) -> Result<Mesocycle, MesocycleError> {
     conn.execute(
         "INSERT INTO mesocycles (name, mode) VALUES (?1, ?2)",
         params![name, mode.to_string()],
@@ -42,7 +48,7 @@ pub fn create_mesocycle(conn: &Connection, name: &str, mode: MesocycleMode) -> R
     Ok(Mesocycle::new(id, name, mode))
 }
 
-pub fn get_mesocycle(conn: &Connection, id: i64) -> Result<Option<MesocycleRow>> {
+pub fn get_mesocycle(conn: &Connection, id: i64) -> Result<Option<MesocycleRow>, MesocycleError> {
     conn.query_row(
         "SELECT meso.id, meso.name, meso.mode, COUNT(micro.id) as microcycle_count
         FROM mesocycles meso
@@ -68,9 +74,10 @@ pub fn get_mesocycle(conn: &Connection, id: i64) -> Result<Option<MesocycleRow>>
         },
     )
     .optional()
+    .map_err(MesocycleError::from)
 }
 
-pub fn list_mesocycles(conn: &Connection) -> Result<Vec<MesocycleRow>> {
+pub fn list_mesocycles(conn: &Connection) -> Result<Vec<MesocycleRow>, MesocycleError> {
     let mut stmt = conn.prepare(
         "SELECT meso.id, meso.name, meso.mode, COUNT(micro.id) as microcycle_count
          FROM mesocycles meso
@@ -95,7 +102,8 @@ pub fn list_mesocycles(conn: &Connection) -> Result<Vec<MesocycleRow>> {
             microcycle_count,
         })
     })?
-    .collect()
+    .collect::<rusqlite::Result<Vec<_>>>()
+    .map_err(MesocycleError::from)
 }
 
 pub fn update_mesocycle(

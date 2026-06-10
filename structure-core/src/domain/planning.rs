@@ -1,8 +1,8 @@
 use std::fmt::Display;
 
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct Mesocycle {
     id: i64,
     name: String,
@@ -31,7 +31,7 @@ impl Mesocycle {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub enum MesocycleMode {
     Algorithmic,
     Manual,
@@ -47,7 +47,7 @@ impl Display for MesocycleMode {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct Microcycle {
     id: i64,
     position: u32,
@@ -67,7 +67,7 @@ impl Microcycle {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct Workout {
     id: i64,
     name: String,
@@ -96,7 +96,7 @@ impl Workout {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct PlannedExercise {
     id: i64,
     exercise: Exercise,
@@ -186,7 +186,7 @@ fn load_matches_exercise_type(exercise_type: ExerciseType, load: Load) -> bool {
     )
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct Exercise {
     id: i64,
     name: String,
@@ -215,7 +215,7 @@ impl Exercise {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub enum ExerciseType {
     Bodyweight,
     WeightedBodyweight,
@@ -235,7 +235,7 @@ impl Display for ExerciseType {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub struct Set {
     id: i64,
     position: u32,
@@ -282,7 +282,7 @@ impl Set {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub enum SetType {
     Regular { effort: Option<Effort> },
     Myorep,
@@ -290,7 +290,7 @@ pub enum SetType {
     Drop { effort: Option<Effort> },
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub enum Load {
     Bodyweight,
     WeightedBodyweight { added_weight: Option<Weight> },
@@ -298,7 +298,7 @@ pub enum Load {
     Weighted { weight: Option<Weight> },
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub struct Weight {
     value: f64,
     unit: WeightUnit,
@@ -318,18 +318,18 @@ impl Weight {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub enum WeightUnit {
     Kg,
     Lbs,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub enum Effort {
     Rir(Rir),
     Rpe(Rpe),
 }
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub struct Rpe(u8);
 
 impl Rpe {
@@ -345,7 +345,7 @@ impl Rpe {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub struct Rir(i8);
 
 impl Rir {

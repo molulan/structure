@@ -3,9 +3,32 @@ use std::fmt::Display;
 use serde::Serialize;
 
 #[derive(Serialize, Debug, Clone, PartialEq)]
+pub struct Name(String);
+
+#[derive(Debug, thiserror::Error, PartialEq)]
+pub enum NameError {
+    #[error("name must not be empty")]
+    Empty,
+}
+
+impl Name {
+    pub fn new(value: impl Into<String>) -> Result<Name, NameError> {
+        let value = value.into();
+        if value.trim().is_empty() {
+            return Err(NameError::Empty);
+        }
+        Ok(Name(value))
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
+
+#[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct Mesocycle {
     id: i64,
-    name: String,
+    name: Name,
     mode: MesocycleMode,
 }
 
@@ -15,19 +38,15 @@ impl Mesocycle {
     }
 
     pub fn name(&self) -> &str {
-        &self.name
+        self.name.as_str()
     }
 
     pub fn mode(&self) -> MesocycleMode {
         self.mode
     }
 
-    pub(crate) fn new(id: i64, name: impl Into<String>, mode: MesocycleMode) -> Mesocycle {
-        Mesocycle {
-            id,
-            name: name.into(),
-            mode,
-        }
+    pub(crate) fn new(id: i64, name: Name, mode: MesocycleMode) -> Mesocycle {
+        Mesocycle { id, name, mode }
     }
 }
 
@@ -70,7 +89,7 @@ impl Microcycle {
 #[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct Workout {
     id: i64,
-    name: String,
+    name: Name,
     position: u32,
 }
 
@@ -80,19 +99,15 @@ impl Workout {
     }
 
     pub fn name(&self) -> &str {
-        &self.name
+        self.name.as_str()
     }
 
     pub fn position(&self) -> u32 {
         self.position
     }
 
-    pub(crate) fn new(id: i64, name: impl Into<String>, position: u32) -> Workout {
-        Workout {
-            id,
-            name: name.into(),
-            position,
-        }
+    pub(crate) fn new(id: i64, name: Name, position: u32) -> Workout {
+        Workout { id, name, position }
     }
 }
 
@@ -189,19 +204,15 @@ fn load_matches_exercise_type(exercise_type: ExerciseType, load: Load) -> bool {
 #[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct LibraryExercise {
     id: i64,
-    name: String,
+    name: Name,
     exercise_type: ExerciseType,
 }
 
 impl LibraryExercise {
-    pub(crate) fn new(
-        id: i64,
-        name: impl Into<String>,
-        exercise_type: ExerciseType,
-    ) -> LibraryExercise {
+    pub(crate) fn new(id: i64, name: Name, exercise_type: ExerciseType) -> LibraryExercise {
         LibraryExercise {
             id,
-            name: name.into(),
+            name,
             exercise_type,
         }
     }
@@ -211,7 +222,7 @@ impl LibraryExercise {
     }
 
     pub fn name(&self) -> &str {
-        &self.name
+        self.name.as_str()
     }
 
     pub fn exercise_type(&self) -> ExerciseType {
@@ -371,7 +382,7 @@ mod tests {
 
     #[test]
     fn new_workout_has_correct_name_and_id_and_position() {
-        let workout = Workout::new(1, "test workout", 0);
+        let workout = Workout::new(1, Name::new("test workout").unwrap(), 0);
 
         assert_eq!(workout.id(), 1);
         assert_eq!(workout.name(), "test workout");
@@ -388,7 +399,11 @@ mod tests {
 
     #[test]
     fn new_mesocycle_has_correct_name_id_and_mode() {
-        let mesocycle = Mesocycle::new(1, "test mesocycle", MesocycleMode::Algorithmic);
+        let mesocycle = Mesocycle::new(
+            1,
+            Name::new("test mesocycle").unwrap(),
+            MesocycleMode::Algorithmic,
+        );
 
         assert_eq!(mesocycle.name(), "test mesocycle");
         assert_eq!(mesocycle.id(), 1);
@@ -397,7 +412,8 @@ mod tests {
 
     #[test]
     fn new_bodyweight_exercise_has_bodyweight_type_with_correct_name_and_id_and_position() {
-        let exercise = LibraryExercise::new(2, "Squat", ExerciseType::Bodyweight);
+        let exercise =
+            LibraryExercise::new(2, Name::new("Squat").unwrap(), ExerciseType::Bodyweight);
         let planned_exercise = PlannedExercise::new(1, exercise, 1, vec![])
             .expect("newly created exercise has no sets, so validation cannot fail");
 
@@ -412,7 +428,7 @@ mod tests {
 
     #[test]
     fn new_weighted_exercise_has_weighted_type_with_correct_name_and_id_and_position() {
-        let exercise = LibraryExercise::new(2, "Squat", ExerciseType::Weighted);
+        let exercise = LibraryExercise::new(2, Name::new("Squat").unwrap(), ExerciseType::Weighted);
         let planned_exercise = PlannedExercise::new(1, exercise, 2, vec![])
             .expect("newly created exercise has no sets, so validation cannot fail");
 
@@ -428,7 +444,11 @@ mod tests {
     #[test]
     fn new_assisted_bodyweight_exercise_has_assisted_bodyweight_type_with_correct_name_and_id_and_position()
      {
-        let exercise = LibraryExercise::new(2, "Squat", ExerciseType::AssistedBodyweight);
+        let exercise = LibraryExercise::new(
+            2,
+            Name::new("Squat").unwrap(),
+            ExerciseType::AssistedBodyweight,
+        );
         let planned_exercise = PlannedExercise::new(3, exercise, 5, vec![])
             .expect("newly created exercise has no sets, so validation cannot fail");
 
@@ -443,7 +463,11 @@ mod tests {
 
     #[test]
     fn new_weighted_bodyweight_exercise_has_weighted_bodyweight_type_with_correct_name_and_id() {
-        let exercise = LibraryExercise::new(2, "Pull Ups", ExerciseType::WeightedBodyweight);
+        let exercise = LibraryExercise::new(
+            2,
+            Name::new("Pull Ups").unwrap(),
+            ExerciseType::WeightedBodyweight,
+        );
         let planned_exercise = PlannedExercise::new(15, exercise, 9, vec![])
             .expect("newly created exercise has no sets, so validation cannot fail");
 
@@ -458,7 +482,8 @@ mod tests {
 
     #[test]
     fn add_set_to_exercise_with_matching_types_works() {
-        let exercise = LibraryExercise::new(2, "Squat", ExerciseType::Bodyweight);
+        let exercise =
+            LibraryExercise::new(2, Name::new("Squat").unwrap(), ExerciseType::Bodyweight);
         let mut planned_exercise = PlannedExercise::new(1, exercise, 1, vec![])
             .expect("newly created exercise has no sets, so validation cannot fail");
         assert_eq!(planned_exercise.sets().len(), 0);
@@ -481,7 +506,8 @@ mod tests {
 
     #[test]
     fn add_set_to_exercise_with_mismatching_types_causes_error() {
-        let exercise = LibraryExercise::new(2, "Bench Press", ExerciseType::Weighted);
+        let exercise =
+            LibraryExercise::new(2, Name::new("Bench Press").unwrap(), ExerciseType::Weighted);
         let mut planned_exercise = PlannedExercise::new(1, exercise, 1, vec![])
             .expect("newly created exercise has no sets, so validation cannot fail");
 
@@ -503,7 +529,8 @@ mod tests {
 
     #[test]
     fn new_with_single_valid_set_returns_ok_and_set_is_in_sets() {
-        let exercise = LibraryExercise::new(1, "Pull Up", ExerciseType::Bodyweight);
+        let exercise =
+            LibraryExercise::new(1, Name::new("Pull Up").unwrap(), ExerciseType::Bodyweight);
         let set = Set::new(
             1,
             1,
@@ -521,7 +548,8 @@ mod tests {
 
     #[test]
     fn new_with_multiple_valid_sets_returns_ok_with_all_sets_present() {
-        let exercise = LibraryExercise::new(1, "Pull Up", ExerciseType::Bodyweight);
+        let exercise =
+            LibraryExercise::new(1, Name::new("Pull Up").unwrap(), ExerciseType::Bodyweight);
         let sets = vec![
             Set::new(
                 1,
@@ -543,7 +571,8 @@ mod tests {
 
     #[test]
     fn new_with_single_mismatching_set_returns_err() {
-        let exercise = LibraryExercise::new(1, "Bench Press", ExerciseType::Weighted);
+        let exercise =
+            LibraryExercise::new(1, Name::new("Bench Press").unwrap(), ExerciseType::Weighted);
         let set = Set::new(
             1,
             1,
@@ -559,7 +588,8 @@ mod tests {
 
     #[test]
     fn new_with_mixed_sets_where_one_mismatches_returns_err() {
-        let exercise = LibraryExercise::new(1, "Bench Press", ExerciseType::Weighted);
+        let exercise =
+            LibraryExercise::new(1, Name::new("Bench Press").unwrap(), ExerciseType::Weighted);
         let sets = vec![
             Set::new(
                 1,

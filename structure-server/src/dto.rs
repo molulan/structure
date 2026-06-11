@@ -1,5 +1,7 @@
 use serde::Deserialize;
-use structure_core::domain::planning::{ExerciseType, MesocycleMode};
+use structure_core::domain::planning::{
+    Effort, EffortError, ExerciseType, Load, MesocycleMode, Rir, Rpe, SetType, Weight, WeightUnit,
+};
 
 /// Input enum mirroring [`MesocycleMode`].
 #[derive(Deserialize, Clone, Copy)]
@@ -73,6 +75,106 @@ pub struct LibraryExerciseRequest {
 #[derive(Deserialize)]
 pub struct PlannedExerciseRequest {
     pub library_exercise_id: i64,
+}
+
+#[derive(Deserialize, Clone, Copy)]
+pub enum WeightUnitInput {
+    Kg,
+    Lbs,
+}
+
+impl From<WeightUnitInput> for WeightUnit {
+    fn from(value: WeightUnitInput) -> Self {
+        match value {
+            WeightUnitInput::Kg => WeightUnit::Kg,
+            WeightUnitInput::Lbs => WeightUnit::Lbs,
+        }
+    }
+}
+
+#[derive(Deserialize, Clone, Copy)]
+pub struct WeightInput {
+    pub value: f64,
+    pub unit: WeightUnitInput,
+}
+
+impl From<WeightInput> for Weight {
+    fn from(value: WeightInput) -> Self {
+        Weight::new(value.value, value.unit.into())
+    }
+}
+
+#[derive(Deserialize, Clone, Copy)]
+pub enum LoadInput {
+    Bodyweight,
+    WeightedBodyweight { added_weight: Option<WeightInput> },
+    AssistedBodyweight { assistance: Option<WeightInput> },
+    Weighted { weight: Option<WeightInput> },
+}
+
+impl From<LoadInput> for Load {
+    fn from(value: LoadInput) -> Self {
+        match value {
+            LoadInput::Bodyweight => Load::Bodyweight,
+            LoadInput::WeightedBodyweight { added_weight } => Load::WeightedBodyweight {
+                added_weight: added_weight.map(Weight::from),
+            },
+            LoadInput::AssistedBodyweight { assistance } => Load::AssistedBodyweight {
+                assistance: assistance.map(Weight::from),
+            },
+            LoadInput::Weighted { weight } => Load::Weighted {
+                weight: weight.map(Weight::from),
+            },
+        }
+    }
+}
+
+/// The validated value types live here: `Rpe`/`Rir` ranges are enforced by the
+/// domain constructors, so this conversion is fallible and surfaces as a 422.
+#[derive(Deserialize, Clone, Copy)]
+pub enum EffortInput {
+    Rir(i8),
+    Rpe(u8),
+}
+
+impl TryFrom<EffortInput> for Effort {
+    type Error = EffortError;
+
+    fn try_from(value: EffortInput) -> Result<Self, EffortError> {
+        match value {
+            EffortInput::Rir(value) => Ok(Effort::Rir(Rir::new(value)?)),
+            EffortInput::Rpe(value) => Ok(Effort::Rpe(Rpe::new(value)?)),
+        }
+    }
+}
+
+#[derive(Deserialize, Clone, Copy)]
+pub enum SetTypeInput {
+    Regular { effort: Option<EffortInput> },
+    Myorep,
+    MyorepMatch,
+    Drop { effort: Option<EffortInput> },
+}
+
+impl TryFrom<SetTypeInput> for SetType {
+    type Error = EffortError;
+
+    fn try_from(value: SetTypeInput) -> Result<Self, Self::Error> {
+        let effort = |effort: Option<EffortInput>| effort.map(Effort::try_from).transpose();
+        Ok(match value {
+            SetTypeInput::Regular { effort: e } => SetType::Regular { effort: effort(e)? },
+            SetTypeInput::Myorep => SetType::Myorep,
+            SetTypeInput::MyorepMatch => SetType::MyorepMatch,
+            SetTypeInput::Drop { effort: e } => SetType::Drop { effort: effort(e)? },
+        })
+    }
+}
+
+#[derive(Deserialize)]
+pub struct SetRequest {
+    pub load: LoadInput,
+    pub reps: Option<u32>,
+    pub set_type: SetTypeInput,
 }
 
 #[cfg(test)]

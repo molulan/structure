@@ -5,6 +5,7 @@ use serde_json::json;
 use structure_core::persistence::exercises::{LibraryExerciseError, PlannedExerciseError};
 use structure_core::persistence::mesocycles::MesocycleError;
 use structure_core::persistence::microcycles::MicrocycleError;
+use structure_core::persistence::sets::SetError;
 use structure_core::persistence::workouts::WorkoutError;
 
 /// An error rendered as a JSON `{ "error": ... }` body with a status code.
@@ -128,6 +129,23 @@ impl From<PlannedExerciseError> for ApiError {
             }
             PlannedExerciseError::SetOperation(error) => ApiError::internal(error),
             PlannedExerciseError::ValidationError(error) => ApiError::internal(error),
+        }
+    }
+}
+
+impl From<SetError> for ApiError {
+    fn from(error: SetError) -> Self {
+        match error {
+            SetError::Database(error) => ApiError::internal(error),
+            SetError::AssociatedPlannedExerciseNotFound { id } => {
+                ApiError::not_found(format!("planned exercise {id} not found"))
+            }
+            SetError::NotFound { id } => ApiError::not_found(format!("set {id} not found")),
+            SetError::ReorderMismatch {
+                planned_exercise_id,
+            } => ApiError::unprocessable(format!(
+                "reorder list does not match the sets of planned exercise {planned_exercise_id}"
+            )),
         }
     }
 }

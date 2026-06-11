@@ -339,18 +339,31 @@ pub enum WeightUnit {
     Lbs,
 }
 
+#[derive(Debug, thiserror::Error, PartialEq)]
+pub enum EffortError {
+    #[error(transparent)]
+    InvalidRpe(#[from] RpeError),
+    #[error(transparent)]
+    InvalidRir(#[from] RirError),
+}
+
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub enum Effort {
     Rir(Rir),
     Rpe(Rpe),
 }
+
+#[derive(Debug, thiserror::Error, PartialEq)]
+#[error("rpe must be between 1 and 11, got {0}")]
+pub struct RpeError(u8);
+
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub struct Rpe(u8);
 
 impl Rpe {
-    pub fn new(value: u8) -> Result<Rpe, String> {
+    pub fn new(value: u8) -> Result<Rpe, RpeError> {
         if !(1..=11).contains(&value) {
-            return Err(String::from("rpe must be between 1 and 11"));
+            return Err(RpeError(value));
         }
         Ok(Rpe(value))
     }
@@ -360,13 +373,17 @@ impl Rpe {
     }
 }
 
+#[derive(Debug, thiserror::Error, PartialEq)]
+#[error("RIR must be between -1 and 10, got {0}")]
+pub struct RirError(i8);
+
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub struct Rir(i8);
 
 impl Rir {
-    pub fn new(value: i8) -> Result<Rir, String> {
+    pub fn new(value: i8) -> Result<Rir, RirError> {
         if !(-1..=10).contains(&value) {
-            return Err(String::from("RIR must be between -1 and 10"));
+            return Err(RirError(value));
         }
         Ok(Rir(value))
     }

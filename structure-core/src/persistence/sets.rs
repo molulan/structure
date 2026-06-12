@@ -1,7 +1,7 @@
 use crate::domain::planning::{
     Effort, ExerciseType, Load, Rir, Rpe, Set, SetType, SetValidationError, Weight, WeightUnit,
 };
-use crate::persistence::exercises::exercise_type_from_str;
+use crate::persistence::library_exercises::exercise_type_from_str;
 use rusqlite::{Connection, OptionalExtension, params};
 
 #[derive(Debug, thiserror::Error)]
@@ -385,10 +385,8 @@ mod tests {
     use crate::{
         domain::planning::{ExerciseType, MesocycleMode, PlannedExercise, Weight, WeightUnit},
         persistence::{
-            connection,
-            exercises::{create_library_exercise, create_planned_exercise},
-            mesocycles::create_mesocycle,
-            microcycles::create_microcycle,
+            connection, library_exercises::create_library_exercise, mesocycles::create_mesocycle,
+            microcycles::create_microcycle, planned_exercises::create_planned_exercise,
             workouts::create_workout,
         },
     };
@@ -715,7 +713,7 @@ mod tests {
         let mut conn = setup_test_db();
         let (planned_id, _a, _b, _c) = planned_exercise_with_three_sets(&mut conn);
 
-        crate::persistence::exercises::delete_planned_exercise(&conn, planned_id)
+        crate::persistence::planned_exercises::delete_planned_exercise(&conn, planned_id)
             .expect("delete should succeed");
 
         let result = list_planned_sets(&conn, planned_id);

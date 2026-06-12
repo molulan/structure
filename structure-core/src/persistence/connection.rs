@@ -1,11 +1,9 @@
 use rusqlite::Connection;
 
 use crate::persistence::{
-    exercises::{create_library_exercises_table, create_planned_exercises_table},
-    mesocycles::create_mesocycles_table,
-    microcycles::create_microcycles_table,
-    sets::create_planned_sets_table,
-    workouts::create_workouts_table,
+    library_exercises::create_library_exercises_table, mesocycles::create_mesocycles_table,
+    microcycles::create_microcycles_table, planned_exercises::create_planned_exercises_table,
+    sets::create_planned_sets_table, workouts::create_workouts_table,
 };
 
 fn open(db_path: &str) -> rusqlite::Result<Connection> {

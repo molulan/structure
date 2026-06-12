@@ -3,9 +3,10 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
 use structure_core::persistence::aggregates::FullMesocycleError;
-use structure_core::persistence::exercises::{LibraryExerciseError, PlannedExerciseError};
+use structure_core::persistence::library_exercises::LibraryExerciseError;
 use structure_core::persistence::mesocycles::MesocycleError;
 use structure_core::persistence::microcycles::MicrocycleError;
+use structure_core::persistence::planned_exercises::PlannedExerciseError;
 use structure_core::persistence::sets::SetError;
 use structure_core::persistence::workouts::WorkoutError;
 

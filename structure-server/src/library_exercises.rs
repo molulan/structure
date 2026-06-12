@@ -7,7 +7,7 @@ use axum::{
 };
 use structure_core::{
     domain::planning::LibraryExercise,
-    persistence::{exercises as db, store::Store},
+    persistence::{library_exercises as db, store::Store},
 };
 
 pub fn routes() -> Router<Store> {

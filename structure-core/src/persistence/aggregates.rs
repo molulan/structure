@@ -2,9 +2,9 @@ use rusqlite::Connection;
 use serde::Serialize;
 
 use crate::domain::planning::{LibraryExercise, MesocycleMode, Set};
-use crate::persistence::exercises::{PlannedExerciseError, list_planned_exercises};
 use crate::persistence::mesocycles::{MesocycleError, get_mesocycle};
 use crate::persistence::microcycles::{MicrocycleError, list_microcycles};
+use crate::persistence::planned_exercises::{PlannedExerciseError, list_planned_exercises};
 use crate::persistence::sets::{SetError, list_planned_sets};
 use crate::persistence::workouts::{WorkoutError, list_workouts};
 

@@ -1,3 +1,4 @@
+pub mod aggregates;
 pub mod connection;
 pub mod exercises;
 pub mod mesocycles;

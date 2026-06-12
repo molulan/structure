@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 
 use crate::persistence::{
-    exercises::{create_exercises_table, create_planned_exercises_table},
+    exercises::{create_library_exercises_table, create_planned_exercises_table},
     mesocycles::create_mesocycles_table,
     microcycles::create_microcycles_table,
     sets::create_planned_sets_table,
@@ -18,7 +18,7 @@ fn create_schema(conn: &Connection) -> rusqlite::Result<()> {
     create_mesocycles_table(conn)?;
     create_microcycles_table(conn)?;
     create_workouts_table(conn)?;
-    create_exercises_table(conn)?;
+    create_library_exercises_table(conn)?;
     create_planned_exercises_table(conn)?;
     create_planned_sets_table(conn)?;
 

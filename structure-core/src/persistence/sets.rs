@@ -1,4 +1,7 @@
-use crate::domain::planning::{Effort, Load, Rir, Rpe, Set, SetType, Weight, WeightUnit};
+use crate::domain::planning::{
+    Effort, ExerciseType, Load, Rir, Rpe, Set, SetType, SetValidationError, Weight, WeightUnit,
+};
+use crate::persistence::exercises::exercise_type_from_str;
 use rusqlite::{Connection, OptionalExtension, params};
 
 #[derive(Debug, thiserror::Error)]
@@ -11,6 +14,8 @@ pub enum SetError {
     NotFound { id: i64 },
     #[error("reorder list does not match the sets of planned exercise {planned_exercise_id}")]
     ReorderMismatch { planned_exercise_id: i64 },
+    #[error(transparent)]
+    Invalid(#[from] SetValidationError),
 }
 
 pub(super) fn create_planned_sets_table(conn: &Connection) -> rusqlite::Result<()> {
@@ -78,13 +83,32 @@ fn effort_type_to_str(effort: &Effort) -> &'static str {
     }
 }
 
-fn planned_exercise_exists(conn: &Connection, id: i64) -> rusqlite::Result<bool> {
-    let count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM planned_exercises WHERE id = ?1",
-        [id],
-        |row| row.get(0),
-    )?;
-    Ok(count > 0)
+fn planned_exercise_type(
+    conn: &Connection,
+    planned_exercise_id: i64,
+) -> rusqlite::Result<Option<ExerciseType>> {
+    conn.query_row(
+        "SELECT le.exercise_type FROM planned_exercises pe
+         JOIN library_exercises le ON le.id = pe.library_exercise_id
+         WHERE pe.id = ?1",
+        [planned_exercise_id],
+        |row| row.get::<_, String>(0),
+    )
+    .optional()
+    .map(|name| name.map(|name| exercise_type_from_str(&name)))
+}
+
+fn set_exercise_type(conn: &Connection, set_id: i64) -> rusqlite::Result<Option<ExerciseType>> {
+    conn.query_row(
+        "SELECT le.exercise_type FROM planned_sets ps
+         JOIN planned_exercises pe ON pe.id = ps.planned_exercise_id
+         JOIN library_exercises le ON le.id = pe.library_exercise_id
+         WHERE ps.id = ?1",
+        [set_id],
+        |row| row.get::<_, String>(0),
+    )
+    .optional()
+    .map(|name| name.map(|name| exercise_type_from_str(&name)))
 }
 
 /// The persisted column values for a set's `load` and `set_type`, shared by
@@ -141,19 +165,21 @@ fn set_columns(load: Load, set_type: SetType) -> SetColumns {
 }
 
 pub fn create_planned_set(
-    conn: &Connection,
+    conn: &mut Connection,
     planned_exercise_id: i64,
     load: Load,
     reps: Option<u32>,
     set_type: SetType,
 ) -> Result<Set, SetError> {
-    if !planned_exercise_exists(conn, planned_exercise_id)? {
+    let tx = conn.transaction()?;
+
+    let Some(exercise_type) = planned_exercise_type(&tx, planned_exercise_id)? else {
         return Err(SetError::AssociatedPlannedExerciseNotFound {
             id: planned_exercise_id,
         });
-    }
+    };
 
-    let next_position: i64 = conn.query_row(
+    let next_position: i64 = tx.query_row(
         "SELECT COALESCE(MAX(position), -1) + 1 FROM planned_sets WHERE planned_exercise_id = ?1",
         [planned_exercise_id],
         |row| row.get(0),
@@ -164,7 +190,7 @@ pub fn create_planned_set(
     let columns = set_columns(load, set_type);
     let reps_db: Option<i64> = reps.map(|r| r as i64);
 
-    conn.execute(
+    tx.execute(
         "INSERT INTO planned_sets
             (planned_exercise_id, position, set_type, load_type,
              weight_value, weight_unit, reps, effort_type, effort_value)
@@ -182,21 +208,29 @@ pub fn create_planned_set(
         ],
     )?;
 
-    let id = conn.last_insert_rowid();
-    Ok(Set::new(id, position, load, reps, set_type))
+    let id = tx.last_insert_rowid();
+    let set = Set::new(id, position, exercise_type, load, reps, set_type)?;
+    tx.commit()?;
+    Ok(set)
 }
 
 pub fn update_planned_set(
-    conn: &Connection,
+    conn: &mut Connection,
     id: i64,
     load: Load,
     reps: Option<u32>,
     set_type: SetType,
 ) -> Result<Set, SetError> {
+    let tx = conn.transaction()?;
+
+    let Some(exercise_type) = set_exercise_type(&tx, id)? else {
+        return Err(SetError::NotFound { id });
+    };
+
     let columns = set_columns(load, set_type);
     let reps_db: Option<i64> = reps.map(|r| r as i64);
 
-    let position: Option<i64> = conn
+    let position: Option<i64> = tx
         .query_row(
             "UPDATE planned_sets SET
                 set_type = ?1, load_type = ?2, weight_value = ?3, weight_unit = ?4,
@@ -224,7 +258,9 @@ pub fn update_planned_set(
         None => return Err(SetError::NotFound { id }),
     };
 
-    Ok(Set::new(id, position, load, reps, set_type))
+    let set = Set::new(id, position, exercise_type, load, reps, set_type)?;
+    tx.commit()?;
+    Ok(set)
 }
 
 pub fn delete_planned_set(conn: &Connection, id: i64) -> Result<(), SetError> {
@@ -259,7 +295,7 @@ pub fn reorder_planned_sets(
     }
 }
 
-fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<Set> {
+fn row_to_set(row: &rusqlite::Row<'_>, exercise_type: ExerciseType) -> rusqlite::Result<Set> {
     let id = row.get(0)?;
     let position: i64 = row.get(1)?;
     let position = u32::try_from(position)
@@ -313,18 +349,19 @@ fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<Set> {
         other => panic!("unknown set_type in DB: {other}"),
     };
 
-    Ok(Set::new(id, position, load, reps, set_type))
+    Ok(Set::new(id, position, exercise_type, load, reps, set_type)
+        .expect("set load stored in DB was validated on write"))
 }
 
 pub fn list_planned_sets(
     conn: &Connection,
     planned_exercise_id: i64,
 ) -> Result<Vec<Set>, SetError> {
-    if !planned_exercise_exists(conn, planned_exercise_id)? {
+    let Some(exercise_type) = planned_exercise_type(conn, planned_exercise_id)? else {
         return Err(SetError::AssociatedPlannedExerciseNotFound {
             id: planned_exercise_id,
         });
-    }
+    };
 
     let mut stmt = conn.prepare(
         "SELECT id, position, set_type, load_type, weight_value, weight_unit, reps, effort_type, effort_value
@@ -333,7 +370,7 @@ pub fn list_planned_sets(
          ORDER BY position ASC",
     )?;
 
-    let rows = stmt.query_map([planned_exercise_id], row_to_set)?;
+    let rows = stmt.query_map([planned_exercise_id], |row| row_to_set(row, exercise_type))?;
 
     let mut sets = Vec::new();
     for row in rows {
@@ -349,7 +386,7 @@ mod tests {
         domain::planning::{ExerciseType, MesocycleMode, PlannedExercise, Weight, WeightUnit},
         persistence::{
             connection,
-            exercises::{create_exercise, create_planned_exercise},
+            exercises::{create_library_exercise, create_planned_exercise},
             mesocycles::create_mesocycle,
             microcycles::create_microcycle,
             workouts::create_workout,
@@ -367,20 +404,19 @@ mod tests {
             create_microcycle(conn, mesocycle.id()).expect("microcycle creation should succeed");
         let workout = create_workout(conn, microcycle.id(), "Test Workout")
             .expect("workout creation should succeed");
-        let exercise = create_exercise(conn, "Bench Press", ExerciseType::Weighted)
+        let exercise = create_library_exercise(conn, "Bench Press", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
-        let planned = create_planned_exercise(conn, workout.id(), exercise.id())
-            .expect("planned exercise creation should succeed");
-        planned
+        create_planned_exercise(conn, workout.id(), exercise.id())
+            .expect("planned exercise creation should succeed")
     }
 
     #[test]
     fn create_planned_set_on_existing_planned_exercise_succeeds() {
-        let conn = setup_test_db();
+        let mut conn = setup_test_db();
         let planned_exercise = create_test_planned_exercise(&conn);
 
         let result = create_planned_set(
-            &conn,
+            &mut conn,
             planned_exercise.id(),
             Load::Weighted {
                 weight: Some(Weight::new(100.0, WeightUnit::Kg)),
@@ -394,10 +430,10 @@ mod tests {
 
     #[test]
     fn create_planned_set_for_nonexistent_planned_exercise_returns_error() {
-        let conn = setup_test_db();
+        let mut conn = setup_test_db();
 
         let result = create_planned_set(
-            &conn,
+            &mut conn,
             9999,
             Load::Bodyweight,
             Some(10),
@@ -411,12 +447,32 @@ mod tests {
     }
 
     #[test]
+    fn create_planned_set_with_load_not_matching_exercise_type_returns_load_mismatch() {
+        let mut conn = setup_test_db();
+        // create_test_planned_exercise uses a Weighted exercise.
+        let planned_exercise = create_test_planned_exercise(&conn);
+
+        let result = create_planned_set(
+            &mut conn,
+            planned_exercise.id(),
+            Load::Bodyweight,
+            Some(10),
+            SetType::Regular { effort: None },
+        );
+
+        assert!(matches!(
+            result,
+            Err(SetError::Invalid(SetValidationError::LoadMismatch { .. }))
+        ));
+    }
+
+    #[test]
     fn first_planned_set_gets_position_0() {
-        let conn = setup_test_db();
+        let mut conn = setup_test_db();
         let planned_exercise = create_test_planned_exercise(&conn);
 
         let set = create_planned_set(
-            &conn,
+            &mut conn,
             planned_exercise.id(),
             Load::Weighted { weight: None },
             Some(8),
@@ -429,11 +485,11 @@ mod tests {
 
     #[test]
     fn multiple_planned_sets_for_same_exercise_get_sequential_positions() {
-        let conn = setup_test_db();
+        let mut conn = setup_test_db();
         let planned_exercise = create_test_planned_exercise(&conn);
 
         let set_1 = create_planned_set(
-            &conn,
+            &mut conn,
             planned_exercise.id(),
             Load::Weighted { weight: None },
             Some(5),
@@ -441,7 +497,7 @@ mod tests {
         )
         .expect("first set creation should succeed");
         let set_2 = create_planned_set(
-            &conn,
+            &mut conn,
             planned_exercise.id(),
             Load::Weighted { weight: None },
             Some(5),
@@ -449,7 +505,7 @@ mod tests {
         )
         .expect("second set creation should succeed");
         let set_3 = create_planned_set(
-            &conn,
+            &mut conn,
             planned_exercise.id(),
             Load::Weighted { weight: None },
             Some(5),
@@ -487,11 +543,11 @@ mod tests {
 
     #[test]
     fn list_planned_sets_returns_all_sets_for_a_planned_exercise() {
-        let conn = setup_test_db();
+        let mut conn = setup_test_db();
         let planned_exercise = create_test_planned_exercise(&conn);
 
         let set_1 = create_planned_set(
-            &conn,
+            &mut conn,
             planned_exercise.id(),
             Load::Weighted {
                 weight: Some(Weight::new(80.0, WeightUnit::Kg)),
@@ -501,7 +557,7 @@ mod tests {
         )
         .expect("first set creation should succeed");
         let set_2 = create_planned_set(
-            &conn,
+            &mut conn,
             planned_exercise.id(),
             Load::Weighted { weight: None },
             Some(8),
@@ -519,7 +575,7 @@ mod tests {
 
     #[test]
     fn list_planned_sets_returns_only_sets_belonging_to_the_requested_planned_exercise() {
-        let conn = setup_test_db();
+        let mut conn = setup_test_db();
 
         let mesocycle = create_mesocycle(&conn, "Test Mesocycle", MesocycleMode::Algorithmic)
             .expect("mesocycle creation should succeed");
@@ -527,9 +583,9 @@ mod tests {
             create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
         let workout = create_workout(&conn, microcycle.id(), "Test Workout")
             .expect("workout creation should succeed");
-        let exercise_1 = create_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+        let exercise_1 = create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("first exercise creation should succeed");
-        let exercise_2 = create_exercise(&conn, "Squat", ExerciseType::Weighted)
+        let exercise_2 = create_library_exercise(&conn, "Squat", ExerciseType::Weighted)
             .expect("second exercise creation should succeed");
 
         let target_planned = create_planned_exercise(&conn, workout.id(), exercise_1.id())
@@ -538,7 +594,7 @@ mod tests {
             .expect("second planned exercise creation should succeed");
 
         let target_set = create_planned_set(
-            &conn,
+            &mut conn,
             target_planned.id(),
             Load::Weighted { weight: None },
             Some(5),
@@ -546,7 +602,7 @@ mod tests {
         )
         .expect("set creation for target exercise should succeed");
         let _ = create_planned_set(
-            &conn,
+            &mut conn,
             other_planned.id(),
             Load::Weighted { weight: None },
             Some(10),
@@ -562,9 +618,9 @@ mod tests {
     }
 
     /// Returns the planned exercise id and three of its sets (positions 0, 1, 2).
-    fn planned_exercise_with_three_sets(conn: &Connection) -> (i64, Set, Set, Set) {
+    fn planned_exercise_with_three_sets(conn: &mut Connection) -> (i64, Set, Set, Set) {
         let planned = create_test_planned_exercise(conn);
-        let new_set = |conn: &Connection| {
+        let new_set = |conn: &mut Connection| {
             create_planned_set(
                 conn,
                 planned.id(),
@@ -579,10 +635,10 @@ mod tests {
 
     #[test]
     fn update_planned_set_changes_load_reps_and_set_type_and_keeps_position() {
-        let conn = setup_test_db();
+        let mut conn = setup_test_db();
         let planned = create_test_planned_exercise(&conn);
         let set = create_planned_set(
-            &conn,
+            &mut conn,
             planned.id(),
             Load::Weighted { weight: None },
             Some(5),
@@ -593,7 +649,7 @@ mod tests {
         let new_load = Load::Weighted {
             weight: Some(Weight::new(100.0, WeightUnit::Kg)),
         };
-        let updated = update_planned_set(&conn, set.id(), new_load, Some(8), SetType::Myorep)
+        let updated = update_planned_set(&mut conn, set.id(), new_load, Some(8), SetType::Myorep)
             .expect("update should succeed");
 
         assert_eq!(updated.load(), new_load);
@@ -609,22 +665,22 @@ mod tests {
 
     #[test]
     fn update_planned_set_returns_not_found_when_set_does_not_exist() {
-        let conn = setup_test_db();
+        let mut conn = setup_test_db();
 
-        let result = update_planned_set(&conn, 9999, Load::Bodyweight, None, SetType::Myorep);
+        let result = update_planned_set(&mut conn, 9999, Load::Bodyweight, None, SetType::Myorep);
 
         assert!(matches!(result, Err(SetError::NotFound { id: 9999 })));
     }
 
     #[test]
     fn create_planned_set_after_delete_does_not_reuse_a_position() {
-        let conn = setup_test_db();
-        let (planned_id, _a, middle, _c) = planned_exercise_with_three_sets(&conn);
+        let mut conn = setup_test_db();
+        let (planned_id, _a, middle, _c) = planned_exercise_with_three_sets(&mut conn);
 
         delete_planned_set(&conn, middle.id()).expect("delete should succeed");
 
         let next = create_planned_set(
-            &conn,
+            &mut conn,
             planned_id,
             Load::Weighted { weight: None },
             Some(5),
@@ -636,8 +692,8 @@ mod tests {
 
     #[test]
     fn delete_planned_set_removes_it() {
-        let conn = setup_test_db();
-        let (planned_id, set, _b, _c) = planned_exercise_with_three_sets(&conn);
+        let mut conn = setup_test_db();
+        let (planned_id, set, _b, _c) = planned_exercise_with_three_sets(&mut conn);
 
         delete_planned_set(&conn, set.id()).expect("delete should succeed");
 
@@ -656,8 +712,8 @@ mod tests {
 
     #[test]
     fn delete_planned_exercise_cascades_to_its_sets() {
-        let conn = setup_test_db();
-        let (planned_id, _a, _b, _c) = planned_exercise_with_three_sets(&conn);
+        let mut conn = setup_test_db();
+        let (planned_id, _a, _b, _c) = planned_exercise_with_three_sets(&mut conn);
 
         crate::persistence::exercises::delete_planned_exercise(&conn, planned_id)
             .expect("delete should succeed");
@@ -672,7 +728,7 @@ mod tests {
     #[test]
     fn reorder_planned_sets_rewrites_positions_in_the_given_order() {
         let mut conn = setup_test_db();
-        let (planned_id, a, b, c) = planned_exercise_with_three_sets(&conn);
+        let (planned_id, a, b, c) = planned_exercise_with_three_sets(&mut conn);
 
         reorder_planned_sets(&mut conn, planned_id, &[c.id(), a.id(), b.id()])
             .expect("reorder should succeed");
@@ -688,7 +744,7 @@ mod tests {
     #[test]
     fn reorder_planned_sets_returns_mismatch_when_ids_do_not_match_children() {
         let mut conn = setup_test_db();
-        let (planned_id, a, _b, _c) = planned_exercise_with_three_sets(&conn);
+        let (planned_id, a, _b, _c) = planned_exercise_with_three_sets(&mut conn);
 
         let result = reorder_planned_sets(&mut conn, planned_id, &[a.id()]);
 

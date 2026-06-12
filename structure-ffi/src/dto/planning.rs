@@ -1,8 +1,8 @@
 use flutter_rust_bridge::frb;
 use serde::{Deserialize, Serialize};
 use structure_core::domain::planning::{
-    Effort, Exercise, ExerciseType, Load, MesocycleMode, Microcycle, PlannedExercise, Rir, Rpe,
-    Set, SetType, Weight, WeightUnit, Workout,
+    Effort, ExerciseType, LibraryExercise, Load, MesocycleMode, Microcycle, PlannedExercise, Rir,
+    Rpe, Set, SetType, Weight, WeightUnit, Workout,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -108,33 +108,31 @@ impl From<ExerciseTypeDTO> for ExerciseType {
 #[frb]
 pub struct PlannedExerciseDTO {
     pub(crate) id: i64,
-    pub(crate) exercise: ExerciseDTO,
+    pub(crate) exercise: LibraryExerciseDTO,
     pub(crate) position: u32,
-    pub(crate) sets: Vec<SetDTO>,
 }
 
 impl From<&PlannedExercise> for PlannedExerciseDTO {
     fn from(value: &PlannedExercise) -> Self {
         PlannedExerciseDTO {
             id: value.id(),
-            exercise: ExerciseDTO::from(value.exercise()),
+            exercise: LibraryExerciseDTO::from(value.exercise()),
             position: value.position(),
-            sets: value.sets().iter().copied().map(SetDTO::from).collect(),
         }
     }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[frb]
-pub struct ExerciseDTO {
+pub struct LibraryExerciseDTO {
     pub(crate) id: i64,
     pub(crate) name: String,
     pub(crate) exercise_type: ExerciseTypeDTO,
 }
 
-impl From<&Exercise> for ExerciseDTO {
-    fn from(value: &Exercise) -> Self {
-        ExerciseDTO {
+impl From<&LibraryExercise> for LibraryExerciseDTO {
+    fn from(value: &LibraryExercise) -> Self {
+        LibraryExerciseDTO {
             id: value.id(),
             name: value.name().to_owned(),
             exercise_type: ExerciseTypeDTO::from(value.exercise_type()),

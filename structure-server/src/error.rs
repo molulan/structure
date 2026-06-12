@@ -2,6 +2,7 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
+use structure_core::persistence::aggregates::FullMesocycleError;
 use structure_core::persistence::exercises::{LibraryExerciseError, PlannedExerciseError};
 use structure_core::persistence::mesocycles::MesocycleError;
 use structure_core::persistence::microcycles::MicrocycleError;
@@ -145,6 +146,18 @@ impl From<SetError> for ApiError {
                 "reorder list does not match the sets of planned exercise {planned_exercise_id}"
             )),
             SetError::Invalid(error) => ApiError::unprocessable(error.to_string()),
+        }
+    }
+}
+
+impl From<FullMesocycleError> for ApiError {
+    fn from(error: FullMesocycleError) -> Self {
+        match error {
+            FullMesocycleError::Mesocycle(error) => error.into(),
+            FullMesocycleError::Microcycle(error) => error.into(),
+            FullMesocycleError::Workout(error) => error.into(),
+            FullMesocycleError::PlannedExercise(error) => error.into(),
+            FullMesocycleError::Set(error) => error.into(),
         }
     }
 }

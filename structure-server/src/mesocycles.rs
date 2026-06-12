@@ -4,6 +4,7 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::routing::get;
 use structure_core::domain::planning::Mesocycle;
+use structure_core::persistence::aggregates::{FullMesocycle, get_full_mesocycle};
 use structure_core::persistence::mesocycles::{self as db, MesocycleRow};
 use structure_core::persistence::store::Store;
 
@@ -17,6 +18,7 @@ pub fn routes() -> Router<Store> {
             "/mesocycles/{id}",
             get(get_one).put(update).delete(delete_one),
         )
+        .route("/mesocycles/{id}/full", get(get_full))
 }
 
 async fn list(State(store): State<Store>) -> Result<Json<Vec<MesocycleRow>>, ApiError> {
@@ -39,6 +41,16 @@ async fn get_one(
 ) -> Result<Json<MesocycleRow>, ApiError> {
     let mesocycle = store
         .with_conn(|conn| db::get_mesocycle(conn, id))?
+        .ok_or_else(|| ApiError::not_found(format!("mesocycle {id} not found")))?;
+    Ok(Json(mesocycle))
+}
+
+async fn get_full(
+    State(store): State<Store>,
+    Path(id): Path<i64>,
+) -> Result<Json<FullMesocycle>, ApiError> {
+    let mesocycle = store
+        .with_conn(|conn| get_full_mesocycle(conn, id))?
         .ok_or_else(|| ApiError::not_found(format!("mesocycle {id} not found")))?;
     Ok(Json(mesocycle))
 }

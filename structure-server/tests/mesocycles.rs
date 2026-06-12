@@ -1,7 +1,10 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{send, test_app};
+use common::{
+    create_library_exercise, create_microcycle, create_planned_exercise, create_program,
+    create_set, create_workout, send, test_app,
+};
 use serde_json::json;
 
 #[tokio::test]
@@ -115,6 +118,46 @@ async fn update_missing_mesocycle_returns_404() {
         Some(json!({ "name": "X", "mode": "Manual" })),
     )
     .await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}
+
+#[tokio::test]
+async fn get_full_mesocycle_returns_the_whole_tree() {
+    let app = test_app();
+    let mesocycle_id = create_program(&app).await;
+    let microcycle_id = create_microcycle(&app, mesocycle_id).await;
+    let workout_id = create_workout(&app, microcycle_id, "Push").await;
+    let exercise_id = create_library_exercise(&app, "Bench Press", "Weighted").await;
+    let planned_id = create_planned_exercise(&app, workout_id, exercise_id).await;
+    let set_id = create_set(&app, planned_id).await;
+
+    let (status, full) = send(
+        &app,
+        "GET",
+        &format!("/mesocycles/{mesocycle_id}/full"),
+        None,
+    )
+    .await;
+    assert_eq!(status, StatusCode::OK);
+
+    assert_eq!(full["id"].as_i64(), Some(mesocycle_id));
+    let microcycle = &full["microcycles"][0];
+    assert_eq!(microcycle["id"].as_i64(), Some(microcycle_id));
+    let workout = &microcycle["workouts"][0];
+    assert_eq!(workout["id"].as_i64(), Some(workout_id));
+    assert_eq!(workout["name"], "Push");
+    let planned = &workout["planned_exercises"][0];
+    assert_eq!(planned["id"].as_i64(), Some(planned_id));
+    assert_eq!(planned["exercise"]["name"], "Bench Press");
+    assert_eq!(planned["sets"][0]["id"].as_i64(), Some(set_id));
+}
+
+#[tokio::test]
+async fn get_full_missing_mesocycle_returns_404() {
+    let app = test_app();
+
+    let (status, _) = send(&app, "GET", "/mesocycles/999/full", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
 }

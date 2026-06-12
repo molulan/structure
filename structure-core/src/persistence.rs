@@ -1,8 +1,9 @@
 pub mod aggregates;
 pub mod connection;
-pub mod exercises;
+pub mod library_exercises;
 pub mod mesocycles;
 pub mod microcycles;
+pub mod planned_exercises;
 mod positions;
 pub mod sets;
 pub mod store;

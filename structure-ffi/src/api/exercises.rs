@@ -4,7 +4,8 @@ use structure_core::{
     domain::planning::ExerciseType,
     persistence::{
         connection,
-        exercises::{self as db, LibraryExerciseError, PlannedExerciseError},
+        library_exercises::{self, LibraryExerciseError},
+        planned_exercises::{self, PlannedExerciseError},
     },
 };
 
@@ -15,7 +16,11 @@ pub fn create_library_exercise(
 ) -> Result<LibraryExerciseDTO, LibraryExerciseError> {
     let conn = connection::init_db("structure.db")?;
 
-    let exercise = db::create_library_exercise(&conn, &name, ExerciseType::from(exercise_type))?;
+    let exercise = library_exercises::create_library_exercise(
+        &conn,
+        &name,
+        ExerciseType::from(exercise_type),
+    )?;
 
     Ok(LibraryExerciseDTO::from(&exercise))
 }
@@ -24,8 +29,8 @@ pub fn create_library_exercise(
 pub fn get_library_exercise(id: i64) -> Result<LibraryExerciseDTO, LibraryExerciseError> {
     let conn = connection::init_db("structure.db")?;
 
-    let exercise =
-        db::get_library_exercise(&conn, id)?.ok_or(LibraryExerciseError::NotFound { id })?;
+    let exercise = library_exercises::get_library_exercise(&conn, id)?
+        .ok_or(LibraryExerciseError::NotFound { id })?;
 
     Ok(LibraryExerciseDTO::from(&exercise))
 }
@@ -34,7 +39,7 @@ pub fn get_library_exercise(id: i64) -> Result<LibraryExerciseDTO, LibraryExerci
 pub fn list_library_exercises() -> Result<Vec<LibraryExerciseDTO>, LibraryExerciseError> {
     let conn = connection::init_db("structure.db")?;
 
-    let exercises = db::list_library_exercises(&conn)?;
+    let exercises = library_exercises::list_library_exercises(&conn)?;
 
     Ok(exercises.iter().map(LibraryExerciseDTO::from).collect())
 }
@@ -46,7 +51,8 @@ pub fn create_planned_exercise(
 ) -> Result<PlannedExerciseDTO, PlannedExerciseError> {
     let conn = connection::init_db("structure.db")?;
 
-    let planned_exercise = db::create_planned_exercise(&conn, workout_id, library_exercise_id)?;
+    let planned_exercise =
+        planned_exercises::create_planned_exercise(&conn, workout_id, library_exercise_id)?;
 
     Ok(PlannedExerciseDTO::from(&planned_exercise))
 }
@@ -55,8 +61,8 @@ pub fn create_planned_exercise(
 pub fn get_planned_exercise(id: i64) -> Result<PlannedExerciseDTO, PlannedExerciseError> {
     let conn = connection::init_db("structure.db")?;
 
-    let planned_exercise =
-        db::get_planned_exercise(&conn, id)?.ok_or(PlannedExerciseError::NotFound { id })?;
+    let planned_exercise = planned_exercises::get_planned_exercise(&conn, id)?
+        .ok_or(PlannedExerciseError::NotFound { id })?;
 
     Ok(PlannedExerciseDTO::from(&planned_exercise))
 }
@@ -67,10 +73,7 @@ pub fn list_planned_exercises(
 ) -> Result<Vec<PlannedExerciseDTO>, PlannedExerciseError> {
     let conn = connection::init_db("structure.db")?;
 
-    let planned_exercises = db::list_planned_exercises(&conn, workout_id)?;
+    let planned = planned_exercises::list_planned_exercises(&conn, workout_id)?;
 
-    Ok(planned_exercises
-        .iter()
-        .map(PlannedExerciseDTO::from)
-        .collect())
+    Ok(planned.iter().map(PlannedExerciseDTO::from).collect())
 }

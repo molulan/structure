@@ -127,8 +127,6 @@ impl From<PlannedExerciseError> for ApiError {
                     "reorder list does not match the planned exercises of workout {workout_id}"
                 ))
             }
-            PlannedExerciseError::SetOperation(error) => ApiError::internal(error),
-            PlannedExerciseError::ValidationError(error) => ApiError::internal(error),
         }
     }
 }
@@ -146,6 +144,7 @@ impl From<SetError> for ApiError {
             } => ApiError::unprocessable(format!(
                 "reorder list does not match the sets of planned exercise {planned_exercise_id}"
             )),
+            SetError::Invalid(error) => ApiError::unprocessable(error.to_string()),
         }
     }
 }

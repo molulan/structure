@@ -1,8 +1,6 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
-use crate::domain::planning::{
-    ExerciseType, LibraryExercise, Name, NameError, PlannedExercise, PlannedExerciseValidationError,
-};
+use crate::domain::planning::{ExerciseType, LibraryExercise, Name, NameError, PlannedExercise};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LibraryExerciseError {
@@ -30,10 +28,6 @@ pub enum PlannedExerciseError {
     NotFound { id: i64 },
     #[error("reorder list does not match the planned exercises of workout {workout_id}")]
     ReorderMismatch { workout_id: i64 },
-    #[error("set error: {0}")]
-    SetOperation(#[from] super::sets::SetError),
-    #[error("validation error: {0}")]
-    ValidationError(#[from] PlannedExerciseValidationError),
 }
 
 pub(super) fn create_library_exercises_table(conn: &Connection) -> rusqlite::Result<()> {
@@ -83,7 +77,7 @@ fn library_exercise_name_exists(conn: &Connection, name: &str) -> rusqlite::Resu
     Ok(count > 0)
 }
 
-fn exercise_type_from_str(s: &str) -> ExerciseType {
+pub(crate) fn exercise_type_from_str(s: &str) -> ExerciseType {
     match s {
         "Bodyweight" => ExerciseType::Bodyweight,
         "WeightedBodyweight" => ExerciseType::WeightedBodyweight,
@@ -233,8 +227,7 @@ pub fn create_planned_exercise(
 
             let id = conn.last_insert_rowid();
 
-            Ok(PlannedExercise::new(id, exercise, position, Vec::new())
-                .expect("newly created exercise has no sets, so validation cannot fail"))
+            Ok(PlannedExercise::new(id, exercise, position))
         }
     }
 }
@@ -263,10 +256,8 @@ pub fn get_planned_exercise(
                 u32::try_from(position).expect("position stored in DB was originally a u32");
             let exercise = get_library_exercise(conn, library_exercise_id)?
                 .expect("exercise FK in planned_exercises points to nonexistent exercise");
-            let sets = super::sets::list_planned_sets(conn, id)?;
-            let planned_exercise = PlannedExercise::new(id, exercise, position, sets)?;
 
-            Ok(Some(planned_exercise))
+            Ok(Some(PlannedExercise::new(id, exercise, position)))
         }
     }
 }
@@ -295,9 +286,7 @@ pub fn list_planned_exercises(
         let exercise = get_library_exercise(conn, library_exercise_id)?.expect(
             "exercise FK in planned_exercises points to nonexistent exercise — data corrupted",
         );
-        let sets = super::sets::list_planned_sets(conn, id)?;
-        let planned_exercise = PlannedExercise::new(id, exercise, position, sets)?;
-        planned_exercises.push(planned_exercise);
+        planned_exercises.push(PlannedExercise::new(id, exercise, position));
     }
 
     Ok(planned_exercises)

@@ -116,40 +116,15 @@ pub struct PlannedExercise {
     id: i64,
     exercise: LibraryExercise,
     position: u32,
-    sets: Vec<Set>,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum PlannedExerciseValidationError {
-    #[error("load {load:?} is incompatible with exercise type {exercise_type:?}")]
-    LoadMismatch {
-        load: Load,
-        exercise_type: ExerciseType,
-    },
 }
 
 impl PlannedExercise {
-    pub(crate) fn new(
-        id: i64,
-        exercise: LibraryExercise,
-        position: u32,
-        sets: Vec<Set>,
-    ) -> Result<PlannedExercise, PlannedExerciseValidationError> {
-        for set in &sets {
-            if !load_matches_exercise_type(exercise.exercise_type(), set.load()) {
-                return Err(PlannedExerciseValidationError::LoadMismatch {
-                    load: set.load(),
-                    exercise_type: exercise.exercise_type(),
-                });
-            }
-        }
-
-        Ok(PlannedExercise {
+    pub(crate) fn new(id: i64, exercise: LibraryExercise, position: u32) -> PlannedExercise {
+        PlannedExercise {
             id,
             exercise,
             position,
-            sets,
-        })
+        }
     }
 
     pub fn id(&self) -> i64 {
@@ -167,25 +142,10 @@ impl PlannedExercise {
     pub fn position(&self) -> u32 {
         self.position
     }
-
-    pub fn sets(&self) -> &[Set] {
-        &self.sets
-    }
-
-    pub fn add_set(&mut self, set: Set) -> Result<(), PlannedExerciseValidationError> {
-        if !load_matches_exercise_type(self.exercise.exercise_type, set.load()) {
-            return Err(PlannedExerciseValidationError::LoadMismatch {
-                load: set.load(),
-                exercise_type: self.exercise.exercise_type(),
-            });
-        }
-        self.sets.push(set);
-        Ok(())
-    }
 }
 
+/// Whether a `Load` is valid for an exercise of the given `ExerciseType`.
 fn load_matches_exercise_type(exercise_type: ExerciseType, load: Load) -> bool {
-    //should they still be references even though they are copy?
     matches!(
         (exercise_type, load),
         (ExerciseType::Bodyweight, Load::Bodyweight)
@@ -250,6 +210,15 @@ impl Display for ExerciseType {
     }
 }
 
+#[derive(Debug, thiserror::Error, PartialEq)]
+pub enum SetValidationError {
+    #[error("load {load:?} is incompatible with exercise type {exercise_type:?}")]
+    LoadMismatch {
+        load: Load,
+        exercise_type: ExerciseType,
+    },
+}
+
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub struct Set {
     id: i64,
@@ -263,17 +232,24 @@ impl Set {
     pub(crate) fn new(
         id: i64,
         position: u32,
+        exercise_type: ExerciseType,
         load: Load,
         reps: Option<u32>,
         set_type: SetType,
-    ) -> Self {
-        Self {
+    ) -> Result<Set, SetValidationError> {
+        if !load_matches_exercise_type(exercise_type, load) {
+            return Err(SetValidationError::LoadMismatch {
+                load,
+                exercise_type,
+            });
+        }
+        Ok(Set {
             id,
             position,
             load,
             reps,
             set_type,
-        }
+        })
     }
 
     pub fn id(&self) -> i64 {
@@ -431,8 +407,7 @@ mod tests {
     fn new_bodyweight_exercise_has_bodyweight_type_with_correct_name_and_id_and_position() {
         let exercise =
             LibraryExercise::new(2, Name::new("Squat").unwrap(), ExerciseType::Bodyweight);
-        let planned_exercise = PlannedExercise::new(1, exercise, 1, vec![])
-            .expect("newly created exercise has no sets, so validation cannot fail");
+        let planned_exercise = PlannedExercise::new(1, exercise, 1);
 
         assert_eq!(
             planned_exercise.exercise().exercise_type(),
@@ -446,8 +421,7 @@ mod tests {
     #[test]
     fn new_weighted_exercise_has_weighted_type_with_correct_name_and_id_and_position() {
         let exercise = LibraryExercise::new(2, Name::new("Squat").unwrap(), ExerciseType::Weighted);
-        let planned_exercise = PlannedExercise::new(1, exercise, 2, vec![])
-            .expect("newly created exercise has no sets, so validation cannot fail");
+        let planned_exercise = PlannedExercise::new(1, exercise, 2);
 
         assert_eq!(
             planned_exercise.exercise().exercise_type(),
@@ -466,8 +440,7 @@ mod tests {
             Name::new("Squat").unwrap(),
             ExerciseType::AssistedBodyweight,
         );
-        let planned_exercise = PlannedExercise::new(3, exercise, 5, vec![])
-            .expect("newly created exercise has no sets, so validation cannot fail");
+        let planned_exercise = PlannedExercise::new(3, exercise, 5);
 
         assert_eq!(
             planned_exercise.exercise().exercise_type(),
@@ -485,8 +458,7 @@ mod tests {
             Name::new("Pull Ups").unwrap(),
             ExerciseType::WeightedBodyweight,
         );
-        let planned_exercise = PlannedExercise::new(15, exercise, 9, vec![])
-            .expect("newly created exercise has no sets, so validation cannot fail");
+        let planned_exercise = PlannedExercise::new(15, exercise, 9);
 
         assert_eq!(
             planned_exercise.exercise().exercise_type(),
@@ -495,140 +467,5 @@ mod tests {
         assert_eq!(planned_exercise.name(), "Pull Ups");
         assert_eq!(planned_exercise.id(), 15);
         assert_eq!(planned_exercise.position(), 9);
-    }
-
-    #[test]
-    fn add_set_to_exercise_with_matching_types_works() {
-        let exercise =
-            LibraryExercise::new(2, Name::new("Squat").unwrap(), ExerciseType::Bodyweight);
-        let mut planned_exercise = PlannedExercise::new(1, exercise, 1, vec![])
-            .expect("newly created exercise has no sets, so validation cannot fail");
-        assert_eq!(planned_exercise.sets().len(), 0);
-
-        let set = Set::new(
-            1,
-            1,
-            Load::Bodyweight,
-            None,
-            SetType::Regular { effort: None },
-        );
-
-        planned_exercise
-            .add_set(set)
-            .expect("adding matching set type should succeed");
-
-        assert_eq!(planned_exercise.sets().len(), 1);
-        assert_eq!(planned_exercise.sets()[0], set);
-    }
-
-    #[test]
-    fn add_set_to_exercise_with_mismatching_types_causes_error() {
-        let exercise =
-            LibraryExercise::new(2, Name::new("Bench Press").unwrap(), ExerciseType::Weighted);
-        let mut planned_exercise = PlannedExercise::new(1, exercise, 1, vec![])
-            .expect("newly created exercise has no sets, so validation cannot fail");
-
-        let set = Set::new(
-            1,
-            1,
-            Load::Bodyweight,
-            None,
-            SetType::Regular { effort: None },
-        );
-
-        let result = planned_exercise.add_set(set);
-
-        assert!(
-            result.is_err(),
-            "Should return error when set type doesn't match exercise type"
-        )
-    }
-
-    #[test]
-    fn new_with_single_valid_set_returns_ok_and_set_is_in_sets() {
-        let exercise =
-            LibraryExercise::new(1, Name::new("Pull Up").unwrap(), ExerciseType::Bodyweight);
-        let set = Set::new(
-            1,
-            1,
-            Load::Bodyweight,
-            Some(10),
-            SetType::Regular { effort: None },
-        );
-
-        let planned_exercise = PlannedExercise::new(1, exercise, 0, vec![set])
-            .expect("set load matches exercise type");
-
-        assert_eq!(planned_exercise.sets().len(), 1);
-        assert_eq!(planned_exercise.sets()[0], set);
-    }
-
-    #[test]
-    fn new_with_multiple_valid_sets_returns_ok_with_all_sets_present() {
-        let exercise =
-            LibraryExercise::new(1, Name::new("Pull Up").unwrap(), ExerciseType::Bodyweight);
-        let sets = vec![
-            Set::new(
-                1,
-                1,
-                Load::Bodyweight,
-                Some(10),
-                SetType::Regular { effort: None },
-            ),
-            Set::new(2, 2, Load::Bodyweight, Some(8), SetType::Myorep),
-            Set::new(3, 3, Load::Bodyweight, None, SetType::MyorepMatch),
-        ];
-
-        let planned_exercise = PlannedExercise::new(1, exercise, 0, sets.clone())
-            .expect("all set loads match exercise type");
-
-        assert_eq!(planned_exercise.sets().len(), 3);
-        assert_eq!(planned_exercise.sets(), sets.as_slice());
-    }
-
-    #[test]
-    fn new_with_single_mismatching_set_returns_err() {
-        let exercise =
-            LibraryExercise::new(1, Name::new("Bench Press").unwrap(), ExerciseType::Weighted);
-        let set = Set::new(
-            1,
-            1,
-            Load::Bodyweight,
-            Some(10),
-            SetType::Regular { effort: None },
-        );
-
-        let result = PlannedExercise::new(1, exercise, 0, vec![set]);
-
-        assert!(result.is_err(), "set load does not match exercise type");
-    }
-
-    #[test]
-    fn new_with_mixed_sets_where_one_mismatches_returns_err() {
-        let exercise =
-            LibraryExercise::new(1, Name::new("Bench Press").unwrap(), ExerciseType::Weighted);
-        let sets = vec![
-            Set::new(
-                1,
-                1,
-                Load::Weighted { weight: None },
-                Some(5),
-                SetType::Regular { effort: None },
-            ),
-            Set::new(
-                2,
-                2,
-                Load::Bodyweight,
-                Some(10),
-                SetType::Regular { effort: None },
-            ),
-        ];
-
-        let result = PlannedExercise::new(1, exercise, 0, sets);
-
-        assert!(
-            result.is_err(),
-            "second set load does not match exercise type"
-        );
     }
 }

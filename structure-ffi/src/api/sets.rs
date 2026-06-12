@@ -12,10 +12,10 @@ pub fn create_planned_set(
     reps: Option<u32>,
     set_type: SetTypeDTO,
 ) -> Result<SetDTO, SetError> {
-    let conn = connection::init_db("structure.db")?;
+    let mut conn = connection::init_db("structure.db")?;
 
     let set = db::create_planned_set(
-        &conn,
+        &mut conn,
         planned_exercise_id,
         load.into(),
         reps,

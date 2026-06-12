@@ -115,7 +115,7 @@ pub async fn create_set(app: &Router, planned_exercise_id: i64) -> i64 {
         app,
         "POST",
         &format!("/planned-exercises/{planned_exercise_id}/sets"),
-        Some(json!({ "load": "Bodyweight", "reps": 10, "set_type": { "Regular": { "effort": null } } })),
+        Some(json!({ "load": { "Weighted": { "weight": null } }, "reps": 10, "set_type": { "Regular": { "effort": null } } })),
     )
     .await;
     created["id"].as_i64().expect("id should be a number")

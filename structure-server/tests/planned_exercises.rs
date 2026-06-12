@@ -30,13 +30,6 @@ async fn created_planned_exercise_appears_in_list() {
     assert_eq!(status, StatusCode::CREATED);
     assert_eq!(created["position"], 0);
     assert_eq!(created["exercise"]["name"], "Bench Press");
-    assert_eq!(
-        created["sets"]
-            .as_array()
-            .expect("sets should be an array")
-            .len(),
-        0
-    );
 
     let (status, list) = send(
         &app,

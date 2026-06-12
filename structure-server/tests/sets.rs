@@ -73,6 +73,27 @@ async fn create_set_with_out_of_range_rpe_returns_422() {
 }
 
 #[tokio::test]
+async fn create_set_with_load_not_matching_exercise_returns_422() {
+    let app = test_app();
+    // The planned exercise uses the Weighted "Bench Press".
+    let planned_exercise_id = planned_exercise(&app).await;
+
+    let (status, _) = send(
+        &app,
+        "POST",
+        &format!("/planned-exercises/{planned_exercise_id}/sets"),
+        Some(json!({
+            "load": "Bodyweight",
+            "reps": 10,
+            "set_type": { "Regular": { "effort": null } }
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
 async fn create_set_in_missing_planned_exercise_returns_404() {
     let app = test_app();
 

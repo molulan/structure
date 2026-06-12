@@ -110,7 +110,6 @@ pub struct PlannedExerciseDTO {
     pub(crate) id: i64,
     pub(crate) exercise: LibraryExerciseDTO,
     pub(crate) position: u32,
-    pub(crate) sets: Vec<SetDTO>,
 }
 
 impl From<&PlannedExercise> for PlannedExerciseDTO {
@@ -119,7 +118,6 @@ impl From<&PlannedExercise> for PlannedExerciseDTO {
             id: value.id(),
             exercise: LibraryExerciseDTO::from(value.exercise()),
             position: value.position(),
-            sets: value.sets().iter().copied().map(SetDTO::from).collect(),
         }
     }
 }

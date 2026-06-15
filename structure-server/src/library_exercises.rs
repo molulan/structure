@@ -17,7 +17,7 @@ pub fn routes() -> Router<Store> {
 }
 
 async fn list(State(store): State<Store>) -> Result<Json<Vec<LibraryExercise>>, ApiError> {
-    let exercises = store.with_conn(|conn| db::list_library_exercises(conn))?;
+    let exercises = store.with_conn(|conn| db::list(conn))?;
     Ok(Json(exercises))
 }
 
@@ -26,8 +26,7 @@ async fn create(
     Json(body): Json<LibraryExerciseRequest>,
 ) -> Result<(StatusCode, Json<LibraryExercise>), ApiError> {
     let exercise_type = body.exercise_type.into();
-    let exercise =
-        store.with_conn(|conn| db::create_library_exercise(conn, &body.name, exercise_type))?;
+    let exercise = store.with_conn(|conn| db::create(conn, &body.name, exercise_type))?;
     Ok((StatusCode::CREATED, Json(exercise)))
 }
 
@@ -37,8 +36,7 @@ async fn update(
     Json(body): Json<LibraryExerciseRequest>,
 ) -> Result<Json<LibraryExercise>, ApiError> {
     let exercise_type = body.exercise_type.into();
-    let exercise =
-        store.with_conn(|conn| db::update_library_exercise(conn, id, &body.name, exercise_type))?;
+    let exercise = store.with_conn(|conn| db::update(conn, id, &body.name, exercise_type))?;
     Ok(Json(exercise))
 }
 
@@ -46,6 +44,6 @@ async fn delete_one(
     State(store): State<Store>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiError> {
-    store.with_conn(|conn| db::delete_library_exercise(conn, id))?;
+    store.with_conn(|conn| db::delete(conn, id))?;
     Ok(StatusCode::NO_CONTENT)
 }

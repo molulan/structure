@@ -11,7 +11,7 @@ use structure_core::{
 #[frb(sync)]
 pub fn list_mesocycles() -> Result<Vec<MesocycleDTO>, MesocycleError> {
     let conn = connection::init_db("structure.db")?;
-    let rows = db::list_mesocycles(&conn)?;
+    let rows = db::list(&conn)?;
     Ok(rows
         .into_iter()
         .map(|r| MesocycleDTO {
@@ -29,7 +29,7 @@ pub fn create_mesocycle(
     mode: MesocycleModeDTO,
 ) -> Result<MesocycleDTO, MesocycleError> {
     let conn = connection::init_db("structure.db")?;
-    let mesocycle = db::create_mesocycle(&conn, &name, MesocycleMode::from(mode))?;
+    let mesocycle = db::create(&conn, &name, MesocycleMode::from(mode))?;
     Ok(MesocycleDTO {
         id: mesocycle.id(),
         name: mesocycle.name().to_owned(),
@@ -41,7 +41,7 @@ pub fn create_mesocycle(
 #[frb(sync)]
 pub fn get_mesocycle(id: i64) -> Result<MesocycleDTO, MesocycleError> {
     let conn = connection::init_db("structure.db")?;
-    let row = db::get_mesocycle(&conn, id)?.ok_or(MesocycleError::NotFound { id })?;
+    let row = db::get(&conn, id)?.ok_or(MesocycleError::NotFound { id })?;
     Ok(MesocycleDTO {
         id: row.id,
         name: row.name,

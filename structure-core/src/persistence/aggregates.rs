@@ -2,11 +2,11 @@ use rusqlite::Connection;
 use serde::Serialize;
 
 use crate::domain::planning::{LibraryExercise, MesocycleMode, Set};
-use crate::persistence::mesocycles::{MesocycleError, get_mesocycle};
-use crate::persistence::microcycles::{MicrocycleError, list_microcycles};
-use crate::persistence::planned_exercises::{PlannedExerciseError, list_planned_exercises};
-use crate::persistence::sets::{SetError, list_planned_sets};
-use crate::persistence::workouts::{WorkoutError, list_workouts};
+use crate::persistence::mesocycles::{self, MesocycleError};
+use crate::persistence::microcycles::{self, MicrocycleError};
+use crate::persistence::planned_exercises::{self, PlannedExerciseError};
+use crate::persistence::sets::{self, SetError};
+use crate::persistence::workouts::{self, WorkoutError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum FullMesocycleError {
@@ -57,17 +57,17 @@ pub fn get_full_mesocycle(
     conn: &Connection,
     id: i64,
 ) -> Result<Option<FullMesocycle>, FullMesocycleError> {
-    let Some(mesocycle) = get_mesocycle(conn, id)? else {
+    let Some(mesocycle) = mesocycles::get(conn, id)? else {
         return Ok(None);
     };
 
     let mut microcycles = Vec::new();
-    for microcycle in list_microcycles(conn, id)? {
+    for microcycle in microcycles::list(conn, id)? {
         let mut workouts = Vec::new();
-        for workout in list_workouts(conn, microcycle.id())? {
+        for workout in workouts::list(conn, microcycle.id())? {
             let mut planned_exercises = Vec::new();
-            for planned in list_planned_exercises(conn, workout.id())? {
-                let sets = list_planned_sets(conn, planned.id())?;
+            for planned in planned_exercises::list(conn, workout.id())? {
+                let sets = sets::list(conn, planned.id())?;
                 planned_exercises.push(FullPlannedExercise {
                     id: planned.id(),
                     exercise: planned.exercise().clone(),

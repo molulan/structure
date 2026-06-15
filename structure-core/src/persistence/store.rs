@@ -43,15 +43,13 @@ mod tests {
         let store = Store::open(":memory:").expect("opening in-memory store should succeed");
 
         store
-            .with_conn(|conn| {
-                mesocycles::create_mesocycle(conn, "hypertrophy", MesocycleMode::Manual)
-            })
+            .with_conn(|conn| mesocycles::create(conn, "hypertrophy", MesocycleMode::Manual))
             .expect("creating mesocycle should succeed");
 
         // An in-memory database lives only as long as its connection, so finding
         // the row in a second call proves both calls hit the same connection.
         let mesocycles = store
-            .with_conn(|conn| mesocycles::list_mesocycles(conn))
+            .with_conn(|conn| mesocycles::list(conn))
             .expect("listing mesocycles should succeed");
 
         assert_eq!(mesocycles.len(), 1);
@@ -61,13 +59,13 @@ mod tests {
     fn cloned_store_shares_the_same_database() {
         let store = Store::open(":memory:").expect("opening in-memory store should succeed");
         store
-            .with_conn(|conn| mesocycles::create_mesocycle(conn, "arms", MesocycleMode::Manual))
+            .with_conn(|conn| mesocycles::create(conn, "arms", MesocycleMode::Manual))
             .expect("creating mesocycle should succeed");
 
         let clone = store.clone();
 
         let mesocycles = clone
-            .with_conn(|conn| mesocycles::list_mesocycles(conn))
+            .with_conn(|conn| mesocycles::list(conn))
             .expect("listing mesocycles should succeed");
 
         assert_eq!(mesocycles.len(), 1);

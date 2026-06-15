@@ -14,7 +14,7 @@ pub fn create_planned_set(
 ) -> Result<SetDTO, SetError> {
     let mut conn = connection::init_db("structure.db")?;
 
-    let set = db::create_planned_set(
+    let set = db::create(
         &mut conn,
         planned_exercise_id,
         load.into(),
@@ -29,7 +29,7 @@ pub fn create_planned_set(
 pub fn list_planned_sets(planned_exercise_id: i64) -> Result<Vec<SetDTO>, SetError> {
     let conn = connection::init_db("structure.db")?;
 
-    let sets = db::list_planned_sets(&conn, planned_exercise_id)?;
+    let sets = db::list(&conn, planned_exercise_id)?;
 
     Ok(sets.into_iter().map(SetDTO::from).collect())
 }

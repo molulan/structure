@@ -30,7 +30,7 @@ async fn list(
     State(store): State<Store>,
     Path(planned_exercise_id): Path<i64>,
 ) -> Result<Json<Vec<Set>>, ApiError> {
-    let sets = store.with_conn(|conn| sets::list_planned_sets(conn, planned_exercise_id))?;
+    let sets = store.with_conn(|conn| sets::list(conn, planned_exercise_id))?;
     Ok(Json(sets))
 }
 
@@ -43,9 +43,8 @@ async fn create(
     let set_type = SetType::try_from(body.set_type)
         .map_err(|error| ApiError::unprocessable(error.to_string()))?;
     let reps = body.reps;
-    let set = store.with_conn(|conn| {
-        sets::create_planned_set(conn, planned_exercise_id, load, reps, set_type)
-    })?;
+    let set =
+        store.with_conn(|conn| sets::create(conn, planned_exercise_id, load, reps, set_type))?;
     Ok((StatusCode::CREATED, Json(set)))
 }
 
@@ -58,7 +57,7 @@ async fn update(
     let set_type = SetType::try_from(body.set_type)
         .map_err(|error| ApiError::unprocessable(error.to_string()))?;
     let reps = body.reps;
-    let set = store.with_conn(|conn| sets::update_planned_set(conn, id, load, reps, set_type))?;
+    let set = store.with_conn(|conn| sets::update(conn, id, load, reps, set_type))?;
     Ok(Json(set))
 }
 
@@ -67,9 +66,7 @@ async fn reorder(
     Path(planned_exercise_id): Path<i64>,
     Json(body): Json<ReorderRequest>,
 ) -> Result<StatusCode, ApiError> {
-    store.with_conn(|conn| {
-        sets::reorder_planned_sets(conn, planned_exercise_id, &body.ordered_ids)
-    })?;
+    store.with_conn(|conn| sets::reorder(conn, planned_exercise_id, &body.ordered_ids))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -77,6 +74,6 @@ async fn delete_one(
     State(store): State<Store>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiError> {
-    store.with_conn(|conn| sets::delete_planned_set(conn, id))?;
+    store.with_conn(|conn| sets::delete(conn, id))?;
     Ok(StatusCode::NO_CONTENT)
 }

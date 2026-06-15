@@ -24,7 +24,7 @@ async fn list(
     State(store): State<Store>,
     Path(microcycle_id): Path<i64>,
 ) -> Result<Json<Vec<Workout>>, ApiError> {
-    let workouts = store.with_conn(|conn| db::list_workouts(conn, microcycle_id))?;
+    let workouts = store.with_conn(|conn| db::list(conn, microcycle_id))?;
     Ok(Json(workouts))
 }
 
@@ -33,7 +33,7 @@ async fn create(
     Path(microcycle_id): Path<i64>,
     Json(body): Json<WorkoutNameRequest>,
 ) -> Result<(StatusCode, Json<Workout>), ApiError> {
-    let workout = store.with_conn(|conn| db::create_workout(conn, microcycle_id, &body.name))?;
+    let workout = store.with_conn(|conn| db::create(conn, microcycle_id, &body.name))?;
     Ok((StatusCode::CREATED, Json(workout)))
 }
 
@@ -42,7 +42,7 @@ async fn rename(
     Path(id): Path<i64>,
     Json(body): Json<WorkoutNameRequest>,
 ) -> Result<Json<Workout>, ApiError> {
-    let workout = store.with_conn(|conn| db::update_workout(conn, id, &body.name))?;
+    let workout = store.with_conn(|conn| db::update(conn, id, &body.name))?;
     Ok(Json(workout))
 }
 
@@ -51,7 +51,7 @@ async fn reorder(
     Path(microcycle_id): Path<i64>,
     Json(body): Json<ReorderRequest>,
 ) -> Result<StatusCode, ApiError> {
-    store.with_conn(|conn| db::reorder_workouts(conn, microcycle_id, &body.ordered_ids))?;
+    store.with_conn(|conn| db::reorder(conn, microcycle_id, &body.ordered_ids))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -59,6 +59,6 @@ async fn delete_one(
     State(store): State<Store>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiError> {
-    store.with_conn(|conn| db::delete_workout(conn, id))?;
+    store.with_conn(|conn| db::delete(conn, id))?;
     Ok(StatusCode::NO_CONTENT)
 }

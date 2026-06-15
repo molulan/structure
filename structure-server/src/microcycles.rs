@@ -24,7 +24,7 @@ async fn list(
     State(store): State<Store>,
     Path(mesocycle_id): Path<i64>,
 ) -> Result<Json<Vec<Microcycle>>, ApiError> {
-    let microcycles = store.with_conn(|conn| db::list_microcycles(conn, mesocycle_id))?;
+    let microcycles = store.with_conn(|conn| db::list(conn, mesocycle_id))?;
     Ok(Json(microcycles))
 }
 
@@ -32,7 +32,7 @@ async fn create(
     State(store): State<Store>,
     Path(mesocycle_id): Path<i64>,
 ) -> Result<(StatusCode, Json<Microcycle>), ApiError> {
-    let microcycle = store.with_conn(|conn| db::create_microcycle(conn, mesocycle_id))?;
+    let microcycle = store.with_conn(|conn| db::create(conn, mesocycle_id))?;
     Ok((StatusCode::CREATED, Json(microcycle)))
 }
 
@@ -41,7 +41,7 @@ async fn reorder(
     Path(mesocycle_id): Path<i64>,
     Json(body): Json<ReorderRequest>,
 ) -> Result<StatusCode, ApiError> {
-    store.with_conn(|conn| db::reorder_microcycles(conn, mesocycle_id, &body.ordered_ids))?;
+    store.with_conn(|conn| db::reorder(conn, mesocycle_id, &body.ordered_ids))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -49,6 +49,6 @@ async fn delete_one(
     State(store): State<Store>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiError> {
-    store.with_conn(|conn| db::delete_microcycle(conn, id))?;
+    store.with_conn(|conn| db::delete(conn, id))?;
     Ok(StatusCode::NO_CONTENT)
 }

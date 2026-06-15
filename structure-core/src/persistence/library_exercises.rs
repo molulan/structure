@@ -51,7 +51,7 @@ pub(crate) fn exercise_type_from_str(s: &str) -> ExerciseType {
     }
 }
 
-pub fn create_library_exercise(
+pub fn create(
     conn: &Connection,
     name: &str,
     exercise_type: ExerciseType,
@@ -74,10 +74,7 @@ pub fn create_library_exercise(
     Ok(LibraryExercise::new(id, name, exercise_type))
 }
 
-pub fn get_library_exercise(
-    conn: &Connection,
-    id: i64,
-) -> rusqlite::Result<Option<LibraryExercise>> {
+pub fn get(conn: &Connection, id: i64) -> rusqlite::Result<Option<LibraryExercise>> {
     conn.query_row(
         "SELECT id, name, exercise_type FROM library_exercises WHERE id = ?1",
         [id],
@@ -93,9 +90,7 @@ pub fn get_library_exercise(
     .optional()
 }
 
-pub fn list_library_exercises(
-    conn: &Connection,
-) -> Result<Vec<LibraryExercise>, LibraryExerciseError> {
+pub fn list(conn: &Connection) -> Result<Vec<LibraryExercise>, LibraryExerciseError> {
     let mut stmt =
         conn.prepare("SELECT id, name, exercise_type FROM library_exercises ORDER BY name ASC")?;
 
@@ -112,7 +107,7 @@ pub fn list_library_exercises(
     Ok(exercises)
 }
 
-pub fn update_library_exercise(
+pub fn update(
     conn: &Connection,
     id: i64,
     name: &str,
@@ -120,7 +115,7 @@ pub fn update_library_exercise(
 ) -> Result<LibraryExercise, LibraryExerciseError> {
     let name = Name::new(name)?;
 
-    if get_library_exercise(conn, id)?.is_none() {
+    if get(conn, id)?.is_none() {
         return Err(LibraryExerciseError::NotFound { id });
     }
 
@@ -143,7 +138,7 @@ pub fn update_library_exercise(
     Ok(LibraryExercise::new(id, name, exercise_type))
 }
 
-pub fn delete_library_exercise(conn: &Connection, id: i64) -> Result<(), LibraryExerciseError> {
+pub fn delete(conn: &Connection, id: i64) -> Result<(), LibraryExerciseError> {
     let in_use: i64 = conn.query_row(
         "SELECT COUNT(*) FROM planned_exercises WHERE library_exercise_id = ?1",
         [id],
@@ -166,10 +161,7 @@ mod tests {
     use super::*;
     use crate::{
         domain::planning::MesocycleMode,
-        persistence::{
-            connection, mesocycles::create_mesocycle, microcycles::create_microcycle,
-            planned_exercises::create_planned_exercise, workouts::create_workout,
-        },
+        persistence::{connection, mesocycles, microcycles, planned_exercises, workouts},
     };
 
     fn setup_test_db() -> Connection {
@@ -179,7 +171,7 @@ mod tests {
     #[test]
     fn create_exercise_with_valid_name_and_type_succeeds() {
         let conn = setup_test_db();
-        let exercise = create_library_exercise(&conn, "Squat", ExerciseType::Bodyweight)
+        let exercise = create(&conn, "Squat", ExerciseType::Bodyweight)
             .expect("exercise creation should succeed");
 
         assert_eq!(exercise.name(), "Squat");
@@ -188,16 +180,16 @@ mod tests {
     #[test]
     fn create_exercise_with_empty_name_returns_error() {
         let conn = setup_test_db();
-        let result = create_library_exercise(&conn, "", ExerciseType::Weighted);
+        let result = create(&conn, "", ExerciseType::Weighted);
         assert!(result.is_err());
     }
     #[test]
     fn create_exercise_with_duplicate_name_returns_duplicate_name_error() {
         let conn = setup_test_db();
-        create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+        create(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("first exercise creation should succeed");
 
-        let result = create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted);
+        let result = create(&conn, "Bench Press", ExerciseType::Weighted);
 
         assert!(matches!(
             result,
@@ -207,9 +199,9 @@ mod tests {
     #[test]
     fn create_exercise_assigns_unique_ids_to_different_exercises() {
         let conn = setup_test_db();
-        let exercise_1 = create_library_exercise(&conn, "Squat", ExerciseType::Weighted)
+        let exercise_1 = create(&conn, "Squat", ExerciseType::Weighted)
             .expect("first exercise creation should succeed");
-        let exercise_2 = create_library_exercise(&conn, "Deadlift", ExerciseType::Weighted)
+        let exercise_2 = create(&conn, "Deadlift", ExerciseType::Weighted)
             .expect("second exercise creation should succeed");
 
         assert_ne!(exercise_1.id(), exercise_2.id());
@@ -217,15 +209,14 @@ mod tests {
     #[test]
     fn all_four_exercise_types_can_be_created() {
         let conn = setup_test_db();
-        let bodyweight = create_library_exercise(&conn, "Push Up", ExerciseType::Bodyweight)
+        let bodyweight = create(&conn, "Push Up", ExerciseType::Bodyweight)
             .expect("bodyweight exercise creation should succeed");
-        let weighted_bodyweight =
-            create_library_exercise(&conn, "Pull Up", ExerciseType::WeightedBodyweight)
-                .expect("weighted bodyweight exercise creation should succeed");
+        let weighted_bodyweight = create(&conn, "Pull Up", ExerciseType::WeightedBodyweight)
+            .expect("weighted bodyweight exercise creation should succeed");
         let assisted_bodyweight =
-            create_library_exercise(&conn, "Assisted Pull Up", ExerciseType::AssistedBodyweight)
+            create(&conn, "Assisted Pull Up", ExerciseType::AssistedBodyweight)
                 .expect("assisted bodyweight exercise creation should succeed");
-        let weighted = create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+        let weighted = create(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("weighted exercise creation should succeed");
 
         assert_eq!(bodyweight.exercise_type(), ExerciseType::Bodyweight);
@@ -243,18 +234,18 @@ mod tests {
     #[test]
     fn get_exercise_returns_none_when_exercise_does_not_exist() {
         let conn = setup_test_db();
-        let result = get_library_exercise(&conn, 9999).expect("DB query should not fail");
+        let result = get(&conn, 9999).expect("DB query should not fail");
         assert!(result.is_none());
     }
     #[test]
     fn get_exercise_returns_correct_exercise() {
         let conn = setup_test_db();
-        let _ = create_library_exercise(&conn, "Squat", ExerciseType::Bodyweight)
+        let _ = create(&conn, "Squat", ExerciseType::Bodyweight)
             .expect("first exercise creation should succeed");
-        let target = create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+        let target = create(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("second exercise creation should succeed");
 
-        let result = get_library_exercise(&conn, target.id())
+        let result = get(&conn, target.id())
             .expect("DB query should not fail")
             .expect("exercise should exist");
 
@@ -266,18 +257,18 @@ mod tests {
     #[test]
     fn list_exercises_returns_empty_list_on_fresh_db() {
         let conn = setup_test_db();
-        let result = list_library_exercises(&conn).expect("listing exercises should succeed");
+        let result = list(&conn).expect("listing exercises should succeed");
         assert!(result.is_empty());
     }
     #[test]
     fn list_exercises_returns_all_exercises() {
         let conn = setup_test_db();
-        let exercise_1 = create_library_exercise(&conn, "Squat", ExerciseType::Weighted)
+        let exercise_1 = create(&conn, "Squat", ExerciseType::Weighted)
             .expect("first exercise creation should succeed");
-        let exercise_2 = create_library_exercise(&conn, "Deadlift", ExerciseType::Weighted)
+        let exercise_2 = create(&conn, "Deadlift", ExerciseType::Weighted)
             .expect("second exercise creation should succeed");
 
-        let result = list_library_exercises(&conn).expect("listing exercises should succeed");
+        let result = list(&conn).expect("listing exercises should succeed");
 
         assert_eq!(result.len(), 2);
         assert!(result.iter().any(|e| e.id() == exercise_1.id()));
@@ -286,14 +277,13 @@ mod tests {
     #[test]
     fn list_exercises_returns_exercises_ordered_by_name() {
         let conn = setup_test_db();
-        create_library_exercise(&conn, "Squat", ExerciseType::Weighted)
+        create(&conn, "Squat", ExerciseType::Weighted).expect("exercise creation should succeed");
+        create(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
-        create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
-        create_library_exercise(&conn, "Deadlift", ExerciseType::Weighted)
+        create(&conn, "Deadlift", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
 
-        let result = list_library_exercises(&conn).expect("listing exercises should succeed");
+        let result = list(&conn).expect("listing exercises should succeed");
 
         assert_eq!(result[0].name(), "Bench Press");
         assert_eq!(result[1].name(), "Deadlift");
@@ -303,10 +293,10 @@ mod tests {
     #[test]
     fn update_exercise_changes_name_and_type() {
         let conn = setup_test_db();
-        let exercise = create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+        let exercise = create(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
 
-        let updated = update_library_exercise(
+        let updated = update(
             &conn,
             exercise.id(),
             "Incline Press",
@@ -317,7 +307,7 @@ mod tests {
         assert_eq!(updated.name(), "Incline Press");
         assert_eq!(updated.exercise_type(), ExerciseType::Bodyweight);
 
-        let persisted = get_library_exercise(&conn, exercise.id())
+        let persisted = get(&conn, exercise.id())
             .expect("query should succeed")
             .expect("exercise should exist");
         assert_eq!(persisted.name(), "Incline Press");
@@ -327,12 +317,11 @@ mod tests {
     #[test]
     fn update_exercise_keeping_its_own_name_succeeds() {
         let conn = setup_test_db();
-        let exercise = create_library_exercise(&conn, "Squat", ExerciseType::Weighted)
+        let exercise = create(&conn, "Squat", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
 
-        let updated =
-            update_library_exercise(&conn, exercise.id(), "Squat", ExerciseType::Bodyweight)
-                .expect("renaming to its own name should succeed");
+        let updated = update(&conn, exercise.id(), "Squat", ExerciseType::Bodyweight)
+            .expect("renaming to its own name should succeed");
 
         assert_eq!(updated.exercise_type(), ExerciseType::Bodyweight);
     }
@@ -340,12 +329,12 @@ mod tests {
     #[test]
     fn update_exercise_returns_duplicate_name_when_name_taken_by_another() {
         let conn = setup_test_db();
-        create_library_exercise(&conn, "Squat", ExerciseType::Weighted)
+        create(&conn, "Squat", ExerciseType::Weighted)
             .expect("first exercise creation should succeed");
-        let other = create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+        let other = create(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("second exercise creation should succeed");
 
-        let result = update_library_exercise(&conn, other.id(), "Squat", ExerciseType::Weighted);
+        let result = update(&conn, other.id(), "Squat", ExerciseType::Weighted);
 
         assert!(matches!(
             result,
@@ -357,7 +346,7 @@ mod tests {
     fn update_exercise_returns_not_found_when_exercise_does_not_exist() {
         let conn = setup_test_db();
 
-        let result = update_library_exercise(&conn, 9999, "Squat", ExerciseType::Weighted);
+        let result = update(&conn, 9999, "Squat", ExerciseType::Weighted);
 
         assert!(matches!(
             result,
@@ -368,12 +357,12 @@ mod tests {
     #[test]
     fn delete_exercise_removes_it() {
         let conn = setup_test_db();
-        let exercise = create_library_exercise(&conn, "Squat", ExerciseType::Weighted)
+        let exercise = create(&conn, "Squat", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
 
-        delete_library_exercise(&conn, exercise.id()).expect("delete should succeed");
+        delete(&conn, exercise.id()).expect("delete should succeed");
 
-        let result = get_library_exercise(&conn, exercise.id()).expect("query should succeed");
+        let result = get(&conn, exercise.id()).expect("query should succeed");
         assert!(result.is_none());
     }
 
@@ -381,7 +370,7 @@ mod tests {
     fn delete_exercise_returns_not_found_when_exercise_does_not_exist() {
         let conn = setup_test_db();
 
-        let result = delete_library_exercise(&conn, 9999);
+        let result = delete(&conn, 9999);
 
         assert!(matches!(
             result,
@@ -392,18 +381,18 @@ mod tests {
     #[test]
     fn delete_exercise_returns_in_use_when_referenced_by_a_planned_exercise() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "Test Mesocycle", MesocycleMode::Algorithmic)
+        let mesocycle = mesocycles::create(&conn, "Test Mesocycle", MesocycleMode::Algorithmic)
             .expect("mesocycle creation should succeed");
         let microcycle =
-            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let workout = create_workout(&conn, microcycle.id(), "Test Workout")
+            microcycles::create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let workout = workouts::create(&conn, microcycle.id(), "Test Workout")
             .expect("workout creation should succeed");
-        let exercise = create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+        let exercise = create(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
-        create_planned_exercise(&conn, workout.id(), exercise.id())
+        planned_exercises::create(&conn, workout.id(), exercise.id())
             .expect("planned exercise creation should succeed");
 
-        let result = delete_library_exercise(&conn, exercise.id());
+        let result = delete(&conn, exercise.id());
 
         assert!(matches!(result, Err(LibraryExerciseError::InUse { .. })));
     }

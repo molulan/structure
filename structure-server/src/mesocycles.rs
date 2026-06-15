@@ -22,7 +22,7 @@ pub fn routes() -> Router<Store> {
 }
 
 async fn list(State(store): State<Store>) -> Result<Json<Vec<MesocycleRow>>, ApiError> {
-    let mesocycles = store.with_conn(|conn| db::list_mesocycles(conn))?;
+    let mesocycles = store.with_conn(|conn| db::list(conn))?;
     Ok(Json(mesocycles))
 }
 
@@ -31,7 +31,7 @@ async fn create(
     Json(body): Json<CreateMesocycleRequest>,
 ) -> Result<(StatusCode, Json<Mesocycle>), ApiError> {
     let mode = body.mode.into();
-    let mesocycle = store.with_conn(|conn| db::create_mesocycle(conn, &body.name, mode))?;
+    let mesocycle = store.with_conn(|conn| db::create(conn, &body.name, mode))?;
     Ok((StatusCode::CREATED, Json(mesocycle)))
 }
 
@@ -40,7 +40,7 @@ async fn get_one(
     Path(id): Path<i64>,
 ) -> Result<Json<MesocycleRow>, ApiError> {
     let mesocycle = store
-        .with_conn(|conn| db::get_mesocycle(conn, id))?
+        .with_conn(|conn| db::get(conn, id))?
         .ok_or_else(|| ApiError::not_found(format!("mesocycle {id} not found")))?;
     Ok(Json(mesocycle))
 }
@@ -61,7 +61,7 @@ async fn update(
     Json(body): Json<UpdateMesocycleRequest>,
 ) -> Result<Json<Mesocycle>, ApiError> {
     let mode = body.mode.into();
-    let mesocycle = store.with_conn(|conn| db::update_mesocycle(conn, id, &body.name, mode))?;
+    let mesocycle = store.with_conn(|conn| db::update(conn, id, &body.name, mode))?;
     Ok(Json(mesocycle))
 }
 
@@ -69,6 +69,6 @@ async fn delete_one(
     State(store): State<Store>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiError> {
-    store.with_conn(|conn| db::delete_mesocycle(conn, id))?;
+    store.with_conn(|conn| db::delete(conn, id))?;
     Ok(StatusCode::NO_CONTENT)
 }

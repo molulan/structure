@@ -35,7 +35,7 @@ pub(super) fn create_mesocycles_table(conn: &Connection) -> rusqlite::Result<()>
     Ok(())
 }
 
-pub fn create_mesocycle(
+pub fn create(
     conn: &Connection,
     name: &str,
     mode: MesocycleMode,
@@ -52,7 +52,7 @@ pub fn create_mesocycle(
     Ok(Mesocycle::new(id, name, mode))
 }
 
-pub fn get_mesocycle(conn: &Connection, id: i64) -> Result<Option<MesocycleRow>, MesocycleError> {
+pub fn get(conn: &Connection, id: i64) -> Result<Option<MesocycleRow>, MesocycleError> {
     conn.query_row(
         "SELECT meso.id, meso.name, meso.mode, COUNT(micro.id) as microcycle_count
         FROM mesocycles meso
@@ -81,7 +81,7 @@ pub fn get_mesocycle(conn: &Connection, id: i64) -> Result<Option<MesocycleRow>,
     .map_err(MesocycleError::from)
 }
 
-pub fn list_mesocycles(conn: &Connection) -> Result<Vec<MesocycleRow>, MesocycleError> {
+pub fn list(conn: &Connection) -> Result<Vec<MesocycleRow>, MesocycleError> {
     let mut stmt = conn.prepare(
         "SELECT meso.id, meso.name, meso.mode, COUNT(micro.id) as microcycle_count
          FROM mesocycles meso
@@ -110,7 +110,7 @@ pub fn list_mesocycles(conn: &Connection) -> Result<Vec<MesocycleRow>, Mesocycle
     .map_err(MesocycleError::from)
 }
 
-pub fn update_mesocycle(
+pub fn update(
     conn: &Connection,
     id: i64,
     name: &str,
@@ -130,7 +130,7 @@ pub fn update_mesocycle(
     Ok(Mesocycle::new(id, name, mode))
 }
 
-pub fn delete_mesocycle(conn: &Connection, id: i64) -> Result<(), MesocycleError> {
+pub fn delete(conn: &Connection, id: i64) -> Result<(), MesocycleError> {
     let deleted = conn.execute("DELETE FROM mesocycles WHERE id = ?1", [id])?;
 
     if deleted == 0 {
@@ -161,7 +161,7 @@ mod tests {
     fn get_mesocycle_returns_none_on_invalid_id() {
         let conn = setup_test_db();
 
-        let result = get_mesocycle(&conn, 1234).expect("should return None on invalid id");
+        let result = get(&conn, 1234).expect("should return None on invalid id");
 
         assert!(result.is_none());
     }
@@ -169,12 +169,12 @@ mod tests {
     #[test]
     fn get_mesocycle_returns_correct_mesocycle() {
         let conn = setup_test_db();
-        let _ = create_mesocycle(&conn, "small arms", MesocycleMode::Algorithmic)
+        let _ = create(&conn, "small arms", MesocycleMode::Algorithmic)
             .expect("mesocycle creation should succeed");
-        let target = create_mesocycle(&conn, "BIG ARMS", MesocycleMode::Manual)
+        let target = create(&conn, "BIG ARMS", MesocycleMode::Manual)
             .expect("mesocycle creation should succeed");
 
-        let result = get_mesocycle(&conn, target.id())
+        let result = get(&conn, target.id())
             .expect("DB query should not fail")
             .expect("mesocycle should exist");
 
@@ -187,8 +187,7 @@ mod tests {
     #[test]
     fn list_mesocycles_returns_empty_list_on_fresh_db() {
         let conn = setup_test_db();
-        let result =
-            list_mesocycles(&conn).expect("listing mesoocycles for a valid id should succeed");
+        let result = list(&conn).expect("listing mesoocycles for a valid id should succeed");
         assert!(result.is_empty())
     }
 
@@ -197,8 +196,8 @@ mod tests {
         let conn = setup_test_db();
 
         let name = "hypertrophy 1";
-        let result = create_mesocycle(&conn, name, MesocycleMode::Manual)
-            .expect("mesocycle creation should succeed");
+        let result =
+            create(&conn, name, MesocycleMode::Manual).expect("mesocycle creation should succeed");
 
         assert_eq!(result.name(), name)
     }
@@ -207,11 +206,10 @@ mod tests {
     fn created_mesocycle_appears_in_list_with_correct_id_name_and_mode() {
         let conn = setup_test_db();
 
-        let mesocycle = create_mesocycle(&conn, "hypertrophy 1", MesocycleMode::Manual)
+        let mesocycle = create(&conn, "hypertrophy 1", MesocycleMode::Manual)
             .expect("mesocycle creation should succeed");
 
-        let result =
-            list_mesocycles(&conn).expect("listing mesocycles for a valid id should succeed");
+        let result = list(&conn).expect("listing mesocycles for a valid id should succeed");
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].id, mesocycle.id());
@@ -226,13 +224,12 @@ mod tests {
         let mode = MesocycleMode::Manual;
 
         let mesocycle_1 =
-            create_mesocycle(&conn, "Big Arms", mode).expect("mesocycle creation should succeed");
-        let mesocycle_2 = create_mesocycle(&conn, "Bigger Arms!", mode)
-            .expect("mesocycle creation should succeed");
+            create(&conn, "Big Arms", mode).expect("mesocycle creation should succeed");
+        let mesocycle_2 =
+            create(&conn, "Bigger Arms!", mode).expect("mesocycle creation should succeed");
         assert_ne!(mesocycle_1.id(), mesocycle_2.id());
 
-        let mesocycles =
-            list_mesocycles(&conn).expect("listing mesocycles for a valid id should succeed");
+        let mesocycles = list(&conn).expect("listing mesocycles for a valid id should succeed");
         assert_eq!(mesocycles.len(), 2);
         assert_eq!(mesocycles[0].id, mesocycle_1.id());
         assert_eq!(mesocycles[0].name, mesocycle_1.name());
@@ -243,14 +240,14 @@ mod tests {
     #[test]
     fn list_mesocycles_includes_correct_microcycle_count() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+        let mesocycle = create(&conn, "hypertrophy", MesocycleMode::Manual)
             .expect("mesocycle creation should succeed");
-        crate::persistence::microcycles::create_microcycle(&conn, mesocycle.id())
+        crate::persistence::microcycles::create(&conn, mesocycle.id())
             .expect("microcycle creation should succeed");
-        crate::persistence::microcycles::create_microcycle(&conn, mesocycle.id())
+        crate::persistence::microcycles::create(&conn, mesocycle.id())
             .expect("microcycle creation should succeed");
 
-        let result = list_mesocycles(&conn).expect("listing should succeed");
+        let result = list(&conn).expect("listing should succeed");
 
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].microcycle_count, 2);
@@ -259,12 +256,12 @@ mod tests {
     #[test]
     fn get_mesocycle_includes_correct_microcycle_count() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+        let mesocycle = create(&conn, "hypertrophy", MesocycleMode::Manual)
             .expect("mesocycle creation should succeed");
-        crate::persistence::microcycles::create_microcycle(&conn, mesocycle.id())
+        crate::persistence::microcycles::create(&conn, mesocycle.id())
             .expect("microcycle creation should succeed");
 
-        let result = get_mesocycle(&conn, mesocycle.id())
+        let result = get(&conn, mesocycle.id())
             .expect("query should succeed")
             .expect("mesocycle should exist");
 
@@ -274,10 +271,10 @@ mod tests {
     #[test]
     fn update_mesocycle_changes_name_and_mode() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+        let mesocycle = create(&conn, "hypertrophy", MesocycleMode::Manual)
             .expect("mesocycle creation should succeed");
 
-        let updated = update_mesocycle(
+        let updated = update(
             &conn,
             mesocycle.id(),
             "strength",
@@ -288,7 +285,7 @@ mod tests {
         assert_eq!(updated.name(), "strength");
         assert_eq!(updated.mode(), MesocycleMode::Algorithmic);
 
-        let persisted = get_mesocycle(&conn, mesocycle.id())
+        let persisted = get(&conn, mesocycle.id())
             .expect("query should succeed")
             .expect("mesocycle should exist");
         assert_eq!(persisted.name, "strength");
@@ -299,7 +296,7 @@ mod tests {
     fn update_mesocycle_returns_not_found_when_mesocycle_does_not_exist() {
         let conn = setup_test_db();
 
-        let result = update_mesocycle(&conn, 1234, "strength", MesocycleMode::Manual);
+        let result = update(&conn, 1234, "strength", MesocycleMode::Manual);
 
         assert!(matches!(result, Err(MesocycleError::NotFound { id: 1234 })));
     }
@@ -307,12 +304,12 @@ mod tests {
     #[test]
     fn delete_mesocycle_removes_it() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+        let mesocycle = create(&conn, "hypertrophy", MesocycleMode::Manual)
             .expect("mesocycle creation should succeed");
 
-        delete_mesocycle(&conn, mesocycle.id()).expect("delete should succeed");
+        delete(&conn, mesocycle.id()).expect("delete should succeed");
 
-        let result = get_mesocycle(&conn, mesocycle.id()).expect("query should succeed");
+        let result = get(&conn, mesocycle.id()).expect("query should succeed");
         assert!(result.is_none());
     }
 
@@ -320,7 +317,7 @@ mod tests {
     fn delete_mesocycle_returns_not_found_when_mesocycle_does_not_exist() {
         let conn = setup_test_db();
 
-        let result = delete_mesocycle(&conn, 1234);
+        let result = delete(&conn, 1234);
 
         assert!(matches!(result, Err(MesocycleError::NotFound { id: 1234 })));
     }
@@ -328,14 +325,14 @@ mod tests {
     #[test]
     fn delete_mesocycle_cascades_to_its_microcycles() {
         let conn = setup_test_db();
-        let mesocycle = create_mesocycle(&conn, "hypertrophy", MesocycleMode::Manual)
+        let mesocycle = create(&conn, "hypertrophy", MesocycleMode::Manual)
             .expect("mesocycle creation should succeed");
-        let microcycle = crate::persistence::microcycles::create_microcycle(&conn, mesocycle.id())
+        let microcycle = crate::persistence::microcycles::create(&conn, mesocycle.id())
             .expect("microcycle creation should succeed");
 
-        delete_mesocycle(&conn, mesocycle.id()).expect("delete should succeed");
+        delete(&conn, mesocycle.id()).expect("delete should succeed");
 
-        let orphan = crate::persistence::microcycles::get_microcycle(&conn, microcycle.id())
+        let orphan = crate::persistence::microcycles::get(&conn, microcycle.id())
             .expect("query should succeed");
         assert!(orphan.is_none());
     }

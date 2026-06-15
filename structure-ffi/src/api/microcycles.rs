@@ -9,7 +9,7 @@ use structure_core::persistence::{
 pub fn list_microcycles(mesocycle_id: i64) -> Result<Vec<MicrocycleDTO>, MicrocycleError> {
     let conn = connection::init_db("structure.db")?;
 
-    let microcycles = db::list_microcycles(&conn, mesocycle_id)?;
+    let microcycles = db::list(&conn, mesocycle_id)?;
 
     Ok(microcycles.iter().map(MicrocycleDTO::from).collect())
 }
@@ -18,7 +18,7 @@ pub fn list_microcycles(mesocycle_id: i64) -> Result<Vec<MicrocycleDTO>, Microcy
 pub fn create_microcycle(mesocycle_id: i64) -> Result<MicrocycleDTO, MicrocycleError> {
     let conn = connection::init_db("structure.db")?;
 
-    let microcycle = db::create_microcycle(&conn, mesocycle_id)?;
+    let microcycle = db::create(&conn, mesocycle_id)?;
 
     Ok(MicrocycleDTO::from(&microcycle))
 }
@@ -27,7 +27,7 @@ pub fn create_microcycle(mesocycle_id: i64) -> Result<MicrocycleDTO, MicrocycleE
 pub fn get_microcycle(id: i64) -> Result<MicrocycleDTO, MicrocycleError> {
     let conn = connection::init_db("structure.db")?;
 
-    let microcycle = db::get_microcycle(&conn, id)?.ok_or(MicrocycleError::NotFound { id })?;
+    let microcycle = db::get(&conn, id)?.ok_or(MicrocycleError::NotFound { id })?;
 
     Ok(MicrocycleDTO::from(&microcycle))
 }

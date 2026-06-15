@@ -1,7 +1,7 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::domain::planning::PlannedExercise;
-use crate::persistence::library_exercises::get_library_exercise;
+use crate::persistence::library_exercises;
 
 #[derive(Debug, thiserror::Error)]
 pub enum PlannedExerciseError {
@@ -39,7 +39,7 @@ fn workout_exists(conn: &Connection, id: i64) -> rusqlite::Result<bool> {
     Ok(count > 0)
 }
 
-pub fn create_planned_exercise(
+pub fn create(
     conn: &Connection,
     workout_id: i64,
     library_exercise_id: i64,
@@ -48,7 +48,7 @@ pub fn create_planned_exercise(
         return Err(PlannedExerciseError::AssociatedWorkoutNotFound { id: workout_id });
     }
 
-    match get_library_exercise(conn, library_exercise_id)? {
+    match library_exercises::get(conn, library_exercise_id)? {
         None => Err(PlannedExerciseError::AssociatedExerciseNotFound {
             id: library_exercise_id,
         }),
@@ -74,10 +74,7 @@ pub fn create_planned_exercise(
     }
 }
 
-pub fn get_planned_exercise(
-    conn: &Connection,
-    id: i64,
-) -> Result<Option<PlannedExercise>, PlannedExerciseError> {
+pub fn get(conn: &Connection, id: i64) -> Result<Option<PlannedExercise>, PlannedExerciseError> {
     let row = conn
         .query_row(
             "SELECT id, library_exercise_id, position FROM planned_exercises WHERE id = ?1",
@@ -96,7 +93,7 @@ pub fn get_planned_exercise(
         Some((id, library_exercise_id, position)) => {
             let position =
                 u32::try_from(position).expect("position stored in DB was originally a u32");
-            let exercise = get_library_exercise(conn, library_exercise_id)?
+            let exercise = library_exercises::get(conn, library_exercise_id)?
                 .expect("exercise FK in planned_exercises points to nonexistent exercise");
 
             Ok(Some(PlannedExercise::new(id, exercise, position)))
@@ -104,7 +101,7 @@ pub fn get_planned_exercise(
     }
 }
 
-pub fn list_planned_exercises(
+pub fn list(
     conn: &Connection,
     workout_id: i64,
 ) -> Result<Vec<PlannedExercise>, PlannedExerciseError> {
@@ -125,7 +122,7 @@ pub fn list_planned_exercises(
     for row in rows {
         let (id, library_exercise_id, position): (i64, i64, i64) = row?;
         let position = u32::try_from(position).expect("position stored in DB was originally a u32");
-        let exercise = get_library_exercise(conn, library_exercise_id)?.expect(
+        let exercise = library_exercises::get(conn, library_exercise_id)?.expect(
             "exercise FK in planned_exercises points to nonexistent exercise — data corrupted",
         );
         planned_exercises.push(PlannedExercise::new(id, exercise, position));
@@ -134,7 +131,7 @@ pub fn list_planned_exercises(
     Ok(planned_exercises)
 }
 
-pub fn delete_planned_exercise(conn: &Connection, id: i64) -> Result<(), PlannedExerciseError> {
+pub fn delete(conn: &Connection, id: i64) -> Result<(), PlannedExerciseError> {
     let deleted = conn.execute("DELETE FROM planned_exercises WHERE id = ?1", [id])?;
 
     if deleted == 0 {
@@ -144,7 +141,7 @@ pub fn delete_planned_exercise(conn: &Connection, id: i64) -> Result<(), Planned
     Ok(())
 }
 
-pub fn reorder_planned_exercises(
+pub fn reorder(
     conn: &mut Connection,
     workout_id: i64,
     ordered_ids: &[i64],
@@ -169,13 +166,7 @@ mod tests {
     use super::*;
     use crate::{
         domain::planning::{ExerciseType, LibraryExercise, MesocycleMode, Workout},
-        persistence::{
-            connection,
-            library_exercises::create_library_exercise,
-            mesocycles::create_mesocycle,
-            microcycles::create_microcycle,
-            workouts::{create_workout, delete_workout},
-        },
+        persistence::{connection, library_exercises, mesocycles, microcycles, workouts},
     };
 
     fn setup_test_db() -> Connection {
@@ -183,17 +174,17 @@ mod tests {
     }
 
     fn create_test_workout(conn: &Connection) -> Workout {
-        let mesocycle = create_mesocycle(conn, "Test Mesocycle", MesocycleMode::Algorithmic)
+        let mesocycle = mesocycles::create(conn, "Test Mesocycle", MesocycleMode::Algorithmic)
             .expect("mesocycle creation should succeed");
 
         let microcycle =
-            create_microcycle(conn, mesocycle.id()).expect("microcycle creation should succeed");
-        create_workout(conn, microcycle.id(), "Test Workout")
+            microcycles::create(conn, mesocycle.id()).expect("microcycle creation should succeed");
+        workouts::create(conn, microcycle.id(), "Test Workout")
             .expect("workout creation should succeed")
     }
 
     fn create_test_exercise(conn: &Connection) -> LibraryExercise {
-        create_library_exercise(conn, "Bench Press", ExerciseType::Weighted)
+        library_exercises::create(conn, "Bench Press", ExerciseType::Weighted)
             .expect("exercise creation should succeed")
     }
 
@@ -201,7 +192,7 @@ mod tests {
     fn create_planned_exercise_for_nonexistent_workout_returns_error() {
         let conn = setup_test_db();
         let exercise = create_test_exercise(&conn);
-        let result = create_planned_exercise(&conn, 9999, exercise.id());
+        let result = create(&conn, 9999, exercise.id());
         assert!(matches!(
             result,
             Err(PlannedExerciseError::AssociatedWorkoutNotFound { .. })
@@ -211,7 +202,7 @@ mod tests {
     fn create_planned_exercise_for_nonexistent_exercise_returns_error() {
         let conn = setup_test_db();
         let workout = create_test_workout(&conn);
-        let result = create_planned_exercise(&conn, workout.id(), 9999);
+        let result = create(&conn, workout.id(), 9999);
         assert!(matches!(
             result,
             Err(PlannedExerciseError::AssociatedExerciseNotFound { .. })
@@ -222,7 +213,7 @@ mod tests {
         let conn = setup_test_db();
         let workout = create_test_workout(&conn);
         let exercise = create_test_exercise(&conn);
-        let planned = create_planned_exercise(&conn, workout.id(), exercise.id())
+        let planned = create(&conn, workout.id(), exercise.id())
             .expect("planned exercise creation should succeed");
 
         assert_eq!(planned.position(), 0);
@@ -231,17 +222,17 @@ mod tests {
     fn multiple_planned_exercises_in_same_workout_get_sequential_positions() {
         let conn = setup_test_db();
         let workout = create_test_workout(&conn);
-        let exercise_1 = create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+        let exercise_1 = library_exercises::create(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("first exercise creation should succeed");
-        let exercise_2 = create_library_exercise(&conn, "Squat", ExerciseType::Weighted)
+        let exercise_2 = library_exercises::create(&conn, "Squat", ExerciseType::Weighted)
             .expect("second exercise creation should succeed");
-        let exercise_3 = create_library_exercise(&conn, "Deadlift", ExerciseType::Weighted)
+        let exercise_3 = library_exercises::create(&conn, "Deadlift", ExerciseType::Weighted)
             .expect("third exercise creation should succeed");
-        let planned_1 = create_planned_exercise(&conn, workout.id(), exercise_1.id())
+        let planned_1 = create(&conn, workout.id(), exercise_1.id())
             .expect("first planned exercise creation should succeed");
-        let planned_2 = create_planned_exercise(&conn, workout.id(), exercise_2.id())
+        let planned_2 = create(&conn, workout.id(), exercise_2.id())
             .expect("second planned exercise creation should succeed");
-        let planned_3 = create_planned_exercise(&conn, workout.id(), exercise_3.id())
+        let planned_3 = create(&conn, workout.id(), exercise_3.id())
             .expect("third planned exercise creation should succeed");
 
         assert_eq!(planned_1.position(), 0);
@@ -252,13 +243,13 @@ mod tests {
     fn multiple_planned_exercises_in_same_workout_get_unique_ids() {
         let conn = setup_test_db();
         let workout = create_test_workout(&conn);
-        let exercise_1 = create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+        let exercise_1 = library_exercises::create(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("first exercise creation should succeed");
-        let exercise_2 = create_library_exercise(&conn, "Squat", ExerciseType::Weighted)
+        let exercise_2 = library_exercises::create(&conn, "Squat", ExerciseType::Weighted)
             .expect("second exercise creation should succeed");
-        let planned_1 = create_planned_exercise(&conn, workout.id(), exercise_1.id())
+        let planned_1 = create(&conn, workout.id(), exercise_1.id())
             .expect("first planned exercise creation should succeed");
-        let planned_2 = create_planned_exercise(&conn, workout.id(), exercise_2.id())
+        let planned_2 = create(&conn, workout.id(), exercise_2.id())
             .expect("second planned exercise creation should succeed");
 
         assert_ne!(planned_1.id(), planned_2.id());
@@ -267,23 +258,23 @@ mod tests {
     #[test]
     fn get_planned_exercise_returns_none_for_invalid_id() {
         let conn = setup_test_db();
-        let result = get_planned_exercise(&conn, 9999).expect("DB query should not fail");
+        let result = get(&conn, 9999).expect("DB query should not fail");
         assert!(result.is_none());
     }
     #[test]
     fn get_planned_exercise_returns_correct_planned_exercise() {
         let conn = setup_test_db();
         let workout = create_test_workout(&conn);
-        let exercise_1 = create_library_exercise(&conn, "Squat", ExerciseType::Weighted)
+        let exercise_1 = library_exercises::create(&conn, "Squat", ExerciseType::Weighted)
             .expect("first exercise creation should succeed");
-        let exercise_2 = create_library_exercise(&conn, "Bench Press", ExerciseType::Weighted)
+        let exercise_2 = library_exercises::create(&conn, "Bench Press", ExerciseType::Weighted)
             .expect("second exercise creation should succeed");
-        let _ = create_planned_exercise(&conn, workout.id(), exercise_1.id())
+        let _ = create(&conn, workout.id(), exercise_1.id())
             .expect("first planned exercise creation should succeed");
-        let target = create_planned_exercise(&conn, workout.id(), exercise_2.id())
+        let target = create(&conn, workout.id(), exercise_2.id())
             .expect("second planned exercise creation should succeed");
 
-        let result = get_planned_exercise(&conn, target.id())
+        let result = get(&conn, target.id())
             .expect("DB query should not fail")
             .expect("planned exercise should exist");
 
@@ -301,7 +292,7 @@ mod tests {
         let conn = setup_test_db();
         let workout = create_test_workout(&conn);
 
-        let result = list_planned_exercises(&conn, workout.id())
+        let result = list(&conn, workout.id())
             .expect("listing planned exercises for a existing workout id should succeed");
 
         assert!(result.is_empty());
@@ -309,7 +300,7 @@ mod tests {
     #[test]
     fn list_planned_exercises_returns_error_when_workout_does_not_exist() {
         let conn = setup_test_db();
-        let result = list_planned_exercises(&conn, 9999);
+        let result = list(&conn, 9999);
         assert!(matches!(
             result,
             Err(PlannedExerciseError::AssociatedWorkoutNotFound { .. })
@@ -319,45 +310,43 @@ mod tests {
     fn list_planned_exercises_returns_all_planned_exercises_for_a_specific_workout() {
         let conn = setup_test_db();
 
-        let mesocycle = create_mesocycle(&conn, "Arms, Arms, Arms", MesocycleMode::Algorithmic)
+        let mesocycle = mesocycles::create(&conn, "Arms, Arms, Arms", MesocycleMode::Algorithmic)
             .expect("mesocycle creation should succeed");
 
         let microcycle =
-            create_microcycle(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+            microcycles::create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
-        let target_workout = create_workout(&conn, microcycle.id(), "Arms & Arms")
+        let target_workout = workouts::create(&conn, microcycle.id(), "Arms & Arms")
             .expect("workout creation should succeed");
 
-        let workout_2 = create_workout(&conn, microcycle.id(), "legs..")
+        let workout_2 = workouts::create(&conn, microcycle.id(), "legs..")
             .expect("workout creation should succeed");
 
         let exercise_1 =
-            create_library_exercise(&conn, "Arnolds Favorite Armblaster", ExerciseType::Weighted)
+            library_exercises::create(&conn, "Arnolds Favorite Armblaster", ExerciseType::Weighted)
                 .expect("exercise creation should succeed");
 
-        let exercise_2 = create_library_exercise(
+        let exercise_2 = library_exercises::create(
             &conn,
             "Arnolds Second Favorite Armblaster",
             ExerciseType::Bodyweight,
         )
         .expect("exercise creation should succeed");
 
-        let exercise_3 = create_library_exercise(&conn, "squat", ExerciseType::Weighted)
+        let exercise_3 = library_exercises::create(&conn, "squat", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
 
-        let planned_exercise_1 =
-            create_planned_exercise(&conn, target_workout.id(), exercise_1.id())
-                .expect("planned_exercise creation should succeed");
-
-        let planned_exercise_2 =
-            create_planned_exercise(&conn, target_workout.id(), exercise_2.id())
-                .expect("planned_exercise creation should succeed");
-
-        let _ = create_planned_exercise(&conn, workout_2.id(), exercise_3.id())
+        let planned_exercise_1 = create(&conn, target_workout.id(), exercise_1.id())
             .expect("planned_exercise creation should succeed");
 
-        let result = list_planned_exercises(&conn, target_workout.id())
-            .expect("listing planned exercises should succeed");
+        let planned_exercise_2 = create(&conn, target_workout.id(), exercise_2.id())
+            .expect("planned_exercise creation should succeed");
+
+        let _ = create(&conn, workout_2.id(), exercise_3.id())
+            .expect("planned_exercise creation should succeed");
+
+        let result =
+            list(&conn, target_workout.id()).expect("listing planned exercises should succeed");
 
         assert_eq!(2, result.len());
         assert_eq!(planned_exercise_1, result[0]);
@@ -371,12 +360,9 @@ mod tests {
     ) -> (i64, PlannedExercise, PlannedExercise, PlannedExercise) {
         let workout = create_test_workout(conn);
         let exercise = create_test_exercise(conn);
-        let a = create_planned_exercise(conn, workout.id(), exercise.id())
-            .expect("creation should succeed");
-        let b = create_planned_exercise(conn, workout.id(), exercise.id())
-            .expect("creation should succeed");
-        let c = create_planned_exercise(conn, workout.id(), exercise.id())
-            .expect("creation should succeed");
+        let a = create(conn, workout.id(), exercise.id()).expect("creation should succeed");
+        let b = create(conn, workout.id(), exercise.id()).expect("creation should succeed");
+        let c = create(conn, workout.id(), exercise.id()).expect("creation should succeed");
         (workout.id(), a, b, c)
     }
 
@@ -385,12 +371,11 @@ mod tests {
         let conn = setup_test_db();
         let (workout_id, _a, middle, _c) = workout_with_three_planned_exercises(&conn);
 
-        delete_planned_exercise(&conn, middle.id()).expect("delete should succeed");
+        delete(&conn, middle.id()).expect("delete should succeed");
 
-        let exercise = create_library_exercise(&conn, "Squat", ExerciseType::Weighted)
+        let exercise = library_exercises::create(&conn, "Squat", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
-        let next = create_planned_exercise(&conn, workout_id, exercise.id())
-            .expect("creation should succeed");
+        let next = create(&conn, workout_id, exercise.id()).expect("creation should succeed");
         assert_eq!(next.position(), 3);
     }
 
@@ -399,9 +384,9 @@ mod tests {
         let conn = setup_test_db();
         let (_workout_id, planned, _b, _c) = workout_with_three_planned_exercises(&conn);
 
-        delete_planned_exercise(&conn, planned.id()).expect("delete should succeed");
+        delete(&conn, planned.id()).expect("delete should succeed");
 
-        let result = get_planned_exercise(&conn, planned.id()).expect("query should succeed");
+        let result = get(&conn, planned.id()).expect("query should succeed");
         assert!(result.is_none());
     }
 
@@ -409,7 +394,7 @@ mod tests {
     fn delete_planned_exercise_returns_not_found_when_it_does_not_exist() {
         let conn = setup_test_db();
 
-        let result = delete_planned_exercise(&conn, 9999);
+        let result = delete(&conn, 9999);
 
         assert!(matches!(
             result,
@@ -422,9 +407,9 @@ mod tests {
         let conn = setup_test_db();
         let (workout_id, planned, _b, _c) = workout_with_three_planned_exercises(&conn);
 
-        delete_workout(&conn, workout_id).expect("delete should succeed");
+        workouts::delete(&conn, workout_id).expect("delete should succeed");
 
-        let result = get_planned_exercise(&conn, planned.id()).expect("query should succeed");
+        let result = get(&conn, planned.id()).expect("query should succeed");
         assert!(result.is_none());
     }
 
@@ -433,10 +418,9 @@ mod tests {
         let mut conn = setup_test_db();
         let (workout_id, a, b, c) = workout_with_three_planned_exercises(&conn);
 
-        reorder_planned_exercises(&mut conn, workout_id, &[c.id(), a.id(), b.id()])
-            .expect("reorder should succeed");
+        reorder(&mut conn, workout_id, &[c.id(), a.id(), b.id()]).expect("reorder should succeed");
 
-        let ordered = list_planned_exercises(&conn, workout_id).expect("listing should succeed");
+        let ordered = list(&conn, workout_id).expect("listing should succeed");
         let ids: Vec<i64> = ordered.iter().map(|p| p.id()).collect();
         assert_eq!(ids, vec![c.id(), a.id(), b.id()]);
         assert_eq!(ordered[0].position(), 0);
@@ -449,7 +433,7 @@ mod tests {
         let mut conn = setup_test_db();
         let (workout_id, a, _b, _c) = workout_with_three_planned_exercises(&conn);
 
-        let result = reorder_planned_exercises(&mut conn, workout_id, &[a.id()]);
+        let result = reorder(&mut conn, workout_id, &[a.id()]);
 
         assert!(matches!(
             result,

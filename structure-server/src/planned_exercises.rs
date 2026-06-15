@@ -30,7 +30,7 @@ async fn list(
     State(store): State<Store>,
     Path(workout_id): Path<i64>,
 ) -> Result<Json<Vec<PlannedExercise>>, ApiError> {
-    let planned = store.with_conn(|conn| db::list_planned_exercises(conn, workout_id))?;
+    let planned = store.with_conn(|conn| db::list(conn, workout_id))?;
     Ok(Json(planned))
 }
 
@@ -39,9 +39,7 @@ async fn create(
     Path(workout_id): Path<i64>,
     Json(body): Json<PlannedExerciseRequest>,
 ) -> Result<(StatusCode, Json<PlannedExercise>), ApiError> {
-    let planned = store.with_conn(|conn| {
-        db::create_planned_exercise(conn, workout_id, body.library_exercise_id)
-    })?;
+    let planned = store.with_conn(|conn| db::create(conn, workout_id, body.library_exercise_id))?;
     Ok((StatusCode::CREATED, Json(planned)))
 }
 
@@ -50,7 +48,7 @@ async fn reorder(
     Path(workout_id): Path<i64>,
     Json(body): Json<ReorderRequest>,
 ) -> Result<StatusCode, ApiError> {
-    store.with_conn(|conn| db::reorder_planned_exercises(conn, workout_id, &body.ordered_ids))?;
+    store.with_conn(|conn| db::reorder(conn, workout_id, &body.ordered_ids))?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -58,6 +56,6 @@ async fn delete_one(
     State(store): State<Store>,
     Path(id): Path<i64>,
 ) -> Result<StatusCode, ApiError> {
-    store.with_conn(|conn| db::delete_planned_exercise(conn, id))?;
+    store.with_conn(|conn| db::delete(conn, id))?;
     Ok(StatusCode::NO_CONTENT)
 }

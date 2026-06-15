@@ -20,22 +20,39 @@ cargo fmt
 cargo clippy --workspace
 ```
 
-Tests live next to the code in `#[cfg(test)] mod tests` blocks. Persistence tests use an in-memory SQLite database via `sqlite::init_db(":memory:")` — no fixtures or external DB needed.
+Within the Rust workspace, tests live next to the code in `#[cfg(test)] mod tests` blocks. Persistence tests use an in-memory SQLite database via `connection::init_db(":memory:")` — no fixtures or external DB needed. The server's HTTP-level tests live in `structure-server/tests/`, driving `router(Store::open(":memory:"))` through `tower::ServiceExt::oneshot`; shared request helpers are in `tests/common/mod.rs`.
+
+## Git
+
+- Branch per change off `main` with a descriptive kebab-case name (e.g. `split-exercises-module`); land it through a GitHub PR rather than committing to `main` directly.
+- Keep PRs small and focused — ideally under 500 lines of diff. Split larger work into a sequence of PRs.
+- Write a short commit subject line phrased as a command — e.g. "Add set validation", "Split exercises module" (not "Added…" or "Splitting…").
+- Run `cargo fmt` and `cargo clippy --workspace` before committing.
 
 ## Architecture
 
-Three crates, layered domain → persistence → FFI:
+Three crates, layered domain → persistence, with `structure-ffi` and `structure-server` as thin consumers:
 
 - **`structure-core`** — the heart of the app. Pure domain model plus SQLite persistence. No FFI or framework dependencies.
-  - `domain/planning.rs` — the domain types: `Mesocycle` → `Microcycle` → `Workout` → `PlannedExercise` → `Set`, plus `Exercise`, `Load`, `Effort` (`Rir`/`Rpe`), `Weight`. This is the training-plan hierarchy.
-  - `persistence/` — one module per entity (`mesocycles`, `microcycles`, `workouts`, `exercises`, `sets`). `sqlite.rs` owns connection setup (`open_connection`, `init_db`) and creates every table.
-- **`structure-ffi`** — `flutter_rust_bridge` bindings (pinned `=2.11.1`) over `structure-core`. Compiled as `cdylib`/`staticlib`/`rlib` for the future Flutter app. `api/` mirrors the persistence modules; `dto/planning.rs` holds the wire types.
-- **`structure-server`** — backend server, currently a stub (`main` just prints).
+  - `domain/planning.rs` — the training-plan hierarchy `Mesocycle` → `Microcycle` → `Workout` → `PlannedExercise` → `Set`, plus `LibraryExercise` (the reusable exercise a `PlannedExercise` references), `Load`, `Effort`, `Weight`.
+  - `persistence/` — one module per entity (`mesocycles`, `microcycles`, `workouts`, `library_exercises`, `planned_exercises`, `sets`). `connection.rs` opens connections and builds the schema (`init_db`); `store.rs` wraps one in `Store`, a cloneable `Arc<Mutex<Connection>>` handle (`open`, `with_conn`); `aggregates.rs` reads the full `Mesocycle` tree; `positions.rs` is the shared `reorder` helper.
+- **`structure-ffi`** — `flutter_rust_bridge` bindings (pinned `=2.11.1`) over `structure-core`. Compiled as `cdylib`/`staticlib`/`rlib` for consumption by the Flutter app. `api/` holds `#[frb(sync)]` wrappers per entity; `dto/planning.rs` holds the wire types.
+- **`structure-server`** — an Axum 0.8 HTTP server over `structure-core`; `lib.rs` exposes `router(store)`, with one route module per entity. See the server conventions below.
 
 ### Conventions to follow when extending
 
-- **Domain types are encapsulated.** Fields are private with getter methods; constructors are `pub(crate) fn new(...)`. Invariants are enforced in the constructor — e.g. `PlannedExercise::new` and `add_set` reject a `Set` whose `Load` doesn't match the `Exercise`'s `ExerciseType` (see `load_matches_exercise_type`), returning `PlannedExerciseValidationError`. Add validation here, not in callers.
-- **Persistence modules share a shape.** Each has a `pub(super) fn create_*_table(conn)` (called from `sqlite::init_db`), public CRUD functions taking `&Connection`, and `#[cfg(test)] mod tests`. Functions that return joined/computed columns (e.g. `microcycle_count`) return a dedicated `*Row` struct rather than a domain type.
+- **Domain types are encapsulated.** Fields are private with getter methods; constructors are `pub(crate) fn new(...)`. Invariants are enforced in the constructor — e.g. `Set::new` rejects a `Set` whose `Load` doesn't match the exercise's `ExerciseType` (see `load_matches_exercise_type`), returning `SetValidationError::LoadMismatch`. Add validation here, not in callers.
+- **Persistence modules share a shape.** Each has a `pub(super) fn create_*_table(conn)` (called from `connection::init_db`), public CRUD functions taking `&Connection`, and `#[cfg(test)] mod tests`. Functions that return joined/computed columns (e.g. `microcycle_count`) return a dedicated `*Row` struct rather than a domain type.
 - **Enums are stored as TEXT with `CHECK` constraints**, not integers (see the table DDL). Rust↔string conversion is manual: `Display`/`to_string()` to write, a hand-written `*_from_str` to read (which `panic!`s on unexpected values, treating it as DB corruption).
-- **Errors use `thiserror`, one enum per persistence module** (`MesocycleError`, `SetError`, …), each wrapping `rusqlite::Error` via `#[from]` and adding domain variants like `NotFound { id }`. Keep each error type in the module that produces it (a prior refactor split a shared `error.rs` apart deliberately).
-- **The FFI layer is a thin DTO-mapping shell.** For each domain type `X` there's an `XDTO` in `dto/planning.rs` annotated `#[frb]`, with `From<&X> for XDTO` and (where input is needed) `From<XDTO> for X`. `api/` functions are `#[frb(sync)]`, open the DB (`sqlite::init_db("structure.db")`), call into `structure-core`, and map rows/domain types to DTOs. Put no business logic here.
+- **Errors use `thiserror`, one enum per persistence module** (`MesocycleError`, `SetError`, …), each wrapping `rusqlite::Error` via `#[from]` and adding domain variants like `NotFound { id }`. Keep each error type in the module that produces it — don't recentralize them into a shared `error.rs`.
+- **The FFI layer is a thin DTO-mapping shell.** For each domain type `X` there's an `XDTO` in `dto/planning.rs` annotated `#[frb]`, with `From<&X> for XDTO` and (where input is needed) `From<XDTO> for X`. `api/` functions are `#[frb(sync)]`, open the DB (`connection::init_db("structure.db")`), call into `structure-core`, and map rows/domain types to DTOs. Put no business logic here.
+- **The server is a thin HTTP layer; logic stays in `structure-core`.** Handlers take `State<Store>`, run queries via `store.with_conn(|conn| …)`, and return `Result<Json<…>, ApiError>`. Request bodies are `Deserialize` structs in `dto.rs`; `error.rs` maps each persistence error to a status code via `From<…Error> for ApiError`. Add an endpoint by extending an entity's `routes()`, not by adding logic in the handler.
+
+## Code style
+
+- Comments are rare and explain *why*, not *what* — reserve them for non-obvious rationale (a constraint, a subtle invariant). Let names carry the meaning.
+- Consult the `rust-best-practices` skill when writing or reviewing Rust.
+
+### Function ordering
+
+Declare things close to where they're used. A helper called from a single place sits right next to that function. A helper shared by a small cluster of functions goes just above the cluster; a general, module-wide utility (like the `*_from_str` converters) is grouped with its siblings in one predictable spot — the bottom of the module, above `#[cfg(test)] mod tests` — rather than scattered.

@@ -25,7 +25,8 @@ pub(super) fn create_library_exercises_table(conn: &Connection) -> rusqlite::Res
                 exercise_type IN (
                     'Bodyweight', 'WeightedBodyweight', 'AssistedBodyweight', 'Weighted'
                 )
-            )
+            ),
+            archived INTEGER NOT NULL DEFAULT 0 CHECK(archived IN (0, 1))
         )",
         (),
     )?;
@@ -91,10 +92,25 @@ pub fn get(conn: &Connection, id: i64) -> rusqlite::Result<Option<LibraryExercis
 }
 
 pub fn list(conn: &Connection) -> Result<Vec<LibraryExercise>, LibraryExerciseError> {
-    let mut stmt =
-        conn.prepare("SELECT id, name, exercise_type FROM library_exercises ORDER BY name ASC")?;
+    list_by_archived(conn, false)
+}
 
-    let rows = stmt.query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))?;
+pub fn list_archived(conn: &Connection) -> Result<Vec<LibraryExercise>, LibraryExerciseError> {
+    list_by_archived(conn, true)
+}
+
+fn list_by_archived(
+    conn: &Connection,
+    archived: bool,
+) -> Result<Vec<LibraryExercise>, LibraryExerciseError> {
+    let mut stmt = conn.prepare(
+        "SELECT id, name, exercise_type FROM library_exercises
+         WHERE archived = ?1 ORDER BY name ASC",
+    )?;
+
+    let rows = stmt.query_map([archived], |row| {
+        Ok((row.get(0)?, row.get(1)?, row.get(2)?))
+    })?;
 
     let mut exercises = Vec::new();
     for row in rows {
@@ -136,6 +152,23 @@ pub fn update(
     )?;
 
     Ok(LibraryExercise::new(id, name, exercise_type))
+}
+
+pub fn set_archived(
+    conn: &Connection,
+    id: i64,
+    archived: bool,
+) -> Result<(), LibraryExerciseError> {
+    let updated = conn.execute(
+        "UPDATE library_exercises SET archived = ?1 WHERE id = ?2",
+        params![archived, id],
+    )?;
+
+    if updated == 0 {
+        return Err(LibraryExerciseError::NotFound { id });
+    }
+
+    Ok(())
 }
 
 pub fn delete(conn: &Connection, id: i64) -> Result<(), LibraryExerciseError> {
@@ -395,5 +428,62 @@ mod tests {
         let result = delete(&conn, exercise.id());
 
         assert!(matches!(result, Err(LibraryExerciseError::InUse { .. })));
+    }
+
+    #[test]
+    fn new_exercises_are_not_archived() {
+        let conn = setup_test_db();
+        let exercise = create(&conn, "Squat", ExerciseType::Weighted)
+            .expect("exercise creation should succeed");
+
+        let active = list(&conn).expect("listing should succeed");
+        let archived = list_archived(&conn).expect("listing archived should succeed");
+
+        assert!(active.iter().any(|e| e.id() == exercise.id()));
+        assert!(archived.is_empty());
+    }
+
+    #[test]
+    fn archiving_moves_exercise_from_active_to_archived_list() {
+        let conn = setup_test_db();
+        let exercise = create(&conn, "Squat", ExerciseType::Weighted)
+            .expect("exercise creation should succeed");
+
+        set_archived(&conn, exercise.id(), true).expect("archiving should succeed");
+
+        let active = list(&conn).expect("listing should succeed");
+        let archived = list_archived(&conn).expect("listing archived should succeed");
+
+        assert!(!active.iter().any(|e| e.id() == exercise.id()));
+        assert_eq!(archived.len(), 1);
+        assert_eq!(archived[0].id(), exercise.id());
+    }
+
+    #[test]
+    fn unarchiving_returns_exercise_to_the_active_list() {
+        let conn = setup_test_db();
+        let exercise = create(&conn, "Squat", ExerciseType::Weighted)
+            .expect("exercise creation should succeed");
+        set_archived(&conn, exercise.id(), true).expect("archiving should succeed");
+
+        set_archived(&conn, exercise.id(), false).expect("unarchiving should succeed");
+
+        let active = list(&conn).expect("listing should succeed");
+        let archived = list_archived(&conn).expect("listing archived should succeed");
+
+        assert!(active.iter().any(|e| e.id() == exercise.id()));
+        assert!(archived.is_empty());
+    }
+
+    #[test]
+    fn set_archived_returns_not_found_when_exercise_does_not_exist() {
+        let conn = setup_test_db();
+
+        let result = set_archived(&conn, 9999, true);
+
+        assert!(matches!(
+            result,
+            Err(LibraryExerciseError::NotFound { id: 9999 })
+        ));
     }
 }

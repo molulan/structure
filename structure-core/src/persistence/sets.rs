@@ -48,7 +48,7 @@ fn set_type_to_str(set_type: SetType) -> &'static str {
         SetType::Regular { .. } => "Regular",
         SetType::Myorep => "Myorep",
         SetType::MyorepMatch => "MyorepMatch",
-        SetType::Drop { .. } => "Drop",
+        SetType::Drop => "Drop",
     }
 }
 
@@ -125,8 +125,8 @@ struct SetColumns {
 
 fn set_columns(load: Load, set_type: SetType) -> SetColumns {
     let effort = match set_type {
-        SetType::Regular { effort } | SetType::Drop { effort } => effort,
-        SetType::Myorep | SetType::MyorepMatch => None,
+        SetType::Regular { effort } => effort,
+        SetType::Myorep | SetType::MyorepMatch | SetType::Drop => None,
     };
 
     let (effort_type, effort_value) = match effort {
@@ -345,7 +345,7 @@ fn row_to_set(row: &rusqlite::Row<'_>, exercise_type: ExerciseType) -> rusqlite:
         "Regular" => SetType::Regular { effort },
         "Myorep" => SetType::Myorep,
         "MyorepMatch" => SetType::MyorepMatch,
-        "Drop" => SetType::Drop { effort },
+        "Drop" => SetType::Drop,
         other => panic!("unknown set_type in DB: {other}"),
     };
 
@@ -554,7 +554,7 @@ mod tests {
             planned_exercise.id(),
             Load::Weighted { weight: None },
             Some(8),
-            SetType::Drop { effort: None },
+            SetType::Drop,
         )
         .expect("second set creation should succeed");
 

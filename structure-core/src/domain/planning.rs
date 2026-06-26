@@ -278,7 +278,7 @@ pub enum SetType {
     Regular { effort: Option<Effort> },
     Myorep,
     MyorepMatch,
-    Drop { effort: Option<Effort> },
+    Drop,
 }
 
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]

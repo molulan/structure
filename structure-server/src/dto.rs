@@ -153,7 +153,7 @@ pub enum SetTypeInput {
     Regular { effort: Option<EffortInput> },
     Myorep,
     MyorepMatch,
-    Drop { effort: Option<EffortInput> },
+    Drop,
 }
 
 impl TryFrom<SetTypeInput> for SetType {
@@ -165,7 +165,7 @@ impl TryFrom<SetTypeInput> for SetType {
             SetTypeInput::Regular { effort: e } => SetType::Regular { effort: effort(e)? },
             SetTypeInput::Myorep => SetType::Myorep,
             SetTypeInput::MyorepMatch => SetType::MyorepMatch,
-            SetTypeInput::Drop { effort: e } => SetType::Drop { effort: effort(e)? },
+            SetTypeInput::Drop => SetType::Drop,
         })
     }
 }

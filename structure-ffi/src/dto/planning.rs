@@ -168,7 +168,7 @@ pub enum SetTypeDTO {
     Regular { effort: Option<EffortDTO> },
     Myorep,
     MyorepMatch,
-    Drop { effort: Option<EffortDTO> },
+    Drop,
 }
 
 impl From<SetType> for SetTypeDTO {
@@ -179,9 +179,7 @@ impl From<SetType> for SetTypeDTO {
             },
             SetType::Myorep => Self::Myorep,
             SetType::MyorepMatch => Self::MyorepMatch,
-            SetType::Drop { effort } => Self::Drop {
-                effort: effort.map(EffortDTO::from),
-            },
+            SetType::Drop => Self::Drop,
         }
     }
 }
@@ -194,9 +192,7 @@ impl From<SetTypeDTO> for SetType {
             },
             SetTypeDTO::Myorep => SetType::Myorep,
             SetTypeDTO::MyorepMatch => SetType::MyorepMatch,
-            SetTypeDTO::Drop { effort } => SetType::Drop {
-                effort: effort.map(Effort::from),
-            },
+            SetTypeDTO::Drop => SetType::Drop,
         }
     }
 }

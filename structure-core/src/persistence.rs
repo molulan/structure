@@ -3,6 +3,7 @@ pub mod connection;
 pub mod library_exercises;
 pub mod logged_exercises;
 pub mod logged_sessions;
+pub mod logged_sets;
 pub mod mesocycles;
 pub mod microcycles;
 pub mod planned_exercises;

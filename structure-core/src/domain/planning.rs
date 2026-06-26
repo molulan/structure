@@ -145,7 +145,7 @@ impl PlannedExercise {
 }
 
 /// Whether a `Load` is valid for an exercise of the given `ExerciseType`.
-fn load_matches_exercise_type(exercise_type: ExerciseType, load: Load) -> bool {
+pub(crate) fn load_matches_exercise_type(exercise_type: ExerciseType, load: Load) -> bool {
     matches!(
         (exercise_type, load),
         (ExerciseType::Bodyweight, Load::Bodyweight)

@@ -3,9 +3,9 @@ use rusqlite::Connection;
 use crate::persistence::{
     library_exercises::create_library_exercises_table,
     logged_exercises::create_logged_exercises_table, logged_sessions::create_logged_sessions_table,
-    mesocycles::create_mesocycles_table, microcycles::create_microcycles_table,
-    planned_exercises::create_planned_exercises_table, sets::create_planned_sets_table,
-    workouts::create_workouts_table,
+    logged_sets::create_logged_sets_table, mesocycles::create_mesocycles_table,
+    microcycles::create_microcycles_table, planned_exercises::create_planned_exercises_table,
+    sets::create_planned_sets_table, workouts::create_workouts_table,
 };
 
 fn open(db_path: &str) -> rusqlite::Result<Connection> {
@@ -23,6 +23,7 @@ fn create_schema(conn: &Connection) -> rusqlite::Result<()> {
     create_planned_sets_table(conn)?;
     create_logged_sessions_table(conn)?;
     create_logged_exercises_table(conn)?;
+    create_logged_sets_table(conn)?;
 
     Ok(())
 }

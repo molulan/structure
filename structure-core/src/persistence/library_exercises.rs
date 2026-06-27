@@ -10,7 +10,9 @@ pub enum LibraryExerciseError {
     DuplicateName { name: String },
     #[error("exercise {id} not found")]
     NotFound { id: i64 },
-    #[error("exercise {id} is used by one or more planned exercises and cannot be deleted")]
+    #[error(
+        "exercise {id} is referenced by one or more planned or logged exercises and cannot be deleted"
+    )]
     InUse { id: i64 },
     #[error(transparent)]
     InvalidName(#[from] NameError),
@@ -140,7 +142,9 @@ pub fn update(
 
 pub fn delete(conn: &Connection, id: i64) -> Result<(), LibraryExerciseError> {
     let in_use: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM planned_exercises WHERE library_exercise_id = ?1",
+        "SELECT
+            (SELECT COUNT(*) FROM planned_exercises WHERE library_exercise_id = ?1)
+          + (SELECT COUNT(*) FROM logged_exercises WHERE library_exercise_id = ?1)",
         [id],
         |row| row.get(0),
     )?;
@@ -161,7 +165,10 @@ mod tests {
     use super::*;
     use crate::{
         domain::planning::MesocycleMode,
-        persistence::{connection, mesocycles, microcycles, planned_exercises, workouts},
+        persistence::{
+            connection, logged_exercises, logged_sessions, mesocycles, microcycles,
+            planned_exercises, workouts,
+        },
     };
 
     fn setup_test_db() -> Connection {
@@ -391,6 +398,21 @@ mod tests {
             .expect("exercise creation should succeed");
         planned_exercises::create(&conn, workout.id(), exercise.id())
             .expect("planned exercise creation should succeed");
+
+        let result = delete(&conn, exercise.id());
+
+        assert!(matches!(result, Err(LibraryExerciseError::InUse { .. })));
+    }
+
+    #[test]
+    fn delete_exercise_returns_in_use_when_referenced_by_a_logged_exercise() {
+        let conn = setup_test_db();
+        let session = logged_sessions::create(&conn, "2026-06-26T10:00:00Z", None, None, None)
+            .expect("session creation should succeed");
+        let exercise = create(&conn, "Bench Press", ExerciseType::Weighted)
+            .expect("exercise creation should succeed");
+        logged_exercises::create(&conn, session.id(), exercise.id(), None, None)
+            .expect("logged exercise creation should succeed");
 
         let result = delete(&conn, exercise.id());
 

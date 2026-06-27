@@ -1,6 +1,6 @@
 use serde::Serialize;
 
-use crate::domain::planning::Weight;
+use crate::domain::planning::{LibraryExercise, Weight};
 
 /// A performed training session — the logged counterpart to a planned `Workout`.
 ///
@@ -58,5 +58,63 @@ impl LoggedSession {
 
     pub fn planned_workout_id(&self) -> Option<i64> {
         self.planned_workout_id
+    }
+}
+
+/// A performed exercise within a `LoggedSession` — the logged counterpart to a
+/// planned `PlannedExercise`.
+///
+/// `exercise` is the exercise actually performed. `planned_exercise_id` is
+/// `None` for unplanned (extra) work and links to the prescription otherwise; a
+/// substitution is detected when `exercise`'s id differs from the linked planned
+/// exercise's.
+#[derive(Serialize, Debug, Clone, PartialEq)]
+pub struct LoggedExercise {
+    id: i64,
+    exercise: LibraryExercise,
+    position: u32,
+    planned_exercise_id: Option<i64>,
+    note: Option<String>,
+}
+
+impl LoggedExercise {
+    pub(crate) fn new(
+        id: i64,
+        exercise: LibraryExercise,
+        position: u32,
+        planned_exercise_id: Option<i64>,
+        note: Option<String>,
+    ) -> LoggedExercise {
+        LoggedExercise {
+            id,
+            exercise,
+            position,
+            planned_exercise_id,
+            note,
+        }
+    }
+
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    pub fn exercise(&self) -> &LibraryExercise {
+        &self.exercise
+    }
+
+    pub fn name(&self) -> &str {
+        self.exercise.name()
+    }
+
+    pub fn position(&self) -> u32 {
+        self.position
+    }
+
+    pub fn planned_exercise_id(&self) -> Option<i64> {
+        self.planned_exercise_id
+    }
+
+    pub fn note(&self) -> Option<&str> {
+        self.note.as_deref()
     }
 }

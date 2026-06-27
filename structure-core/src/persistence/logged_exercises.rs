@@ -9,8 +9,8 @@ pub enum LoggedExerciseError {
     Database(#[from] rusqlite::Error),
     #[error("associated logged session {id} not found")]
     AssociatedSessionNotFound { id: i64 },
-    #[error("associated exercise {id} not found")]
-    AssociatedExerciseNotFound { id: i64 },
+    #[error("associated library exercise {id} not found")]
+    AssociatedLibraryExerciseNotFound { id: i64 },
     #[error("associated planned exercise {id} not found")]
     AssociatedPlannedExerciseNotFound { id: i64 },
     #[error("logged exercise {id} not found")]
@@ -65,7 +65,7 @@ pub fn create(
     }
 
     let Some(exercise) = library_exercises::get(conn, library_exercise_id)? else {
-        return Err(LoggedExerciseError::AssociatedExerciseNotFound {
+        return Err(LoggedExerciseError::AssociatedLibraryExerciseNotFound {
             id: library_exercise_id,
         });
     };
@@ -283,7 +283,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(LoggedExerciseError::AssociatedExerciseNotFound { id: 9999 })
+            Err(LoggedExerciseError::AssociatedLibraryExerciseNotFound { id: 9999 })
         ));
     }
 

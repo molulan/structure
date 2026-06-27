@@ -450,7 +450,8 @@ mod tests {
         let result = delete(&conn, exercise.id());
 
         assert!(matches!(result, Err(LibraryExerciseError::InUse { .. })));
-      
+    }
+
     #[test]
     fn new_exercises_are_not_archived() {
         let conn = setup_test_db();

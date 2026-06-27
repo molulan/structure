@@ -95,25 +95,26 @@ pub fn get(conn: &Connection, id: i64) -> rusqlite::Result<Option<LoggedSession>
 }
 
 pub fn list(conn: &Connection) -> Result<Vec<LoggedSession>, LoggedSessionError> {
-    list_where(conn, "")
+    query_sessions(
+        conn,
+        "SELECT id, started_at, completed_at, bodyweight_value, bodyweight_unit, note, planned_workout_id
+         FROM logged_sessions ORDER BY started_at DESC, id DESC",
+    )
 }
 
 pub fn list_in_progress(conn: &Connection) -> Result<Vec<LoggedSession>, LoggedSessionError> {
-    list_where(conn, "WHERE completed_at IS NULL")
+    query_sessions(
+        conn,
+        "SELECT id, started_at, completed_at, bodyweight_value, bodyweight_unit, note, planned_workout_id
+         FROM logged_sessions WHERE completed_at IS NULL ORDER BY started_at DESC, id DESC",
+    )
 }
 
-fn list_where(conn: &Connection, filter: &str) -> Result<Vec<LoggedSession>, LoggedSessionError> {
-    let sql = format!(
-        "SELECT id, started_at, completed_at, bodyweight_value, bodyweight_unit, note, planned_workout_id
-         FROM logged_sessions {filter} ORDER BY started_at DESC, id DESC"
-    );
-    let mut stmt = conn.prepare(&sql)?;
-    let rows = stmt.query_map([], row_to_logged_session)?;
-
-    let mut sessions = Vec::new();
-    for row in rows {
-        sessions.push(row?);
-    }
+fn query_sessions(conn: &Connection, sql: &str) -> Result<Vec<LoggedSession>, LoggedSessionError> {
+    let mut stmt = conn.prepare(sql)?;
+    let sessions = stmt
+        .query_map([], row_to_logged_session)?
+        .collect::<rusqlite::Result<Vec<_>>>()?;
     Ok(sessions)
 }
 

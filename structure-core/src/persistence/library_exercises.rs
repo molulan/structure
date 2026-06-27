@@ -154,15 +154,7 @@ pub fn update(
     Ok(LibraryExercise::new(id, name, exercise_type))
 }
 
-pub fn archive(conn: &Connection, id: i64) -> Result<(), LibraryExerciseError> {
-    update_archived_status(conn, id, true)
-}
-
-pub fn unarchive(conn: &Connection, id: i64) -> Result<(), LibraryExerciseError> {
-    update_archived_status(conn, id, false)
-}
-
-fn update_archived_status(
+pub fn update_archived_status(
     conn: &Connection,
     id: i64,
     archived: bool,
@@ -457,7 +449,7 @@ mod tests {
         let exercise = create(&conn, "Squat", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
 
-        archive(&conn, exercise.id()).expect("archiving should succeed");
+        update_archived_status(&conn, exercise.id(), true).expect("archiving should succeed");
 
         let active = list(&conn).expect("listing should succeed");
         let archived = list_archived(&conn).expect("listing archived should succeed");
@@ -472,9 +464,9 @@ mod tests {
         let conn = setup_test_db();
         let exercise = create(&conn, "Squat", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
-        archive(&conn, exercise.id()).expect("archiving should succeed");
+        update_archived_status(&conn, exercise.id(), true).expect("archiving should succeed");
 
-        unarchive(&conn, exercise.id()).expect("unarchiving should succeed");
+        update_archived_status(&conn, exercise.id(), false).expect("unarchiving should succeed");
 
         let active = list(&conn).expect("listing should succeed");
         let archived = list_archived(&conn).expect("listing archived should succeed");
@@ -484,10 +476,10 @@ mod tests {
     }
 
     #[test]
-    fn archive_returns_not_found_when_exercise_does_not_exist() {
+    fn update_archived_status_returns_not_found_when_exercise_does_not_exist() {
         let conn = setup_test_db();
 
-        let result = archive(&conn, 9999);
+        let result = update_archived_status(&conn, 9999, true);
 
         assert!(matches!(
             result,

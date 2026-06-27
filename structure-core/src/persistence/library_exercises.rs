@@ -92,14 +92,14 @@ pub fn get(conn: &Connection, id: i64) -> rusqlite::Result<Option<LibraryExercis
 }
 
 pub fn list(conn: &Connection) -> Result<Vec<LibraryExercise>, LibraryExerciseError> {
-    list_by_archived(conn, false)
+    list_by_archived_status(conn, false)
 }
 
 pub fn list_archived(conn: &Connection) -> Result<Vec<LibraryExercise>, LibraryExerciseError> {
-    list_by_archived(conn, true)
+    list_by_archived_status(conn, true)
 }
 
-fn list_by_archived(
+fn list_by_archived_status(
     conn: &Connection,
     archived: bool,
 ) -> Result<Vec<LibraryExercise>, LibraryExerciseError> {
@@ -154,7 +154,15 @@ pub fn update(
     Ok(LibraryExercise::new(id, name, exercise_type))
 }
 
-pub fn set_archived(
+pub fn archive(conn: &Connection, id: i64) -> Result<(), LibraryExerciseError> {
+    update_archived_status(conn, id, true)
+}
+
+pub fn unarchive(conn: &Connection, id: i64) -> Result<(), LibraryExerciseError> {
+    update_archived_status(conn, id, false)
+}
+
+fn update_archived_status(
     conn: &Connection,
     id: i64,
     archived: bool,
@@ -449,7 +457,7 @@ mod tests {
         let exercise = create(&conn, "Squat", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
 
-        set_archived(&conn, exercise.id(), true).expect("archiving should succeed");
+        archive(&conn, exercise.id()).expect("archiving should succeed");
 
         let active = list(&conn).expect("listing should succeed");
         let archived = list_archived(&conn).expect("listing archived should succeed");
@@ -464,9 +472,9 @@ mod tests {
         let conn = setup_test_db();
         let exercise = create(&conn, "Squat", ExerciseType::Weighted)
             .expect("exercise creation should succeed");
-        set_archived(&conn, exercise.id(), true).expect("archiving should succeed");
+        archive(&conn, exercise.id()).expect("archiving should succeed");
 
-        set_archived(&conn, exercise.id(), false).expect("unarchiving should succeed");
+        unarchive(&conn, exercise.id()).expect("unarchiving should succeed");
 
         let active = list(&conn).expect("listing should succeed");
         let archived = list_archived(&conn).expect("listing archived should succeed");
@@ -476,10 +484,10 @@ mod tests {
     }
 
     #[test]
-    fn set_archived_returns_not_found_when_exercise_does_not_exist() {
+    fn archive_returns_not_found_when_exercise_does_not_exist() {
         let conn = setup_test_db();
 
-        let result = set_archived(&conn, 9999, true);
+        let result = archive(&conn, 9999);
 
         assert!(matches!(
             result,

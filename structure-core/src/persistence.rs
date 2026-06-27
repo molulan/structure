@@ -1,6 +1,7 @@
 pub mod aggregates;
 pub mod connection;
 pub mod library_exercises;
+pub mod logged_sessions;
 pub mod mesocycles;
 pub mod microcycles;
 pub mod planned_exercises;

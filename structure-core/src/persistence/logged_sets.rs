@@ -359,7 +359,7 @@ fn effort_type_to_str(effort: &Effort) -> &'static str {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::planning::{MesocycleMode, Rir, SetValidationError, WeightUnit};
+    use crate::domain::planning::{MesocycleMode, SetValidationError};
     use crate::persistence::{
         connection, library_exercises, logged_exercises, logged_sessions, mesocycles, microcycles,
         planned_exercises, sets, workouts,

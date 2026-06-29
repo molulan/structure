@@ -93,7 +93,7 @@ pub fn create(
     let position = u32::try_from(next_position)
         .expect("positions are non-negative and no exercise will have 4 billion sets");
 
-    let columns = set_columns::encode(load, set_type);
+    let columns = set_columns::to_set_columns(load, set_type);
     let reps_db: Option<i64> = reps.map(|r| r as i64);
 
     tx.execute(
@@ -133,7 +133,7 @@ pub fn update(
         return Err(SetError::NotFound { id });
     };
 
-    let columns = set_columns::encode(load, set_type);
+    let columns = set_columns::to_set_columns(load, set_type);
     let reps_db: Option<i64> = reps.map(|r| r as i64);
 
     let position: Option<i64> = tx
@@ -214,7 +214,7 @@ fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<Set> {
     let effort_type: Option<String> = row.get(7)?;
     let effort_value: Option<i64> = row.get(8)?;
 
-    let (load, set_type) = set_columns::decode(
+    let (load, set_type) = set_columns::to_load_and_set_type(
         &set_type,
         &load_type,
         weight_value,

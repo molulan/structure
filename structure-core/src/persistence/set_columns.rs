@@ -15,7 +15,7 @@ pub(super) struct SetColumns {
     pub effort_value: Option<i64>,
 }
 
-pub(super) fn encode(load: Load, set_type: SetType) -> SetColumns {
+pub(super) fn to_set_columns(load: Load, set_type: SetType) -> SetColumns {
     let effort = match set_type {
         SetType::Regular { effort } => effort,
         SetType::Myorep | SetType::MyorepMatch | SetType::Drop => None,
@@ -56,7 +56,7 @@ pub(super) fn encode(load: Load, set_type: SetType) -> SetColumns {
     }
 }
 
-pub(super) fn decode(
+pub(super) fn to_load_and_set_type(
     set_type: &str,
     load_type: &str,
     weight_value: Option<f64>,

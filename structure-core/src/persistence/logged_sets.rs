@@ -105,7 +105,7 @@ pub fn create(
     let position = u32::try_from(next_position)
         .expect("positions are non-negative and no exercise will have 4 billion sets");
 
-    let columns = set_columns::encode(load, set_type);
+    let columns = set_columns::to_set_columns(load, set_type);
 
     tx.execute(
         "INSERT INTO logged_sets
@@ -199,7 +199,7 @@ fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<LoggedSet> {
     let effort_value: Option<i64> = row.get(8)?;
     let planned_set_id: Option<i64> = row.get(9)?;
 
-    let (load, set_type) = set_columns::decode(
+    let (load, set_type) = set_columns::to_load_and_set_type(
         &set_type,
         &load_type,
         weight_value,

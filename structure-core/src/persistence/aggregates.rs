@@ -1,7 +1,11 @@
 use rusqlite::Connection;
 use serde::Serialize;
 
-use crate::domain::planning::{LibraryExercise, MesocycleMode, Set};
+use crate::domain::planning::{LibraryExercise, MesocycleMode, Set, Weight};
+use crate::domain::tracking::LoggedSet;
+use crate::persistence::logged_exercises::{self, LoggedExerciseError};
+use crate::persistence::logged_sessions::{self, LoggedSessionError};
+use crate::persistence::logged_sets::{self, LoggedSetError};
 use crate::persistence::mesocycles::{self, MesocycleError};
 use crate::persistence::microcycles::{self, MicrocycleError};
 use crate::persistence::planned_exercises::{self, PlannedExerciseError};
@@ -95,4 +99,163 @@ pub fn get_full_mesocycle(
         mode: mesocycle.mode,
         microcycles,
     }))
+}
+
+#[derive(Debug, thiserror::Error)]
+pub enum FullLoggedSessionError {
+    #[error(transparent)]
+    LoggedSession(#[from] LoggedSessionError),
+    #[error(transparent)]
+    LoggedExercise(#[from] LoggedExerciseError),
+    #[error(transparent)]
+    LoggedSet(#[from] LoggedSetError),
+}
+
+#[derive(Serialize)]
+pub struct FullLoggedSession {
+    pub id: i64,
+    pub started_at: String,
+    pub completed_at: Option<String>,
+    pub bodyweight: Option<Weight>,
+    pub note: Option<String>,
+    pub planned_workout_id: Option<i64>,
+    pub exercises: Vec<FullLoggedExercise>,
+}
+
+#[derive(Serialize)]
+pub struct FullLoggedExercise {
+    pub id: i64,
+    pub exercise: LibraryExercise,
+    pub position: u32,
+    pub planned_exercise_id: Option<i64>,
+    pub note: Option<String>,
+    pub sets: Vec<LoggedSet>,
+}
+
+pub fn get_full_logged_session(
+    conn: &Connection,
+    id: i64,
+) -> Result<Option<FullLoggedSession>, FullLoggedSessionError> {
+    let Some(session) = logged_sessions::get(conn, id).map_err(LoggedSessionError::from)? else {
+        return Ok(None);
+    };
+
+    let mut exercises = Vec::new();
+    for exercise in logged_exercises::list(conn, session.id())? {
+        let sets = logged_sets::list(conn, exercise.id())?;
+        exercises.push(FullLoggedExercise {
+            id: exercise.id(),
+            exercise: exercise.exercise().clone(),
+            position: exercise.position(),
+            planned_exercise_id: exercise.planned_exercise_id(),
+            note: exercise.note().map(str::to_string),
+            sets,
+        });
+    }
+
+    Ok(Some(FullLoggedSession {
+        id: session.id(),
+        started_at: session.started_at().to_string(),
+        completed_at: session.completed_at().map(str::to_string),
+        bodyweight: session.bodyweight(),
+        note: session.note().map(str::to_string),
+        planned_workout_id: session.planned_workout_id(),
+        exercises,
+    }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::domain::planning::{ExerciseType, Load, SetType, Weight, WeightUnit};
+    use crate::persistence::{connection, library_exercises, logged_exercises, logged_sessions};
+
+    const STARTED: &str = "2026-06-26T10:00:00Z";
+
+    fn setup_test_db() -> Connection {
+        connection::init_db(":memory:").expect("failed to create test database")
+    }
+
+    fn weighted(value: f64) -> Load {
+        Load::Weighted {
+            weight: Some(Weight::new(value, WeightUnit::Kg)),
+        }
+    }
+
+    #[test]
+    fn get_full_logged_session_returns_none_when_it_does_not_exist() {
+        let conn = setup_test_db();
+
+        let result = get_full_logged_session(&conn, 9999).expect("query should succeed");
+
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn get_full_logged_session_assembles_the_exercise_and_set_tree() {
+        let mut conn = setup_test_db();
+        let session = logged_sessions::create(
+            &conn,
+            STARTED,
+            None,
+            Some(Weight::new(82.5, WeightUnit::Kg)),
+            Some("good session"),
+        )
+        .expect("session creation should succeed");
+        let bench = library_exercises::create(&conn, "Bench Press", ExerciseType::Weighted)
+            .expect("exercise creation should succeed");
+        let row = library_exercises::create(&conn, "Row", ExerciseType::Weighted)
+            .expect("exercise creation should succeed");
+
+        let logged_bench = logged_exercises::create(&conn, session.id(), bench.id(), None, None)
+            .expect("logged exercise creation should succeed");
+        let logged_row = logged_exercises::create(&conn, session.id(), row.id(), None, None)
+            .expect("logged exercise creation should succeed");
+
+        logged_sets::create(
+            &mut conn,
+            logged_bench.id(),
+            weighted(100.0),
+            5,
+            SetType::Regular { effort: None },
+            None,
+        )
+        .expect("set creation should succeed");
+        logged_sets::create(
+            &mut conn,
+            logged_bench.id(),
+            weighted(100.0),
+            4,
+            SetType::Regular { effort: None },
+            None,
+        )
+        .expect("set creation should succeed");
+        logged_sets::create(
+            &mut conn,
+            logged_row.id(),
+            weighted(80.0),
+            8,
+            SetType::Regular { effort: None },
+            None,
+        )
+        .expect("set creation should succeed");
+
+        let full = get_full_logged_session(&conn, session.id())
+            .expect("query should succeed")
+            .expect("session should exist");
+
+        assert_eq!(full.id, session.id());
+        assert_eq!(full.started_at, STARTED);
+        assert_eq!(full.note.as_deref(), Some("good session"));
+        assert_eq!(full.bodyweight, Some(Weight::new(82.5, WeightUnit::Kg)));
+
+        assert_eq!(full.exercises.len(), 2);
+        assert_eq!(full.exercises[0].id, logged_bench.id());
+        assert_eq!(full.exercises[0].sets.len(), 2);
+        assert_eq!(full.exercises[0].sets[0].reps(), 5);
+        assert_eq!(full.exercises[0].sets[1].reps(), 4);
+        assert_eq!(full.exercises[1].id, logged_row.id());
+        assert_eq!(full.exercises[1].sets.len(), 1);
+        assert_eq!(full.exercises[1].sets[0].reps(), 8);
+    }
 }

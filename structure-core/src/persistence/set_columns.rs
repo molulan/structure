@@ -58,7 +58,7 @@ impl SetColumns {
     }
 }
 
-pub(super) fn to_load_and_set_type(
+pub(super) fn parse_load_and_set_type(
     set_type: &str,
     load_type: &str,
     weight_value: Option<f64>,

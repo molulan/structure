@@ -214,7 +214,7 @@ fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<Set> {
     let effort_type: Option<String> = row.get(7)?;
     let effort_value: Option<i64> = row.get(8)?;
 
-    let (load, set_type) = set_columns::to_load_and_set_type(
+    let (load, set_type) = set_columns::parse_load_and_set_type(
         &set_type,
         &load_type,
         weight_value,

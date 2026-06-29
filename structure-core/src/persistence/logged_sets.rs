@@ -142,13 +142,10 @@ pub fn create(
 pub fn get(conn: &Connection, id: i64) -> Result<Option<LoggedSet>, LoggedSetError> {
     let set = conn
         .query_row(
-            "SELECT ls.id, ls.position, ls.set_type, ls.load_type, ls.weight_value,
-                    ls.weight_unit, ls.reps, ls.effort_type, ls.effort_value, ls.planned_set_id,
-                    le.exercise_type
-             FROM logged_sets ls
-             JOIN logged_exercises lex ON lex.id = ls.logged_exercise_id
-             JOIN library_exercises le ON le.id = lex.library_exercise_id
-             WHERE ls.id = ?1",
+            "SELECT id, position, set_type, load_type, weight_value,
+                    weight_unit, reps, effort_type, effort_value, planned_set_id
+             FROM logged_sets
+             WHERE id = ?1",
             [id],
             row_to_set,
         )
@@ -165,14 +162,11 @@ pub fn list(conn: &Connection, logged_exercise_id: i64) -> Result<Vec<LoggedSet>
     }
 
     let mut stmt = conn.prepare(
-        "SELECT ls.id, ls.position, ls.set_type, ls.load_type, ls.weight_value,
-                ls.weight_unit, ls.reps, ls.effort_type, ls.effort_value, ls.planned_set_id,
-                le.exercise_type
-         FROM logged_sets ls
-         JOIN logged_exercises lex ON lex.id = ls.logged_exercise_id
-         JOIN library_exercises le ON le.id = lex.library_exercise_id
-         WHERE ls.logged_exercise_id = ?1
-         ORDER BY ls.position ASC",
+        "SELECT id, position, set_type, load_type, weight_value,
+                weight_unit, reps, effort_type, effort_value, planned_set_id
+         FROM logged_sets
+         WHERE logged_exercise_id = ?1
+         ORDER BY position ASC",
     )?;
     let rows = stmt.query_map([logged_exercise_id], row_to_set)?;
 
@@ -203,8 +197,6 @@ fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<LoggedSet> {
     let effort_type: Option<String> = row.get(7)?;
     let effort_value: Option<i64> = row.get(8)?;
     let planned_set_id: Option<i64> = row.get(9)?;
-    let exercise_type: String = row.get(10)?;
-    let exercise_type = exercise_type_from_str(&exercise_type);
 
     let weight = weight_value
         .zip(weight_unit)
@@ -232,16 +224,14 @@ fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<LoggedSet> {
 
     let reps = u32::try_from(reps).expect("reps out of u32 range");
 
-    Ok(LoggedSet::new(
+    Ok(LoggedSet::new_unchecked(
         id,
         position,
-        exercise_type,
         load,
         reps,
         set_type,
         planned_set_id,
-    )
-    .expect("set load stored in DB was validated on write"))
+    ))
 }
 
 /// The persisted column values for a logged set's `load` and `set_type`.

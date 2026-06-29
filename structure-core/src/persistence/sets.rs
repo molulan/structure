@@ -295,7 +295,7 @@ pub fn reorder(
     }
 }
 
-fn row_to_set(row: &rusqlite::Row<'_>, exercise_type: ExerciseType) -> rusqlite::Result<Set> {
+fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<Set> {
     let id = row.get(0)?;
     let position: i64 = row.get(1)?;
     let position = u32::try_from(position)
@@ -349,16 +349,15 @@ fn row_to_set(row: &rusqlite::Row<'_>, exercise_type: ExerciseType) -> rusqlite:
         other => panic!("unknown set_type in DB: {other}"),
     };
 
-    Ok(Set::new(id, position, exercise_type, load, reps, set_type)
-        .expect("set load stored in DB was validated on write"))
+    Ok(Set::new_unchecked(id, position, load, reps, set_type))
 }
 
 pub fn list(conn: &Connection, planned_exercise_id: i64) -> Result<Vec<Set>, SetError> {
-    let Some(exercise_type) = planned_exercise_type(conn, planned_exercise_id)? else {
+    if planned_exercise_type(conn, planned_exercise_id)?.is_none() {
         return Err(SetError::AssociatedPlannedExerciseNotFound {
             id: planned_exercise_id,
         });
-    };
+    }
 
     let mut stmt = conn.prepare(
         "SELECT id, position, set_type, load_type, weight_value, weight_unit, reps, effort_type, effort_value
@@ -367,7 +366,7 @@ pub fn list(conn: &Connection, planned_exercise_id: i64) -> Result<Vec<Set>, Set
          ORDER BY position ASC",
     )?;
 
-    let rows = stmt.query_map([planned_exercise_id], |row| row_to_set(row, exercise_type))?;
+    let rows = stmt.query_map([planned_exercise_id], row_to_set)?;
 
     let mut sets = Vec::new();
     for row in rows {

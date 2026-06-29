@@ -165,6 +165,28 @@ impl LoggedSet {
         })
     }
 
+    /// Builds a `LoggedSet` from already-persisted columns without re-checking
+    /// the load against the exercise type. Use only on the read path: the
+    /// invariant was enforced by `new` on write, so re-validating would only
+    /// force reads to join in the exercise type.
+    pub(crate) fn new_unchecked(
+        id: i64,
+        position: u32,
+        load: Load,
+        reps: u32,
+        set_type: SetType,
+        planned_set_id: Option<i64>,
+    ) -> LoggedSet {
+        LoggedSet {
+            id,
+            position,
+            load,
+            reps,
+            set_type,
+            planned_set_id,
+        }
+    }
+
     pub fn id(&self) -> i64 {
         self.id
     }

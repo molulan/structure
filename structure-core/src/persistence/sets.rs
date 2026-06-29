@@ -1,7 +1,6 @@
-use crate::domain::planning::{
-    Effort, ExerciseType, Load, Rir, Rpe, Set, SetType, SetValidationError, Weight, WeightUnit,
-};
+use crate::domain::planning::{ExerciseType, Load, Set, SetType, SetValidationError};
 use crate::persistence::library_exercises::exercise_type_from_str;
+use crate::persistence::set_columns;
 use rusqlite::{Connection, OptionalExtension, params};
 
 #[derive(Debug, thiserror::Error)]
@@ -43,46 +42,6 @@ pub(super) fn create_planned_sets_table(conn: &Connection) -> rusqlite::Result<(
     Ok(())
 }
 
-fn set_type_to_str(set_type: SetType) -> &'static str {
-    match set_type {
-        SetType::Regular { .. } => "Regular",
-        SetType::Myorep => "Myorep",
-        SetType::MyorepMatch => "MyorepMatch",
-        SetType::Drop => "Drop",
-    }
-}
-
-fn load_type_to_str(load: &Load) -> &'static str {
-    match load {
-        Load::Bodyweight => "Bodyweight",
-        Load::WeightedBodyweight { .. } => "WeightedBodyweight",
-        Load::AssistedBodyweight { .. } => "AssistedBodyweight",
-        Load::Weighted { .. } => "Weighted",
-    }
-}
-
-fn weight_unit_to_str(unit: WeightUnit) -> &'static str {
-    match unit {
-        WeightUnit::Kg => "Kg",
-        WeightUnit::Lbs => "Lbs",
-    }
-}
-
-fn weight_unit_from_str(s: &str) -> WeightUnit {
-    match s {
-        "Kg" => WeightUnit::Kg,
-        "Lbs" => WeightUnit::Lbs,
-        other => panic!("unknown weight_unit in DB: {other}"),
-    }
-}
-
-fn effort_type_to_str(effort: &Effort) -> &'static str {
-    match effort {
-        Effort::Rir(..) => "Rir",
-        Effort::Rpe(..) => "Rpe",
-    }
-}
-
 fn planned_exercise_type(
     conn: &Connection,
     planned_exercise_id: i64,
@@ -111,59 +70,6 @@ fn set_exercise_type(conn: &Connection, set_id: i64) -> rusqlite::Result<Option<
     .map(|name| name.map(|name| exercise_type_from_str(&name)))
 }
 
-/// The persisted column values for a set's `load` and `set_type`, shared by
-/// `create` and `update` so the decomposition lives in
-/// one place.
-struct SetColumns {
-    set_type: &'static str,
-    load_type: &'static str,
-    weight_value: Option<f64>,
-    weight_unit: Option<&'static str>,
-    effort_type: Option<&'static str>,
-    effort_value: Option<i64>,
-}
-
-fn set_columns(load: Load, set_type: SetType) -> SetColumns {
-    let effort = match set_type {
-        SetType::Regular { effort } => effort,
-        SetType::Myorep | SetType::MyorepMatch | SetType::Drop => None,
-    };
-
-    let (effort_type, effort_value) = match effort {
-        None => (None, None),
-        Some(effort) => {
-            let value = match effort {
-                Effort::Rpe(rpe) => rpe.value() as i64,
-                Effort::Rir(rir) => rir.value() as i64,
-            };
-            (Some(effort_type_to_str(&effort)), Some(value))
-        }
-    };
-
-    let (weight_value, weight_unit) = match load {
-        Load::Bodyweight => (None, None),
-        Load::WeightedBodyweight {
-            added_weight: weight,
-        }
-        | Load::AssistedBodyweight { assistance: weight }
-        | Load::Weighted { weight } => weight.map_or((None, None), |weight| {
-            (
-                Some(weight.value()),
-                Some(weight_unit_to_str(weight.unit())),
-            )
-        }),
-    };
-
-    SetColumns {
-        set_type: set_type_to_str(set_type),
-        load_type: load_type_to_str(&load),
-        weight_value,
-        weight_unit,
-        effort_type,
-        effort_value,
-    }
-}
-
 pub fn create(
     conn: &mut Connection,
     planned_exercise_id: i64,
@@ -187,7 +93,7 @@ pub fn create(
     let position = u32::try_from(next_position)
         .expect("positions are non-negative and no exercise will have 4 billion sets");
 
-    let columns = set_columns(load, set_type);
+    let columns = set_columns::encode(load, set_type);
     let reps_db: Option<i64> = reps.map(|r| r as i64);
 
     tx.execute(
@@ -227,7 +133,7 @@ pub fn update(
         return Err(SetError::NotFound { id });
     };
 
-    let columns = set_columns(load, set_type);
+    let columns = set_columns::encode(load, set_type);
     let reps_db: Option<i64> = reps.map(|r| r as i64);
 
     let position: Option<i64> = tx
@@ -308,46 +214,16 @@ fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<Set> {
     let effort_type: Option<String> = row.get(7)?;
     let effort_value: Option<i64> = row.get(8)?;
 
-    let weight = weight_value
-        .zip(weight_unit)
-        .map(|(value, unit)| Weight::new(value, weight_unit_from_str(&unit)));
-
-    let load = match load_type.as_str() {
-        "Bodyweight" => Load::Bodyweight,
-        "WeightedBodyweight" => Load::WeightedBodyweight {
-            added_weight: weight,
-        },
-        "AssistedBodyweight" => Load::AssistedBodyweight { assistance: weight },
-        "Weighted" => Load::Weighted { weight },
-        other => panic!("unknown load_type in DB: {other}"),
-    };
-
-    let effort = match effort_type {
-        None => None,
-        Some(s) => match s.as_str() {
-            "Rir" => {
-                let v = effort_value.expect("effort_value is NULL but effort_type is 'Rir'");
-                let v = i8::try_from(v).expect("effort_value out of i8 range");
-                Some(Effort::Rir(Rir::new(v).expect("invalid Rir value in DB")))
-            }
-            "Rpe" => {
-                let v = effort_value.expect("effort_value is NULL but effort_type is 'Rpe'");
-                let v = u8::try_from(v).expect("effort_value out of u8 range");
-                Some(Effort::Rpe(Rpe::new(v).expect("invalid Rpe value in DB")))
-            }
-            other => panic!("unknown effort_type in DB: {other}"),
-        },
-    };
+    let (load, set_type) = set_columns::decode(
+        &set_type,
+        &load_type,
+        weight_value,
+        weight_unit,
+        effort_type.as_deref(),
+        effort_value,
+    );
 
     let reps: Option<u32> = reps.map(|r| u32::try_from(r).expect("reps out of u32 range"));
-
-    let set_type = match set_type.as_str() {
-        "Regular" => SetType::Regular { effort },
-        "Myorep" => SetType::Myorep,
-        "MyorepMatch" => SetType::MyorepMatch,
-        "Drop" => SetType::Drop,
-        other => panic!("unknown set_type in DB: {other}"),
-    };
 
     Ok(Set::new_unchecked(id, position, load, reps, set_type))
 }

@@ -1,6 +1,9 @@
 use serde::Serialize;
 
-use crate::domain::planning::{LibraryExercise, Weight};
+use crate::domain::planning::{
+    ExerciseType, LibraryExercise, Load, SetType, SetValidationError, Weight,
+    load_matches_exercise_type,
+};
 
 /// A performed training session — the logged counterpart to a planned `Workout`.
 ///
@@ -116,5 +119,73 @@ impl LoggedExercise {
 
     pub fn note(&self) -> Option<&str> {
         self.note.as_deref()
+    }
+}
+
+/// A performed set within a `LoggedExercise` — the logged counterpart to a
+/// planned `Set`.
+///
+/// `reps` is concrete (a set that was logged was performed; a skipped set has no
+/// row at all). `planned_set_id` is `None` for unplanned (extra) sets. Effort is
+/// carried on `SetType::Regular`, exactly as in the plan. Drop sets are not yet
+/// loggable here — they require segment storage that is deferred.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+pub struct LoggedSet {
+    id: i64,
+    position: u32,
+    load: Load,
+    reps: u32,
+    set_type: SetType,
+    planned_set_id: Option<i64>,
+}
+
+impl LoggedSet {
+    pub(crate) fn new(
+        id: i64,
+        position: u32,
+        exercise_type: ExerciseType,
+        load: Load,
+        reps: u32,
+        set_type: SetType,
+        planned_set_id: Option<i64>,
+    ) -> Result<LoggedSet, SetValidationError> {
+        if !load_matches_exercise_type(exercise_type, load) {
+            return Err(SetValidationError::LoadMismatch {
+                load,
+                exercise_type,
+            });
+        }
+        Ok(LoggedSet {
+            id,
+            position,
+            load,
+            reps,
+            set_type,
+            planned_set_id,
+        })
+    }
+
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    pub fn position(&self) -> u32 {
+        self.position
+    }
+
+    pub fn load(&self) -> Load {
+        self.load
+    }
+
+    pub fn reps(&self) -> u32 {
+        self.reps
+    }
+
+    pub fn set_type(&self) -> SetType {
+        self.set_type
+    }
+
+    pub fn planned_set_id(&self) -> Option<i64> {
+        self.planned_set_id
     }
 }

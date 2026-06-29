@@ -15,44 +15,46 @@ pub(super) struct SetColumns {
     pub effort_value: Option<i64>,
 }
 
-pub(super) fn to_set_columns(load: Load, set_type: SetType) -> SetColumns {
-    let effort = match set_type {
-        SetType::Regular { effort } => effort,
-        SetType::Myorep | SetType::MyorepMatch | SetType::Drop => None,
-    };
+impl SetColumns {
+    pub(super) fn from_set(load: Load, set_type: SetType) -> SetColumns {
+        let effort = match set_type {
+            SetType::Regular { effort } => effort,
+            SetType::Myorep | SetType::MyorepMatch | SetType::Drop => None,
+        };
 
-    let (effort_type, effort_value) = match effort {
-        None => (None, None),
-        Some(effort) => {
-            let value = match effort {
-                Effort::Rpe(rpe) => rpe.value() as i64,
-                Effort::Rir(rir) => rir.value() as i64,
-            };
-            (Some(effort_type_to_str(&effort)), Some(value))
+        let (effort_type, effort_value) = match effort {
+            None => (None, None),
+            Some(effort) => {
+                let value = match effort {
+                    Effort::Rpe(rpe) => rpe.value() as i64,
+                    Effort::Rir(rir) => rir.value() as i64,
+                };
+                (Some(effort_type_to_str(&effort)), Some(value))
+            }
+        };
+
+        let (weight_value, weight_unit) = match load {
+            Load::Bodyweight => (None, None),
+            Load::WeightedBodyweight {
+                added_weight: weight,
+            }
+            | Load::AssistedBodyweight { assistance: weight }
+            | Load::Weighted { weight } => weight.map_or((None, None), |weight| {
+                (
+                    Some(weight.value()),
+                    Some(weight_unit_to_str(weight.unit())),
+                )
+            }),
+        };
+
+        SetColumns {
+            set_type: set_type_to_str(set_type),
+            load_type: load_type_to_str(&load),
+            weight_value,
+            weight_unit,
+            effort_type,
+            effort_value,
         }
-    };
-
-    let (weight_value, weight_unit) = match load {
-        Load::Bodyweight => (None, None),
-        Load::WeightedBodyweight {
-            added_weight: weight,
-        }
-        | Load::AssistedBodyweight { assistance: weight }
-        | Load::Weighted { weight } => weight.map_or((None, None), |weight| {
-            (
-                Some(weight.value()),
-                Some(weight_unit_to_str(weight.unit())),
-            )
-        }),
-    };
-
-    SetColumns {
-        set_type: set_type_to_str(set_type),
-        load_type: load_type_to_str(&load),
-        weight_value,
-        weight_unit,
-        effort_type,
-        effort_value,
     }
 }
 

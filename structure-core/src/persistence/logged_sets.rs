@@ -3,7 +3,7 @@ use rusqlite::{Connection, OptionalExtension, params};
 use crate::domain::planning::{ExerciseType, Load, SetType};
 use crate::domain::tracking::LoggedSet;
 use crate::persistence::library_exercises::exercise_type_from_str;
-use crate::persistence::set_columns;
+use crate::persistence::set_columns::{self, SetColumns};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LoggedSetError {
@@ -105,7 +105,7 @@ pub fn create(
     let position = u32::try_from(next_position)
         .expect("positions are non-negative and no exercise will have 4 billion sets");
 
-    let columns = set_columns::to_set_columns(load, set_type);
+    let columns = SetColumns::from_set(load, set_type);
 
     tx.execute(
         "INSERT INTO logged_sets

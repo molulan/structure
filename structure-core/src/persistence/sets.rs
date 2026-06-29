@@ -1,6 +1,6 @@
 use crate::domain::planning::{ExerciseType, Load, Set, SetType, SetValidationError};
 use crate::persistence::library_exercises::exercise_type_from_str;
-use crate::persistence::set_columns;
+use crate::persistence::set_columns::{self, SetColumns};
 use rusqlite::{Connection, OptionalExtension, params};
 
 #[derive(Debug, thiserror::Error)]
@@ -93,7 +93,7 @@ pub fn create(
     let position = u32::try_from(next_position)
         .expect("positions are non-negative and no exercise will have 4 billion sets");
 
-    let columns = set_columns::to_set_columns(load, set_type);
+    let columns = SetColumns::from_set(load, set_type);
     let reps_db: Option<i64> = reps.map(|r| r as i64);
 
     tx.execute(
@@ -133,7 +133,7 @@ pub fn update(
         return Err(SetError::NotFound { id });
     };
 
-    let columns = set_columns::to_set_columns(load, set_type);
+    let columns = SetColumns::from_set(load, set_type);
     let reps_db: Option<i64> = reps.map(|r| r as i64);
 
     let position: Option<i64> = tx

@@ -252,6 +252,26 @@ impl Set {
         })
     }
 
+    /// Builds a `Set` from already-persisted columns without re-checking the
+    /// load against the exercise type. Use only on the read path: the invariant
+    /// was enforced by `new` on write, so re-validating would only force reads
+    /// to join in the exercise type.
+    pub(crate) fn new_unchecked(
+        id: i64,
+        position: u32,
+        load: Load,
+        reps: Option<u32>,
+        set_type: SetType,
+    ) -> Set {
+        Set {
+            id,
+            position,
+            load,
+            reps,
+            set_type,
+        }
+    }
+
     pub fn id(&self) -> i64 {
         self.id
     }

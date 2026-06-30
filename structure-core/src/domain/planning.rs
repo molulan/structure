@@ -173,14 +173,14 @@ impl PlannedExercise {
 
 /// A planned prescription within a `PlannedExercise`: a uniform block of
 /// `number_of_sets` sets. What each set targets depends on the group's
-/// [`SetGroupKind`]. Per-set divergence is a tracking concern, not part of the
+/// [`SetGroupType`]. Per-set divergence is a tracking concern, not part of the
 /// plan.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub struct SetGroup {
     id: i64,
     position: u32,
     number_of_sets: u32,
-    kind: SetGroupKind,
+    set_group_type: SetGroupType,
 }
 
 impl SetGroup {
@@ -189,19 +189,21 @@ impl SetGroup {
         position: u32,
         exercise_type: ExerciseType,
         number_of_sets: u32,
-        kind: SetGroupKind,
+        set_group_type: SetGroupType,
     ) -> Result<SetGroup, SetGroupValidationError> {
         if number_of_sets == 0 {
             return Err(SetGroupValidationError::ZeroSets);
         }
-        if let SetGroupKind::Prescribed {
-            style, intensity, ..
-        } = kind
+        if let SetGroupType::Prescribed {
+            set_type,
+            intensity,
+            ..
+        } = set_group_type
         {
-            if style.is_failure_based() && intensity.is_proximity_to_failure() {
-                return Err(SetGroupValidationError::IntensityIncompatibleWithStyle {
+            if set_type.is_failure_based() && intensity.is_proximity_to_failure() {
+                return Err(SetGroupValidationError::IntensityIncompatibleWithSetType {
                     intensity,
-                    style,
+                    set_type,
                 });
             }
             if exercise_type == ExerciseType::Bodyweight && intensity.is_weight_resolving() {
@@ -212,25 +214,25 @@ impl SetGroup {
             id,
             position,
             number_of_sets,
-            kind,
+            set_group_type,
         })
     }
 
     /// Builds a `SetGroup` from already-persisted columns without re-checking the
-    /// intensity against the style or exercise type. Use only on the read path:
-    /// the invariants were enforced by `new` on write, so re-validating would
-    /// only force reads to join in the exercise type.
+    /// intensity against the set type or exercise type. Use only on the read
+    /// path: the invariants were enforced by `new` on write, so re-validating
+    /// would only force reads to join in the exercise type.
     pub(crate) fn new_unchecked(
         id: i64,
         position: u32,
         number_of_sets: u32,
-        kind: SetGroupKind,
+        set_group_type: SetGroupType,
     ) -> SetGroup {
         SetGroup {
             id,
             position,
             number_of_sets,
-            kind,
+            set_group_type,
         }
     }
 
@@ -246,8 +248,8 @@ impl SetGroup {
         self.number_of_sets
     }
 
-    pub fn kind(&self) -> SetGroupKind {
-        self.kind
+    pub fn set_group_type(&self) -> SetGroupType {
+        self.set_group_type
     }
 }
 
@@ -256,30 +258,30 @@ impl SetGroup {
 /// execution from the preceding regular set, so it carries no prescription of
 /// its own — making "a MyorepMatch with its own reps/intensity" unrepresentable.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-pub enum SetGroupKind {
+pub enum SetGroupType {
     Prescribed {
-        style: PrescribedStyle,
+        set_type: PrescribedSetType,
         reps: RepTarget,
         intensity: Intensity,
     },
     MyorepMatch,
 }
 
-/// The execution style of a `Prescribed` set group — one that fixes its own
-/// reps and intensity. `MyorepMatch` is deliberately excluded: it has no
-/// prescription, so it lives as a [`SetGroupKind`] variant rather than a style.
+/// The set type of a `Prescribed` set group — one that fixes its own reps and
+/// intensity. `MyorepMatch` is deliberately excluded: it has no prescription,
+/// so it lives as a [`SetGroupType`] variant rather than a set type.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-pub enum PrescribedStyle {
+pub enum PrescribedSetType {
     Regular,
     Myorep,
     Drop,
 }
 
-impl PrescribedStyle {
-    /// Styles that take a set past failure, for which a proximity-to-failure
+impl PrescribedSetType {
+    /// Set types that take a set past failure, for which a proximity-to-failure
     /// [`Intensity`] (`Rir`/`Rpe`) is meaningless.
     fn is_failure_based(self) -> bool {
-        matches!(self, PrescribedStyle::Myorep | PrescribedStyle::Drop)
+        matches!(self, PrescribedSetType::Myorep | PrescribedSetType::Drop)
     }
 }
 
@@ -287,10 +289,10 @@ impl PrescribedStyle {
 pub enum SetGroupValidationError {
     #[error("a set group must prescribe at least one set")]
     ZeroSets,
-    #[error("intensity {intensity:?} is incompatible with set style {style:?}")]
-    IntensityIncompatibleWithStyle {
+    #[error("intensity {intensity:?} is incompatible with set type {set_type:?}")]
+    IntensityIncompatibleWithSetType {
         intensity: Intensity,
-        style: PrescribedStyle,
+        set_type: PrescribedSetType,
     },
     #[error(
         "weight-resolving intensity {intensity:?} cannot be prescribed for a bodyweight exercise"
@@ -787,7 +789,7 @@ mod tests {
 
     fn prescribed_set_group(
         exercise_type: ExerciseType,
-        style: PrescribedStyle,
+        set_type: PrescribedSetType,
         intensity: Intensity,
     ) -> Result<SetGroup, SetGroupValidationError> {
         SetGroup::new(
@@ -795,8 +797,8 @@ mod tests {
             0,
             exercise_type,
             3,
-            SetGroupKind::Prescribed {
-                style,
+            SetGroupType::Prescribed {
+                set_type,
                 reps: RepTarget::exact(10).unwrap(),
                 intensity,
             },
@@ -805,55 +807,56 @@ mod tests {
 
     #[test]
     fn set_group_keeps_its_prescription() {
-        let kind = SetGroupKind::Prescribed {
-            style: PrescribedStyle::Regular,
+        let set_group_type = SetGroupType::Prescribed {
+            set_type: PrescribedSetType::Regular,
             reps: RepTarget::range(8, 12).unwrap(),
             intensity: Intensity::Rir(Rir::new(2).unwrap()),
         };
-        let group = SetGroup::new(7, 2, ExerciseType::Weighted, 4, kind)
+        let group = SetGroup::new(7, 2, ExerciseType::Weighted, 4, set_group_type)
             .expect("a regular weighted set group with RIR should be valid");
 
         assert_eq!(group.id(), 7);
         assert_eq!(group.position(), 2);
         assert_eq!(group.number_of_sets(), 4);
-        assert_eq!(group.kind(), kind);
+        assert_eq!(group.set_group_type(), set_group_type);
     }
 
     #[test]
     fn myorep_match_needs_no_prescription() {
-        let group = SetGroup::new(1, 0, ExerciseType::Bodyweight, 3, SetGroupKind::MyorepMatch)
+        let group = SetGroup::new(1, 0, ExerciseType::Bodyweight, 3, SetGroupType::MyorepMatch)
             .expect("a myorep-match group carries no reps or intensity, so it is always valid");
 
-        assert_eq!(group.kind(), SetGroupKind::MyorepMatch);
+        assert_eq!(group.set_group_type(), SetGroupType::MyorepMatch);
         assert_eq!(group.number_of_sets(), 3);
     }
 
     #[test]
     fn set_group_rejects_zero_sets() {
-        let result = SetGroup::new(1, 0, ExerciseType::Weighted, 0, SetGroupKind::MyorepMatch);
+        let result = SetGroup::new(1, 0, ExerciseType::Weighted, 0, SetGroupType::MyorepMatch);
 
         assert_eq!(result, Err(SetGroupValidationError::ZeroSets));
     }
 
     #[test]
-    fn failure_based_style_rejects_proximity_intensity() {
+    fn failure_based_set_type_rejects_proximity_intensity() {
         let intensity = Intensity::Rir(Rir::new(1).unwrap());
         let result =
-            prescribed_set_group(ExerciseType::Weighted, PrescribedStyle::Myorep, intensity);
+            prescribed_set_group(ExerciseType::Weighted, PrescribedSetType::Myorep, intensity);
 
         assert_eq!(
             result,
-            Err(SetGroupValidationError::IntensityIncompatibleWithStyle {
+            Err(SetGroupValidationError::IntensityIncompatibleWithSetType {
                 intensity,
-                style: PrescribedStyle::Myorep,
+                set_type: PrescribedSetType::Myorep,
             })
         );
     }
 
     #[test]
-    fn failure_based_style_accepts_weight_resolving_intensity() {
+    fn failure_based_set_type_accepts_weight_resolving_intensity() {
         let intensity = Intensity::TargetWeight(Weight::new(10.0, WeightUnit::Kg));
-        let result = prescribed_set_group(ExerciseType::Weighted, PrescribedStyle::Drop, intensity);
+        let result =
+            prescribed_set_group(ExerciseType::Weighted, PrescribedSetType::Drop, intensity);
 
         assert!(result.is_ok());
     }
@@ -863,7 +866,7 @@ mod tests {
         let intensity = Intensity::PercentOneRepMax(PercentOneRepMax::new(75).unwrap());
         let result = prescribed_set_group(
             ExerciseType::Bodyweight,
-            PrescribedStyle::Regular,
+            PrescribedSetType::Regular,
             intensity,
         );
 
@@ -877,7 +880,7 @@ mod tests {
     fn bodyweight_exercise_accepts_proximity_intensity() {
         let result = prescribed_set_group(
             ExerciseType::Bodyweight,
-            PrescribedStyle::Regular,
+            PrescribedSetType::Regular,
             Intensity::Rpe(Rpe::new(9).unwrap()),
         );
 

@@ -30,7 +30,9 @@ pub(super) fn create_set_groups_table(conn: &Connection) -> rusqlite::Result<()>
             ),
             number_of_sets INTEGER NOT NULL CHECK(number_of_sets > 0),
             rep_min INTEGER CHECK(rep_min IS NULL OR rep_min > 0),
-            rep_max INTEGER CHECK(rep_max IS NULL OR rep_max > rep_min),
+            -- A non-NULL rep_max requires a non-NULL rep_min (and must ascend), so
+            -- a MyorepMatch row (rep_min NULL) cannot carry a stray rep_max.
+            rep_max INTEGER CHECK(rep_max IS NULL OR (rep_min IS NOT NULL AND rep_max > rep_min)),
             intensity_type TEXT CHECK(
                 intensity_type IN ('Rir', 'Rpe', 'PercentOneRepMax', 'TargetWeight', 'WeightIncrement')
             ),
@@ -41,9 +43,12 @@ pub(super) fn create_set_groups_table(conn: &Connection) -> rusqlite::Result<()>
             CHECK((set_type = 'MyorepMatch') = (rep_min IS NULL)),
             CHECK((set_type = 'MyorepMatch') = (intensity_type IS NULL)),
             CHECK((intensity_type IS NULL) = (intensity_value IS NULL)),
+            -- COALESCE pins the weight unit NULL when intensity_type is NULL
+            -- (MyorepMatch); a bare `intensity_type IN (...)` would be NULL there
+            -- and pass the check vacuously.
             CHECK(
-                (intensity_type IN ('TargetWeight', 'WeightIncrement'))
-                    = (intensity_weight_unit IS NOT NULL)
+                (intensity_weight_unit IS NOT NULL)
+                    = COALESCE(intensity_type IN ('TargetWeight', 'WeightIncrement'), 0)
             )
         )",
         [],
@@ -88,6 +93,13 @@ pub fn create(
     number_of_sets: u32,
     set_group_type: SetGroupType,
 ) -> Result<SetGroup, SetGroupError> {
+    // Surface the typed ZeroSets error here: it's the one domain invariant that
+    // overlaps a DB CHECK, so without this guard a zero count would fail at the
+    // INSERT and surface as an opaque Database error instead.
+    if number_of_sets == 0 {
+        return Err(SetGroupValidationError::ZeroSets.into());
+    }
+
     let tx = conn.transaction()?;
 
     let Some(exercise_type) = planned_exercise_type(&tx, planned_exercise_id)? else {
@@ -136,6 +148,10 @@ pub fn update(
     number_of_sets: u32,
     set_group_type: SetGroupType,
 ) -> Result<SetGroup, SetGroupError> {
+    if number_of_sets == 0 {
+        return Err(SetGroupValidationError::ZeroSets.into());
+    }
+
     let tx = conn.transaction()?;
 
     let Some(exercise_type) = set_group_exercise_type(&tx, id)? else {
@@ -497,6 +513,70 @@ mod tests {
             result,
             Err(SetGroupError::AssociatedPlannedExerciseNotFound { .. })
         ));
+    }
+
+    #[test]
+    fn create_set_group_with_zero_sets_returns_invalid_not_an_opaque_db_error() {
+        let mut conn = setup_test_db();
+        let planned = weighted_planned_exercise(&conn);
+
+        let result = create(&mut conn, planned.id(), 0, regular_rir());
+
+        assert!(matches!(
+            result,
+            Err(SetGroupError::Invalid(SetGroupValidationError::ZeroSets))
+        ));
+    }
+
+    #[test]
+    fn update_set_group_with_zero_sets_returns_invalid() {
+        let mut conn = setup_test_db();
+        let planned = weighted_planned_exercise(&conn);
+        let group = create(&mut conn, planned.id(), 3, regular_rir())
+            .expect("set group creation should succeed");
+
+        let result = update(&mut conn, group.id(), 0, regular_rir());
+
+        assert!(matches!(
+            result,
+            Err(SetGroupError::Invalid(SetGroupValidationError::ZeroSets))
+        ));
+    }
+
+    #[test]
+    fn schema_rejects_a_myorep_match_row_with_a_stray_rep_max() {
+        let conn = setup_test_db();
+        let planned = weighted_planned_exercise(&conn);
+
+        let result = conn.execute(
+            "INSERT INTO set_groups
+                (planned_exercise_id, position, set_type, number_of_sets, rep_max)
+             VALUES (?1, 0, 'MyorepMatch', 3, 5)",
+            [planned.id()],
+        );
+
+        assert!(
+            result.is_err(),
+            "a MyorepMatch row must not carry a rep_max"
+        );
+    }
+
+    #[test]
+    fn schema_rejects_a_myorep_match_row_with_a_stray_weight_unit() {
+        let conn = setup_test_db();
+        let planned = weighted_planned_exercise(&conn);
+
+        let result = conn.execute(
+            "INSERT INTO set_groups
+                (planned_exercise_id, position, set_type, number_of_sets, intensity_weight_unit)
+             VALUES (?1, 0, 'MyorepMatch', 3, 'Kg')",
+            [planned.id()],
+        );
+
+        assert!(
+            result.is_err(),
+            "a MyorepMatch row must not carry a weight unit"
+        );
     }
 
     #[test]

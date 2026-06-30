@@ -1,6 +1,6 @@
 use crate::domain::planning::{
-    ExerciseType, Intensity, PercentOneRepMax, RepTarget, Rir, Rpe, SetGroup,
-    SetGroupValidationError, SetStyle, Weight, WeightUnit,
+    ExerciseType, Intensity, PercentOneRepMax, PrescribedStyle, RepTarget, Rir, Rpe, SetGroup,
+    SetGroupKind, SetGroupValidationError, Weight, WeightUnit,
 };
 use crate::persistence::library_exercises::exercise_type_from_str;
 use rusqlite::{Connection, OptionalExtension, params};
@@ -29,14 +29,18 @@ pub(super) fn create_set_groups_table(conn: &Connection) -> rusqlite::Result<()>
                 set_style IN ('Regular', 'Myorep', 'MyorepMatch', 'Drop')
             ),
             number_of_sets INTEGER NOT NULL CHECK(number_of_sets > 0),
-            rep_min INTEGER NOT NULL CHECK(rep_min > 0),
+            rep_min INTEGER CHECK(rep_min IS NULL OR rep_min > 0),
             rep_max INTEGER CHECK(rep_max IS NULL OR rep_max > rep_min),
-            intensity_type TEXT NOT NULL CHECK(
+            intensity_type TEXT CHECK(
                 intensity_type IN ('Rir', 'Rpe', 'PercentOneRepMax', 'TargetWeight', 'WeightIncrement')
             ),
-            intensity_value REAL NOT NULL,
+            intensity_value REAL,
             intensity_weight_unit TEXT CHECK(intensity_weight_unit IN ('Kg', 'Lbs')),
             UNIQUE(planned_exercise_id, position),
+            -- A MyorepMatch group carries no prescription; every other style must.
+            CHECK((set_style = 'MyorepMatch') = (rep_min IS NULL)),
+            CHECK((set_style = 'MyorepMatch') = (intensity_type IS NULL)),
+            CHECK((intensity_type IS NULL) = (intensity_value IS NULL)),
             CHECK(
                 (intensity_type IN ('TargetWeight', 'WeightIncrement'))
                     = (intensity_weight_unit IS NOT NULL)
@@ -81,10 +85,8 @@ fn set_group_exercise_type(
 pub fn create(
     conn: &mut Connection,
     planned_exercise_id: i64,
-    style: SetStyle,
     number_of_sets: u32,
-    reps: RepTarget,
-    intensity: Intensity,
+    kind: SetGroupKind,
 ) -> Result<SetGroup, SetGroupError> {
     let tx = conn.transaction()?;
 
@@ -102,8 +104,7 @@ pub fn create(
     let position = u32::try_from(next_position)
         .expect("positions are non-negative and no exercise will have 4 billion set groups");
 
-    let (rep_min, rep_max) = encode_reps(reps);
-    let (intensity_type, intensity_value, intensity_weight_unit) = encode_intensity(intensity);
+    let columns = KindColumns::from_kind(kind);
 
     tx.execute(
         "INSERT INTO set_groups
@@ -113,26 +114,18 @@ pub fn create(
         params![
             planned_exercise_id,
             position,
-            style.to_string(),
+            columns.set_style,
             number_of_sets,
-            rep_min,
-            rep_max,
-            intensity_type,
-            intensity_value,
-            intensity_weight_unit,
+            columns.rep_min,
+            columns.rep_max,
+            columns.intensity_type,
+            columns.intensity_value,
+            columns.intensity_weight_unit,
         ],
     )?;
 
     let id = tx.last_insert_rowid();
-    let set_group = SetGroup::new(
-        id,
-        position,
-        exercise_type,
-        style,
-        number_of_sets,
-        reps,
-        intensity,
-    )?;
+    let set_group = SetGroup::new(id, position, exercise_type, number_of_sets, kind)?;
     tx.commit()?;
     Ok(set_group)
 }
@@ -140,10 +133,8 @@ pub fn create(
 pub fn update(
     conn: &mut Connection,
     id: i64,
-    style: SetStyle,
     number_of_sets: u32,
-    reps: RepTarget,
-    intensity: Intensity,
+    kind: SetGroupKind,
 ) -> Result<SetGroup, SetGroupError> {
     let tx = conn.transaction()?;
 
@@ -151,8 +142,7 @@ pub fn update(
         return Err(SetGroupError::NotFound { id });
     };
 
-    let (rep_min, rep_max) = encode_reps(reps);
-    let (intensity_type, intensity_value, intensity_weight_unit) = encode_intensity(intensity);
+    let columns = KindColumns::from_kind(kind);
 
     let position: Option<i64> = tx
         .query_row(
@@ -162,13 +152,13 @@ pub fn update(
              WHERE id = ?8
              RETURNING position",
             params![
-                style.to_string(),
+                columns.set_style,
                 number_of_sets,
-                rep_min,
-                rep_max,
-                intensity_type,
-                intensity_value,
-                intensity_weight_unit,
+                columns.rep_min,
+                columns.rep_max,
+                columns.intensity_type,
+                columns.intensity_value,
+                columns.intensity_weight_unit,
                 id,
             ],
             |row| row.get(0),
@@ -182,15 +172,7 @@ pub fn update(
         None => return Err(SetGroupError::NotFound { id }),
     };
 
-    let set_group = SetGroup::new(
-        id,
-        position,
-        exercise_type,
-        style,
-        number_of_sets,
-        reps,
-        intensity,
-    )?;
+    let set_group = SetGroup::new(id, position, exercise_type, number_of_sets, kind)?;
     tx.commit()?;
     Ok(set_group)
 }
@@ -235,28 +217,22 @@ fn row_to_set_group(row: &rusqlite::Row<'_>) -> rusqlite::Result<SetGroup> {
     let number_of_sets: i64 = row.get(3)?;
     let number_of_sets =
         u32::try_from(number_of_sets).expect("number_of_sets stored in DB was originally a u32");
-    let rep_min: i64 = row.get(4)?;
+    let rep_min: Option<i64> = row.get(4)?;
     let rep_max: Option<i64> = row.get(5)?;
-    let intensity_type: String = row.get(6)?;
-    let intensity_value: f64 = row.get(7)?;
+    let intensity_type: Option<String> = row.get(6)?;
+    let intensity_value: Option<f64> = row.get(7)?;
     let intensity_weight_unit: Option<String> = row.get(8)?;
 
-    let style = set_style_from_str(&set_style);
-    let reps = decode_reps(rep_min, rep_max);
-    let intensity = decode_intensity(
-        &intensity_type,
+    let kind = decode_kind(
+        &set_style,
+        rep_min,
+        rep_max,
+        intensity_type.as_deref(),
         intensity_value,
         intensity_weight_unit.as_deref(),
     );
 
-    Ok(SetGroup::new_unchecked(
-        id,
-        position,
-        style,
-        number_of_sets,
-        reps,
-        intensity,
-    ))
+    Ok(SetGroup::new_unchecked(id, position, number_of_sets, kind))
 }
 
 pub fn list(conn: &Connection, planned_exercise_id: i64) -> Result<Vec<SetGroup>, SetGroupError> {
@@ -281,6 +257,79 @@ pub fn list(conn: &Connection, planned_exercise_id: i64) -> Result<Vec<SetGroup>
         groups.push(row?);
     }
     Ok(groups)
+}
+
+/// The persisted column values for a set group's [`SetGroupKind`]. A
+/// `MyorepMatch` leaves every prescription column `NULL`; a `Prescribed` group
+/// fills them from its style, reps, and intensity.
+struct KindColumns {
+    set_style: &'static str,
+    rep_min: Option<i64>,
+    rep_max: Option<i64>,
+    intensity_type: Option<&'static str>,
+    intensity_value: Option<f64>,
+    intensity_weight_unit: Option<&'static str>,
+}
+
+impl KindColumns {
+    fn from_kind(kind: SetGroupKind) -> KindColumns {
+        match kind {
+            SetGroupKind::MyorepMatch => KindColumns {
+                set_style: "MyorepMatch",
+                rep_min: None,
+                rep_max: None,
+                intensity_type: None,
+                intensity_value: None,
+                intensity_weight_unit: None,
+            },
+            SetGroupKind::Prescribed {
+                style,
+                reps,
+                intensity,
+            } => {
+                let (rep_min, rep_max) = encode_reps(reps);
+                let (intensity_type, intensity_value, intensity_weight_unit) =
+                    encode_intensity(intensity);
+                KindColumns {
+                    set_style: prescribed_style_to_str(style),
+                    rep_min: Some(rep_min),
+                    rep_max,
+                    intensity_type: Some(intensity_type),
+                    intensity_value: Some(intensity_value),
+                    intensity_weight_unit,
+                }
+            }
+        }
+    }
+}
+
+fn decode_kind(
+    set_style: &str,
+    rep_min: Option<i64>,
+    rep_max: Option<i64>,
+    intensity_type: Option<&str>,
+    intensity_value: Option<f64>,
+    intensity_weight_unit: Option<&str>,
+) -> SetGroupKind {
+    if set_style == "MyorepMatch" {
+        return SetGroupKind::MyorepMatch;
+    }
+
+    let reps = decode_reps(
+        rep_min.expect("prescribed set group has NULL rep_min in DB"),
+        rep_max,
+    );
+    let intensity = decode_intensity(
+        intensity_type.expect("prescribed set group has NULL intensity_type in DB"),
+        intensity_value.expect("prescribed set group has NULL intensity_value in DB"),
+        intensity_weight_unit,
+    );
+
+    SetGroupKind::Prescribed {
+        style: prescribed_style_from_str(set_style),
+        reps,
+        intensity,
+    }
 }
 
 fn encode_reps(reps: RepTarget) -> (i64, Option<i64>) {
@@ -337,13 +386,20 @@ fn decode_weight(value: f64, unit: Option<&str>) -> Weight {
     Weight::new(value, weight_unit_from_str(unit))
 }
 
-fn set_style_from_str(s: &str) -> SetStyle {
+fn prescribed_style_to_str(style: PrescribedStyle) -> &'static str {
+    match style {
+        PrescribedStyle::Regular => "Regular",
+        PrescribedStyle::Myorep => "Myorep",
+        PrescribedStyle::Drop => "Drop",
+    }
+}
+
+fn prescribed_style_from_str(s: &str) -> PrescribedStyle {
     match s {
-        "Regular" => SetStyle::Regular,
-        "Myorep" => SetStyle::Myorep,
-        "MyorepMatch" => SetStyle::MyorepMatch,
-        "Drop" => SetStyle::Drop,
-        other => panic!("unknown set_style in DB: {other}"),
+        "Regular" => PrescribedStyle::Regular,
+        "Myorep" => PrescribedStyle::Myorep,
+        "Drop" => PrescribedStyle::Drop,
+        other => panic!("unknown prescribed set_style in DB: {other}"),
     }
 }
 
@@ -393,6 +449,21 @@ mod tests {
         planned_exercise_of_type(conn, ExerciseType::Weighted)
     }
 
+    fn regular(reps: RepTarget, intensity: Intensity) -> SetGroupKind {
+        SetGroupKind::Prescribed {
+            style: PrescribedStyle::Regular,
+            reps,
+            intensity,
+        }
+    }
+
+    fn regular_rir() -> SetGroupKind {
+        regular(
+            RepTarget::exact(5).unwrap(),
+            Intensity::Rir(Rir::new(2).unwrap()),
+        )
+    }
+
     #[test]
     fn create_set_group_on_existing_planned_exercise_succeeds() {
         let mut conn = setup_test_db();
@@ -401,10 +472,11 @@ mod tests {
         let result = create(
             &mut conn,
             planned.id(),
-            SetStyle::Regular,
             3,
-            RepTarget::range(8, 12).unwrap(),
-            Intensity::Rir(Rir::new(2).unwrap()),
+            regular(
+                RepTarget::range(8, 12).unwrap(),
+                Intensity::Rir(Rir::new(2).unwrap()),
+            ),
         );
 
         assert!(result.is_ok());
@@ -414,14 +486,7 @@ mod tests {
     fn create_set_group_for_nonexistent_planned_exercise_returns_error() {
         let mut conn = setup_test_db();
 
-        let result = create(
-            &mut conn,
-            9999,
-            SetStyle::Regular,
-            3,
-            RepTarget::exact(10).unwrap(),
-            Intensity::Rpe(Rpe::new(8).unwrap()),
-        );
+        let result = create(&mut conn, 9999, 3, regular_rir());
 
         assert!(matches!(
             result,
@@ -437,10 +502,12 @@ mod tests {
         let result = create(
             &mut conn,
             planned.id(),
-            SetStyle::Myorep,
             3,
-            RepTarget::exact(10).unwrap(),
-            Intensity::Rir(Rir::new(1).unwrap()),
+            SetGroupKind::Prescribed {
+                style: PrescribedStyle::Myorep,
+                reps: RepTarget::exact(10).unwrap(),
+                intensity: Intensity::Rir(Rir::new(1).unwrap()),
+            },
         );
 
         assert!(matches!(
@@ -459,10 +526,11 @@ mod tests {
         let result = create(
             &mut conn,
             planned.id(),
-            SetStyle::Regular,
             3,
-            RepTarget::exact(10).unwrap(),
-            Intensity::TargetWeight(Weight::new(20.0, WeightUnit::Kg)),
+            regular(
+                RepTarget::exact(10).unwrap(),
+                Intensity::TargetWeight(Weight::new(20.0, WeightUnit::Kg)),
+            ),
         );
 
         assert!(matches!(
@@ -474,19 +542,22 @@ mod tests {
     }
 
     #[test]
+    fn create_myorep_match_set_group_without_a_prescription_succeeds() {
+        let mut conn = setup_test_db();
+        let planned = weighted_planned_exercise(&conn);
+
+        let group = create(&mut conn, planned.id(), 3, SetGroupKind::MyorepMatch)
+            .expect("a myorep-match group needs no prescription");
+
+        assert_eq!(group.kind(), SetGroupKind::MyorepMatch);
+    }
+
+    #[test]
     fn set_groups_get_sequential_positions() {
         let mut conn = setup_test_db();
         let planned = weighted_planned_exercise(&conn);
         let new_group = |conn: &mut Connection| {
-            create(
-                conn,
-                planned.id(),
-                SetStyle::Regular,
-                3,
-                RepTarget::exact(5).unwrap(),
-                Intensity::Rir(Rir::new(2).unwrap()),
-            )
-            .expect("set group creation should succeed")
+            create(conn, planned.id(), 3, regular_rir()).expect("set group creation should succeed")
         };
 
         assert_eq!(new_group(&mut conn).position(), 0);
@@ -518,43 +589,38 @@ mod tests {
     }
 
     #[test]
-    fn every_intensity_and_rep_target_round_trips_through_the_database() {
+    fn every_kind_round_trips_through_the_database() {
         let mut conn = setup_test_db();
         let planned = weighted_planned_exercise(&conn);
 
         let created: Vec<SetGroup> = [
-            (
+            regular(
                 RepTarget::exact(5).unwrap(),
                 Intensity::Rir(Rir::new(0).unwrap()),
             ),
-            (
+            regular(
                 RepTarget::range(8, 12).unwrap(),
                 Intensity::Rpe(Rpe::new(9).unwrap()),
             ),
-            (
+            regular(
                 RepTarget::exact(3).unwrap(),
                 Intensity::PercentOneRepMax(PercentOneRepMax::new(85).unwrap()),
             ),
-            (
-                RepTarget::range(6, 10).unwrap(),
-                Intensity::TargetWeight(Weight::new(100.0, WeightUnit::Kg)),
-            ),
-            (
-                RepTarget::exact(8).unwrap(),
-                Intensity::WeightIncrement(Weight::new(-2.5, WeightUnit::Lbs)),
-            ),
+            SetGroupKind::Prescribed {
+                style: PrescribedStyle::Myorep,
+                reps: RepTarget::range(6, 10).unwrap(),
+                intensity: Intensity::TargetWeight(Weight::new(100.0, WeightUnit::Kg)),
+            },
+            SetGroupKind::Prescribed {
+                style: PrescribedStyle::Drop,
+                reps: RepTarget::exact(8).unwrap(),
+                intensity: Intensity::WeightIncrement(Weight::new(-2.5, WeightUnit::Lbs)),
+            },
+            SetGroupKind::MyorepMatch,
         ]
         .into_iter()
-        .map(|(reps, intensity)| {
-            create(
-                &mut conn,
-                planned.id(),
-                SetStyle::Regular,
-                4,
-                reps,
-                intensity,
-            )
-            .expect("set group creation should succeed")
+        .map(|kind| {
+            create(&mut conn, planned.id(), 4, kind).expect("set group creation should succeed")
         })
         .collect();
 
@@ -567,34 +633,35 @@ mod tests {
     fn update_set_group_changes_its_prescription_and_keeps_position() {
         let mut conn = setup_test_db();
         let planned = weighted_planned_exercise(&conn);
-        let group = create(
-            &mut conn,
-            planned.id(),
-            SetStyle::Regular,
-            3,
-            RepTarget::exact(5).unwrap(),
-            Intensity::Rir(Rir::new(3).unwrap()),
-        )
-        .expect("set group creation should succeed");
+        let group = create(&mut conn, planned.id(), 3, regular_rir())
+            .expect("set group creation should succeed");
 
-        let updated = update(
-            &mut conn,
-            group.id(),
-            SetStyle::Myorep,
-            2,
-            RepTarget::range(10, 20).unwrap(),
-            Intensity::TargetWeight(Weight::new(40.0, WeightUnit::Kg)),
-        )
-        .expect("update should succeed");
+        let new_kind = SetGroupKind::Prescribed {
+            style: PrescribedStyle::Myorep,
+            reps: RepTarget::range(10, 20).unwrap(),
+            intensity: Intensity::TargetWeight(Weight::new(40.0, WeightUnit::Kg)),
+        };
+        let updated = update(&mut conn, group.id(), 2, new_kind).expect("update should succeed");
 
-        assert_eq!(updated.style(), SetStyle::Myorep);
         assert_eq!(updated.number_of_sets(), 2);
-        assert_eq!(updated.reps(), RepTarget::range(10, 20).unwrap());
-        assert_eq!(
-            updated.intensity(),
-            Intensity::TargetWeight(Weight::new(40.0, WeightUnit::Kg))
-        );
+        assert_eq!(updated.kind(), new_kind);
         assert_eq!(updated.position(), group.position());
+
+        let listed = list(&conn, planned.id()).expect("listing should succeed");
+        assert_eq!(listed, vec![updated]);
+    }
+
+    #[test]
+    fn update_set_group_to_myorep_match_clears_its_prescription() {
+        let mut conn = setup_test_db();
+        let planned = weighted_planned_exercise(&conn);
+        let group = create(&mut conn, planned.id(), 3, regular_rir())
+            .expect("set group creation should succeed");
+
+        let updated = update(&mut conn, group.id(), 3, SetGroupKind::MyorepMatch)
+            .expect("update should succeed");
+
+        assert_eq!(updated.kind(), SetGroupKind::MyorepMatch);
 
         let listed = list(&conn, planned.id()).expect("listing should succeed");
         assert_eq!(listed, vec![updated]);
@@ -604,14 +671,7 @@ mod tests {
     fn update_set_group_returns_not_found_when_it_does_not_exist() {
         let mut conn = setup_test_db();
 
-        let result = update(
-            &mut conn,
-            9999,
-            SetStyle::Regular,
-            3,
-            RepTarget::exact(5).unwrap(),
-            Intensity::Rir(Rir::new(2).unwrap()),
-        );
+        let result = update(&mut conn, 9999, 3, regular_rir());
 
         assert!(matches!(result, Err(SetGroupError::NotFound { id: 9999 })));
     }
@@ -622,15 +682,7 @@ mod tests {
     ) -> (i64, SetGroup, SetGroup, SetGroup) {
         let planned = weighted_planned_exercise(conn);
         let new_group = |conn: &mut Connection| {
-            create(
-                conn,
-                planned.id(),
-                SetStyle::Regular,
-                3,
-                RepTarget::exact(5).unwrap(),
-                Intensity::Rir(Rir::new(2).unwrap()),
-            )
-            .expect("set group creation should succeed")
+            create(conn, planned.id(), 3, regular_rir()).expect("set group creation should succeed")
         };
         (
             planned.id(),
@@ -647,15 +699,8 @@ mod tests {
 
         delete(&conn, middle.id()).expect("delete should succeed");
 
-        let next = create(
-            &mut conn,
-            planned_id,
-            SetStyle::Regular,
-            3,
-            RepTarget::exact(5).unwrap(),
-            Intensity::Rir(Rir::new(2).unwrap()),
-        )
-        .expect("set group creation should succeed");
+        let next = create(&mut conn, planned_id, 3, regular_rir())
+            .expect("set group creation should succeed");
         assert_eq!(next.position(), 3);
     }
 

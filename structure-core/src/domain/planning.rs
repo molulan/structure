@@ -171,6 +171,53 @@ impl PlannedExercise {
     }
 }
 
+/// A planned rep prescription: a single count or a closed `[min, max]` range.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+pub enum RepTarget {
+    Exact(u32),
+    Range { min: u32, max: u32 },
+}
+
+impl RepTarget {
+    pub fn exact(reps: u32) -> Result<RepTarget, RepTargetError> {
+        if reps == 0 {
+            return Err(RepTargetError::ZeroReps);
+        }
+        Ok(RepTarget::Exact(reps))
+    }
+
+    pub fn range(min: u32, max: u32) -> Result<RepTarget, RepTargetError> {
+        if min == 0 {
+            return Err(RepTargetError::ZeroReps);
+        }
+        if max <= min {
+            return Err(RepTargetError::NonAscendingRange { min, max });
+        }
+        Ok(RepTarget::Range { min, max })
+    }
+}
+
+#[derive(Debug, thiserror::Error, PartialEq)]
+pub enum RepTargetError {
+    #[error("a rep target must prescribe at least one rep")]
+    ZeroReps,
+    #[error("rep range max {max} must be greater than min {min}")]
+    NonAscendingRange { min: u32, max: u32 },
+}
+
+/// The one prescription that drives a set group, drawn from two mutually
+/// exclusive families: proximity-to-failure (`Rir`/`Rpe`) or weight-resolving
+/// (`PercentOneRepMax`/`TargetWeight`/`WeightIncrement`). Effort and weight are
+/// never prescribed together.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+pub enum Intensity {
+    Rir(Rir),
+    Rpe(Rpe),
+    PercentOneRepMax(PercentOneRepMax),
+    TargetWeight(Weight),
+    WeightIncrement(Weight),
+}
+
 /// Whether a `Load` is valid for an exercise of the given `ExerciseType`.
 pub(crate) fn load_matches_exercise_type(exercise_type: ExerciseType, load: Load) -> bool {
     matches!(
@@ -416,6 +463,26 @@ impl Rir {
     }
 }
 
+#[derive(Debug, thiserror::Error, PartialEq)]
+#[error("percent of 1RM must be between 1 and 100, got {0}")]
+pub struct PercentOneRepMaxError(u8);
+
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+pub struct PercentOneRepMax(u8);
+
+impl PercentOneRepMax {
+    pub fn new(value: u8) -> Result<PercentOneRepMax, PercentOneRepMaxError> {
+        if !(1..=100).contains(&value) {
+            return Err(PercentOneRepMaxError(value));
+        }
+        Ok(PercentOneRepMax(value))
+    }
+
+    pub fn value(self) -> u8 {
+        self.0
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -497,6 +564,40 @@ mod tests {
         assert_eq!(planned_exercise.name(), "Squat");
         assert_eq!(planned_exercise.id(), 3);
         assert_eq!(planned_exercise.position(), 5);
+    }
+
+    #[test]
+    fn rep_target_keeps_its_prescription() {
+        assert_eq!(RepTarget::exact(8).unwrap(), RepTarget::Exact(8));
+        assert_eq!(
+            RepTarget::range(8, 12).unwrap(),
+            RepTarget::Range { min: 8, max: 12 }
+        );
+    }
+
+    #[test]
+    fn rep_target_rejects_zero_reps() {
+        assert_eq!(RepTarget::exact(0), Err(RepTargetError::ZeroReps));
+        assert_eq!(RepTarget::range(0, 5), Err(RepTargetError::ZeroReps));
+    }
+
+    #[test]
+    fn rep_target_rejects_non_ascending_range() {
+        assert_eq!(
+            RepTarget::range(10, 10),
+            Err(RepTargetError::NonAscendingRange { min: 10, max: 10 })
+        );
+        assert_eq!(
+            RepTarget::range(12, 8),
+            Err(RepTargetError::NonAscendingRange { min: 12, max: 8 })
+        );
+    }
+
+    #[test]
+    fn percent_one_rep_max_enforces_its_bounds() {
+        assert_eq!(PercentOneRepMax::new(0), Err(PercentOneRepMaxError(0)));
+        assert_eq!(PercentOneRepMax::new(101), Err(PercentOneRepMaxError(101)));
+        assert_eq!(PercentOneRepMax::new(80).unwrap().value(), 80);
     }
 
     #[test]

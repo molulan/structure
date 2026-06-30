@@ -1,6 +1,7 @@
 use serde::Deserialize;
 use structure_core::domain::planning::{
-    Effort, EffortError, ExerciseType, Load, MesocycleMode, Rir, Rpe, SetType, Weight, WeightUnit,
+    Effort, EffortError, ExerciseType, Load, MesocycleMode, Phase, Rir, Rpe, SetType, Weight,
+    WeightUnit,
 };
 
 /// Input enum mirroring [`MesocycleMode`].
@@ -36,6 +37,30 @@ pub struct UpdateMesocycleRequest {
 #[derive(Deserialize)]
 pub struct ReorderRequest {
     pub ordered_ids: Vec<i64>,
+}
+
+/// Input enum mirroring [`Phase`].
+#[derive(Deserialize, Clone, Copy)]
+pub enum PhaseInput {
+    Accumulation,
+    Intensification,
+    Deload,
+}
+
+impl From<PhaseInput> for Phase {
+    fn from(value: PhaseInput) -> Self {
+        match value {
+            PhaseInput::Accumulation => Phase::Accumulation,
+            PhaseInput::Intensification => Phase::Intensification,
+            PhaseInput::Deload => Phase::Deload,
+        }
+    }
+}
+
+/// A microcycle's phase. `null` clears it.
+#[derive(Deserialize)]
+pub struct UpdatePhaseRequest {
+    pub phase: Option<PhaseInput>,
 }
 
 /// A workout's name, used for both creating and renaming.

@@ -1,4 +1,4 @@
-use crate::domain::planning::Microcycle;
+use crate::domain::planning::{Microcycle, Phase};
 use rusqlite::{Connection, OptionalExtension, params};
 
 #[derive(Debug, thiserror::Error)]
@@ -19,6 +19,9 @@ pub(super) fn create_microcycles_table(conn: &Connection) -> rusqlite::Result<()
             id INTEGER PRIMARY KEY,
             mesocycle_id INTEGER NOT NULL REFERENCES mesocycles(id) ON DELETE CASCADE,
             position INTEGER NOT NULL,
+            phase TEXT CHECK(
+                phase IN ('Accumulation', 'Intensification', 'Deload')
+            ),
             UNIQUE(mesocycle_id, position)
         )",
         (),
@@ -57,22 +60,41 @@ pub fn create(conn: &Connection, mesocycle_id: i64) -> Result<Microcycle, Microc
 
     let id = conn.last_insert_rowid();
 
-    Ok(Microcycle::new(id, position))
+    Ok(Microcycle::new(id, position, None))
 }
 
 pub fn get(conn: &Connection, id: i64) -> rusqlite::Result<Option<Microcycle>> {
     conn.query_row(
-        "SELECT id, position FROM microcycles WHERE id = ?1",
+        "SELECT id, position, phase FROM microcycles WHERE id = ?1",
         [id],
         |row| {
             let id = row.get(0)?;
             let position: i64 = row.get(1)?;
             let position =
                 u32::try_from(position).expect("position stored in DB was originally a u32");
-            Ok(Microcycle::new(id, position))
+            let phase: Option<String> = row.get(2)?;
+            let phase = phase.as_deref().map(phase_from_str);
+            Ok(Microcycle::new(id, position, phase))
         },
     )
     .optional()
+}
+
+pub fn update_phase(
+    conn: &Connection,
+    id: i64,
+    phase: Option<Phase>,
+) -> Result<(), MicrocycleError> {
+    let updated = conn.execute(
+        "UPDATE microcycles SET phase = ?2 WHERE id = ?1",
+        params![id, phase.map(|p| p.to_string())],
+    )?;
+
+    if updated == 0 {
+        return Err(MicrocycleError::NotFound { id });
+    }
+
+    Ok(())
 }
 
 pub fn list(conn: &Connection, mesocycle_id: i64) -> Result<Vec<Microcycle>, MicrocycleError> {
@@ -81,14 +103,16 @@ pub fn list(conn: &Connection, mesocycle_id: i64) -> Result<Vec<Microcycle>, Mic
     }
 
     let mut stmt = conn.prepare(
-        "SELECT id, position FROM microcycles WHERE mesocycle_id = ?1 ORDER BY position ASC",
+        "SELECT id, position, phase FROM microcycles WHERE mesocycle_id = ?1 ORDER BY position ASC",
     )?;
 
     stmt.query_map([mesocycle_id], |row| {
         let id = row.get(0)?;
         let position: i64 = row.get(1)?;
         let position = u32::try_from(position).expect("position stored in DB was originally a u32");
-        Ok(Microcycle::new(id, position))
+        let phase: Option<String> = row.get(2)?;
+        let phase = phase.as_deref().map(phase_from_str);
+        Ok(Microcycle::new(id, position, phase))
     })?
     .map(|result| result.map_err(MicrocycleError::from))
     .collect()
@@ -121,6 +145,15 @@ pub fn reorder(
         Ok(())
     } else {
         Err(MicrocycleError::ReorderMismatch { mesocycle_id })
+    }
+}
+
+fn phase_from_str(s: &str) -> Phase {
+    match s {
+        "Accumulation" => Phase::Accumulation,
+        "Intensification" => Phase::Intensification,
+        "Deload" => Phase::Deload,
+        other => panic!("Unexpected microcycle phase: {}", other),
     }
 }
 
@@ -188,6 +221,62 @@ mod tests {
             list(&conn, mesocycle.id()).expect("listing microcycles for a valid id should succeed");
 
         assert!(result.is_empty());
+    }
+
+    #[test]
+    fn microcycle_is_created_without_a_phase() {
+        let conn = setup_test_db();
+        let mesocycle = mesocycles::create(&conn, "hypertrophy", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+
+        let microcycle = create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+
+        assert_eq!(microcycle.phase(), None);
+    }
+
+    #[test]
+    fn update_phase_assigns_a_phase_that_is_read_back() {
+        let conn = setup_test_db();
+        let mesocycle = mesocycles::create(&conn, "hypertrophy", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+        let microcycle = create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+
+        update_phase(&conn, microcycle.id(), Some(Phase::Intensification))
+            .expect("update_phase should succeed");
+
+        let result = get(&conn, microcycle.id())
+            .expect("query should succeed")
+            .expect("microcycle should exist");
+        assert_eq!(result.phase(), Some(Phase::Intensification));
+    }
+
+    #[test]
+    fn update_phase_to_none_clears_an_existing_phase() {
+        let conn = setup_test_db();
+        let mesocycle = mesocycles::create(&conn, "hypertrophy", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+        let microcycle = create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        update_phase(&conn, microcycle.id(), Some(Phase::Deload))
+            .expect("update_phase should succeed");
+
+        update_phase(&conn, microcycle.id(), None).expect("clearing the phase should succeed");
+
+        let result = get(&conn, microcycle.id())
+            .expect("query should succeed")
+            .expect("microcycle should exist");
+        assert_eq!(result.phase(), None);
+    }
+
+    #[test]
+    fn update_phase_returns_not_found_when_microcycle_does_not_exist() {
+        let conn = setup_test_db();
+
+        let result = update_phase(&conn, 1234, Some(Phase::Accumulation));
+
+        assert!(matches!(
+            result,
+            Err(MicrocycleError::NotFound { id: 1234 })
+        ));
     }
 
     #[test]

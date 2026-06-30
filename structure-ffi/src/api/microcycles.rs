@@ -1,4 +1,4 @@
-use crate::dto::planning::MicrocycleDTO;
+use crate::dto::planning::{MicrocycleDTO, PhaseDTO};
 use flutter_rust_bridge::frb;
 use structure_core::persistence::{
     connection,
@@ -30,4 +30,11 @@ pub fn get_microcycle(id: i64) -> Result<MicrocycleDTO, MicrocycleError> {
     let microcycle = db::get(&conn, id)?.ok_or(MicrocycleError::NotFound { id })?;
 
     Ok(MicrocycleDTO::from(&microcycle))
+}
+
+#[frb(sync)]
+pub fn update_microcycle_phase(id: i64, phase: Option<PhaseDTO>) -> Result<(), MicrocycleError> {
+    let conn = connection::init_db("structure.db")?;
+
+    db::update_phase(&conn, id, phase.map(Into::into))
 }

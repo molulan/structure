@@ -119,3 +119,75 @@ async fn delete_missing_microcycle_returns_404() {
 
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn update_phase_assigns_a_phase_that_appears_in_the_list() {
+    let app = test_app();
+    let mesocycle_id = create_program(&app).await;
+    let a = create_microcycle(&app, mesocycle_id).await;
+
+    let (status, _) = send(
+        &app,
+        "PUT",
+        &format!("/microcycles/{a}/phase"),
+        Some(json!({ "phase": "Intensification" })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    let (_, list) = send(
+        &app,
+        "GET",
+        &format!("/mesocycles/{mesocycle_id}/microcycles"),
+        None,
+    )
+    .await;
+    assert_eq!(list[0]["phase"], "Intensification");
+}
+
+#[tokio::test]
+async fn update_phase_to_null_clears_it() {
+    let app = test_app();
+    let mesocycle_id = create_program(&app).await;
+    let a = create_microcycle(&app, mesocycle_id).await;
+    send(
+        &app,
+        "PUT",
+        &format!("/microcycles/{a}/phase"),
+        Some(json!({ "phase": "Deload" })),
+    )
+    .await;
+
+    let (status, _) = send(
+        &app,
+        "PUT",
+        &format!("/microcycles/{a}/phase"),
+        Some(json!({ "phase": null })),
+    )
+    .await;
+    assert_eq!(status, StatusCode::NO_CONTENT);
+
+    let (_, list) = send(
+        &app,
+        "GET",
+        &format!("/mesocycles/{mesocycle_id}/microcycles"),
+        None,
+    )
+    .await;
+    assert!(list[0]["phase"].is_null());
+}
+
+#[tokio::test]
+async fn update_phase_for_missing_microcycle_returns_404() {
+    let app = test_app();
+
+    let (status, _) = send(
+        &app,
+        "PUT",
+        "/microcycles/999/phase",
+        Some(json!({ "phase": "Accumulation" })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::NOT_FOUND);
+}

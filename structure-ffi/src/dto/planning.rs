@@ -1,8 +1,8 @@
 use flutter_rust_bridge::frb;
 use serde::{Deserialize, Serialize};
 use structure_core::domain::planning::{
-    Effort, ExerciseType, LibraryExercise, Load, MesocycleMode, Microcycle, PlannedExercise, Rir,
-    Rpe, Set, SetType, Weight, WeightUnit, Workout,
+    Effort, ExerciseType, LibraryExercise, Load, MesocycleMode, Microcycle, Phase, PlannedExercise,
+    Rir, Rpe, Set, SetType, Weight, WeightUnit, Workout,
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -44,6 +44,7 @@ impl From<MesocycleModeDTO> for MesocycleMode {
 pub struct MicrocycleDTO {
     pub(crate) id: i64,
     pub(crate) position: u32,
+    pub(crate) phase: Option<PhaseDTO>,
 }
 
 impl From<&Microcycle> for MicrocycleDTO {
@@ -51,6 +52,35 @@ impl From<&Microcycle> for MicrocycleDTO {
         MicrocycleDTO {
             id: value.id(),
             position: value.position(),
+            phase: value.phase().map(PhaseDTO::from),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[frb]
+pub enum PhaseDTO {
+    Accumulation,
+    Intensification,
+    Deload,
+}
+
+impl From<Phase> for PhaseDTO {
+    fn from(value: Phase) -> Self {
+        match value {
+            Phase::Accumulation => PhaseDTO::Accumulation,
+            Phase::Intensification => PhaseDTO::Intensification,
+            Phase::Deload => PhaseDTO::Deload,
+        }
+    }
+}
+
+impl From<PhaseDTO> for Phase {
+    fn from(value: PhaseDTO) -> Self {
+        match value {
+            PhaseDTO::Accumulation => Self::Accumulation,
+            PhaseDTO::Intensification => Self::Intensification,
+            PhaseDTO::Deload => Self::Deload,
         }
     }
 }

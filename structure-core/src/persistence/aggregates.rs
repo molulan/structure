@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 use serde::Serialize;
 
-use crate::domain::planning::{LibraryExercise, MesocycleMode, Set, Weight};
+use crate::domain::planning::{LibraryExercise, MesocycleMode, Phase, Set, Weight};
 use crate::domain::tracking::LoggedSet;
 use crate::persistence::logged_exercises::{self, LoggedExerciseError};
 use crate::persistence::logged_sessions::{self, LoggedSessionError};
@@ -38,6 +38,7 @@ pub struct FullMesocycle {
 pub struct FullMicrocycle {
     pub id: i64,
     pub position: u32,
+    pub phase: Option<Phase>,
     pub workouts: Vec<FullWorkout>,
 }
 
@@ -89,6 +90,7 @@ pub fn get_full_mesocycle(
         microcycles.push(FullMicrocycle {
             id: microcycle.id(),
             position: microcycle.position(),
+            phase: microcycle.phase(),
             workouts,
         });
     }

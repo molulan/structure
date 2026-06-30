@@ -187,7 +187,7 @@ impl RepTarget {
     }
 
     pub fn range(min: u32, max: u32) -> Result<RepTarget, RepTargetError> {
-        if min == 0 {
+        if min == 0 || max == 0 {
             return Err(RepTargetError::ZeroReps);
         }
         if max <= min {
@@ -579,6 +579,7 @@ mod tests {
     fn rep_target_rejects_zero_reps() {
         assert_eq!(RepTarget::exact(0), Err(RepTargetError::ZeroReps));
         assert_eq!(RepTarget::range(0, 5), Err(RepTargetError::ZeroReps));
+        assert_eq!(RepTarget::range(5, 0), Err(RepTargetError::ZeroReps));
     }
 
     #[test]

@@ -171,6 +171,113 @@ impl PlannedExercise {
     }
 }
 
+/// A planned prescription within a `PlannedExercise`: a uniform block of
+/// `number_of_sets` sets sharing one `style`, `reps` target, and `intensity`.
+/// Per-set divergence is a tracking concern, not part of the plan.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+pub struct SetGroup {
+    id: i64,
+    position: u32,
+    style: SetStyle,
+    number_of_sets: u32,
+    reps: RepTarget,
+    intensity: Intensity,
+}
+
+impl SetGroup {
+    pub(crate) fn new(
+        id: i64,
+        position: u32,
+        exercise_type: ExerciseType,
+        style: SetStyle,
+        number_of_sets: u32,
+        reps: RepTarget,
+        intensity: Intensity,
+    ) -> Result<SetGroup, SetGroupValidationError> {
+        if number_of_sets == 0 {
+            return Err(SetGroupValidationError::ZeroSets);
+        }
+        if style.is_failure_based() && intensity.is_proximity_to_failure() {
+            return Err(SetGroupValidationError::IntensityIncompatibleWithStyle {
+                intensity,
+                style,
+            });
+        }
+        if exercise_type == ExerciseType::Bodyweight && intensity.is_weight_resolving() {
+            return Err(SetGroupValidationError::WeightIntensityOnBodyweight { intensity });
+        }
+        Ok(SetGroup {
+            id,
+            position,
+            style,
+            number_of_sets,
+            reps,
+            intensity,
+        })
+    }
+
+    /// Builds a `SetGroup` from already-persisted columns without re-checking the
+    /// intensity against the style or exercise type. Use only on the read path:
+    /// the invariants were enforced by `new` on write, so re-validating would
+    /// only force reads to join in the exercise type.
+    pub(crate) fn new_unchecked(
+        id: i64,
+        position: u32,
+        style: SetStyle,
+        number_of_sets: u32,
+        reps: RepTarget,
+        intensity: Intensity,
+    ) -> SetGroup {
+        SetGroup {
+            id,
+            position,
+            style,
+            number_of_sets,
+            reps,
+            intensity,
+        }
+    }
+
+    pub fn id(&self) -> i64 {
+        self.id
+    }
+
+    pub fn position(&self) -> u32 {
+        self.position
+    }
+
+    pub fn style(&self) -> SetStyle {
+        self.style
+    }
+
+    pub fn number_of_sets(&self) -> u32 {
+        self.number_of_sets
+    }
+
+    pub fn reps(&self) -> RepTarget {
+        self.reps
+    }
+
+    pub fn intensity(&self) -> Intensity {
+        self.intensity
+    }
+}
+
+#[derive(Debug, thiserror::Error, PartialEq)]
+pub enum SetGroupValidationError {
+    #[error("a set group must prescribe at least one set")]
+    ZeroSets,
+    #[error("intensity {intensity:?} is incompatible with set style {style:?}")]
+    IntensityIncompatibleWithStyle {
+        intensity: Intensity,
+        style: SetStyle,
+    },
+    #[error(
+        "weight-resolving intensity {intensity:?} cannot be prescribed for a bodyweight exercise"
+    )]
+    WeightIntensityOnBodyweight { intensity: Intensity },
+}
+
 /// A planned rep prescription: a single count or a closed `[min, max]` range.
 /// Both variants carry validated newtypes, so an invalid `RepTarget` is
 /// unrepresentable even though the variants themselves are public.
@@ -253,6 +360,21 @@ pub enum Intensity {
     PercentOneRepMax(PercentOneRepMax),
     TargetWeight(Weight),
     WeightIncrement(Weight),
+}
+
+impl Intensity {
+    fn is_proximity_to_failure(self) -> bool {
+        matches!(self, Intensity::Rir(_) | Intensity::Rpe(_))
+    }
+
+    fn is_weight_resolving(self) -> bool {
+        matches!(
+            self,
+            Intensity::PercentOneRepMax(_)
+                | Intensity::TargetWeight(_)
+                | Intensity::WeightIncrement(_)
+        )
+    }
 }
 
 /// Whether a `Load` is valid for an exercise of the given `ExerciseType`.
@@ -410,6 +532,40 @@ pub enum SetType {
     Myorep,
     MyorepMatch,
     Drop,
+}
+
+/// The execution style of a `SetGroup`. Unlike the legacy [`SetType`], this
+/// carries no effort — a set group's effort lives in its [`Intensity`]. It will
+/// replace `SetType` once the legacy `Set` layer is retired.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+pub enum SetStyle {
+    Regular,
+    Myorep,
+    MyorepMatch,
+    Drop,
+}
+
+impl SetStyle {
+    /// Styles that take a set past failure, for which a proximity-to-failure
+    /// [`Intensity`] (`Rir`/`Rpe`) is meaningless.
+    fn is_failure_based(self) -> bool {
+        matches!(
+            self,
+            SetStyle::Myorep | SetStyle::MyorepMatch | SetStyle::Drop
+        )
+    }
+}
+
+impl Display for SetStyle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::Regular => "Regular",
+            Self::Myorep => "Myorep",
+            Self::MyorepMatch => "MyorepMatch",
+            Self::Drop => "Drop",
+        };
+        f.write_str(s)
+    }
 }
 
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]
@@ -641,6 +797,102 @@ mod tests {
         assert_eq!(PercentOneRepMax::new(0), Err(PercentOneRepMaxError(0)));
         assert_eq!(PercentOneRepMax::new(101), Err(PercentOneRepMaxError(101)));
         assert_eq!(PercentOneRepMax::new(80).unwrap().value(), 80);
+    }
+
+    fn valid_set_group(
+        exercise_type: ExerciseType,
+        style: SetStyle,
+        intensity: Intensity,
+    ) -> Result<SetGroup, SetGroupValidationError> {
+        SetGroup::new(
+            1,
+            0,
+            exercise_type,
+            style,
+            3,
+            RepTarget::exact(10).unwrap(),
+            intensity,
+        )
+    }
+
+    #[test]
+    fn set_group_keeps_its_prescription() {
+        let group = SetGroup::new(
+            7,
+            2,
+            ExerciseType::Weighted,
+            SetStyle::Regular,
+            4,
+            RepTarget::range(8, 12).unwrap(),
+            Intensity::Rir(Rir::new(2).unwrap()),
+        )
+        .expect("a regular weighted set group with RIR should be valid");
+
+        assert_eq!(group.id(), 7);
+        assert_eq!(group.position(), 2);
+        assert_eq!(group.style(), SetStyle::Regular);
+        assert_eq!(group.number_of_sets(), 4);
+        assert_eq!(group.reps(), RepTarget::range(8, 12).unwrap());
+        assert_eq!(group.intensity(), Intensity::Rir(Rir::new(2).unwrap()));
+    }
+
+    #[test]
+    fn set_group_rejects_zero_sets() {
+        let result = SetGroup::new(
+            1,
+            0,
+            ExerciseType::Weighted,
+            SetStyle::Regular,
+            0,
+            RepTarget::exact(5).unwrap(),
+            Intensity::Rpe(Rpe::new(8).unwrap()),
+        );
+
+        assert_eq!(result, Err(SetGroupValidationError::ZeroSets));
+    }
+
+    #[test]
+    fn failure_based_style_rejects_proximity_intensity() {
+        let intensity = Intensity::Rir(Rir::new(1).unwrap());
+        let result = valid_set_group(ExerciseType::Weighted, SetStyle::Myorep, intensity);
+
+        assert_eq!(
+            result,
+            Err(SetGroupValidationError::IntensityIncompatibleWithStyle {
+                intensity,
+                style: SetStyle::Myorep,
+            })
+        );
+    }
+
+    #[test]
+    fn failure_based_style_accepts_weight_resolving_intensity() {
+        let intensity = Intensity::TargetWeight(Weight::new(10.0, WeightUnit::Kg));
+        let result = valid_set_group(ExerciseType::Weighted, SetStyle::Drop, intensity);
+
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn bodyweight_exercise_rejects_weight_resolving_intensity() {
+        let intensity = Intensity::PercentOneRepMax(PercentOneRepMax::new(75).unwrap());
+        let result = valid_set_group(ExerciseType::Bodyweight, SetStyle::Regular, intensity);
+
+        assert_eq!(
+            result,
+            Err(SetGroupValidationError::WeightIntensityOnBodyweight { intensity })
+        );
+    }
+
+    #[test]
+    fn bodyweight_exercise_accepts_proximity_intensity() {
+        let result = valid_set_group(
+            ExerciseType::Bodyweight,
+            SetStyle::Regular,
+            Intensity::Rpe(Rpe::new(9).unwrap()),
+        );
+
+        assert!(result.is_ok());
     }
 
     #[test]

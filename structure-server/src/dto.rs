@@ -59,7 +59,7 @@ impl From<PhaseInput> for Phase {
 
 /// A microcycle's phase. `null` clears it.
 #[derive(Deserialize)]
-pub struct SetPhaseRequest {
+pub struct UpdatePhaseRequest {
     pub phase: Option<PhaseInput>,
 }
 

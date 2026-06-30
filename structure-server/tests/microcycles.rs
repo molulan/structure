@@ -121,7 +121,7 @@ async fn delete_missing_microcycle_returns_404() {
 }
 
 #[tokio::test]
-async fn set_phase_assigns_a_phase_that_appears_in_the_list() {
+async fn update_phase_assigns_a_phase_that_appears_in_the_list() {
     let app = test_app();
     let mesocycle_id = create_program(&app).await;
     let a = create_microcycle(&app, mesocycle_id).await;
@@ -146,7 +146,7 @@ async fn set_phase_assigns_a_phase_that_appears_in_the_list() {
 }
 
 #[tokio::test]
-async fn set_phase_to_null_clears_it() {
+async fn update_phase_to_null_clears_it() {
     let app = test_app();
     let mesocycle_id = create_program(&app).await;
     let a = create_microcycle(&app, mesocycle_id).await;
@@ -178,7 +178,7 @@ async fn set_phase_to_null_clears_it() {
 }
 
 #[tokio::test]
-async fn set_phase_for_missing_microcycle_returns_404() {
+async fn update_phase_for_missing_microcycle_returns_404() {
     let app = test_app();
 
     let (status, _) = send(

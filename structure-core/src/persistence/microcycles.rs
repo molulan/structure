@@ -80,7 +80,11 @@ pub fn get(conn: &Connection, id: i64) -> rusqlite::Result<Option<Microcycle>> {
     .optional()
 }
 
-pub fn set_phase(conn: &Connection, id: i64, phase: Option<Phase>) -> Result<(), MicrocycleError> {
+pub fn update_phase(
+    conn: &Connection,
+    id: i64,
+    phase: Option<Phase>,
+) -> Result<(), MicrocycleError> {
     let updated = conn.execute(
         "UPDATE microcycles SET phase = ?2 WHERE id = ?1",
         params![id, phase.map(|p| p.to_string())],
@@ -231,14 +235,14 @@ mod tests {
     }
 
     #[test]
-    fn set_phase_assigns_a_phase_that_is_read_back() {
+    fn update_phase_assigns_a_phase_that_is_read_back() {
         let conn = setup_test_db();
         let mesocycle = mesocycles::create(&conn, "hypertrophy", MesocycleMode::Manual)
             .expect("mesocycle creation should succeed");
         let microcycle = create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
 
-        set_phase(&conn, microcycle.id(), Some(Phase::Intensification))
-            .expect("set_phase should succeed");
+        update_phase(&conn, microcycle.id(), Some(Phase::Intensification))
+            .expect("update_phase should succeed");
 
         let result = get(&conn, microcycle.id())
             .expect("query should succeed")
@@ -247,14 +251,15 @@ mod tests {
     }
 
     #[test]
-    fn set_phase_to_none_clears_an_existing_phase() {
+    fn update_phase_to_none_clears_an_existing_phase() {
         let conn = setup_test_db();
         let mesocycle = mesocycles::create(&conn, "hypertrophy", MesocycleMode::Manual)
             .expect("mesocycle creation should succeed");
         let microcycle = create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        set_phase(&conn, microcycle.id(), Some(Phase::Deload)).expect("set_phase should succeed");
+        update_phase(&conn, microcycle.id(), Some(Phase::Deload))
+            .expect("update_phase should succeed");
 
-        set_phase(&conn, microcycle.id(), None).expect("clearing the phase should succeed");
+        update_phase(&conn, microcycle.id(), None).expect("clearing the phase should succeed");
 
         let result = get(&conn, microcycle.id())
             .expect("query should succeed")
@@ -263,10 +268,10 @@ mod tests {
     }
 
     #[test]
-    fn set_phase_returns_not_found_when_microcycle_does_not_exist() {
+    fn update_phase_returns_not_found_when_microcycle_does_not_exist() {
         let conn = setup_test_db();
 
-        let result = set_phase(&conn, 1234, Some(Phase::Accumulation));
+        let result = update_phase(&conn, 1234, Some(Phase::Accumulation));
 
         assert!(matches!(
             result,

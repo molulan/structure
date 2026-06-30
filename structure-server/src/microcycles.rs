@@ -7,7 +7,7 @@ use structure_core::domain::planning::Microcycle;
 use structure_core::persistence::microcycles as db;
 use structure_core::persistence::store::Store;
 
-use crate::dto::{ReorderRequest, SetPhaseRequest};
+use crate::dto::{ReorderRequest, UpdatePhaseRequest};
 use crate::error::ApiError;
 
 pub fn routes() -> Router<Store> {
@@ -18,7 +18,7 @@ pub fn routes() -> Router<Store> {
         )
         .route("/mesocycles/{mesocycle_id}/microcycles/order", put(reorder))
         .route("/microcycles/{id}", delete(delete_one))
-        .route("/microcycles/{id}/phase", put(set_phase))
+        .route("/microcycles/{id}/phase", put(update_phase))
 }
 
 async fn list(
@@ -54,12 +54,12 @@ async fn delete_one(
     Ok(StatusCode::NO_CONTENT)
 }
 
-async fn set_phase(
+async fn update_phase(
     State(store): State<Store>,
     Path(id): Path<i64>,
-    Json(body): Json<SetPhaseRequest>,
+    Json(body): Json<UpdatePhaseRequest>,
 ) -> Result<StatusCode, ApiError> {
     let phase = body.phase.map(Into::into);
-    store.with_conn(|conn| db::set_phase(conn, id, phase))?;
+    store.with_conn(|conn| db::update_phase(conn, id, phase))?;
     Ok(StatusCode::NO_CONTENT)
 }

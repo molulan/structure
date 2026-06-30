@@ -33,8 +33,8 @@ pub fn get_microcycle(id: i64) -> Result<MicrocycleDTO, MicrocycleError> {
 }
 
 #[frb(sync)]
-pub fn set_microcycle_phase(id: i64, phase: Option<PhaseDTO>) -> Result<(), MicrocycleError> {
+pub fn update_microcycle_phase(id: i64, phase: Option<PhaseDTO>) -> Result<(), MicrocycleError> {
     let conn = connection::init_db("structure.db")?;
 
-    db::set_phase(&conn, id, phase.map(Into::into))
+    db::update_phase(&conn, id, phase.map(Into::into))
 }

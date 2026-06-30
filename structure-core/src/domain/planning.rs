@@ -172,28 +172,65 @@ impl PlannedExercise {
 }
 
 /// A planned rep prescription: a single count or a closed `[min, max]` range.
+/// Both variants carry validated newtypes, so an invalid `RepTarget` is
+/// unrepresentable even though the variants themselves are public.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub enum RepTarget {
-    Exact(u32),
-    Range { min: u32, max: u32 },
+    Exact(RepCount),
+    Range(RepRange),
 }
 
 impl RepTarget {
     pub fn exact(reps: u32) -> Result<RepTarget, RepTargetError> {
-        if reps == 0 {
-            return Err(RepTargetError::ZeroReps);
-        }
-        Ok(RepTarget::Exact(reps))
+        Ok(RepTarget::Exact(RepCount::new(reps)?))
     }
 
     pub fn range(min: u32, max: u32) -> Result<RepTarget, RepTargetError> {
+        Ok(RepTarget::Range(RepRange::new(min, max)?))
+    }
+}
+
+/// A single rep count, guaranteed to be at least 1.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+pub struct RepCount(u32);
+
+impl RepCount {
+    pub fn new(reps: u32) -> Result<RepCount, RepTargetError> {
+        if reps == 0 {
+            return Err(RepTargetError::ZeroReps);
+        }
+        Ok(RepCount(reps))
+    }
+
+    pub fn value(self) -> u32 {
+        self.0
+    }
+}
+
+/// A closed rep range, guaranteed to satisfy `1 <= min < max`.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+pub struct RepRange {
+    min: u32,
+    max: u32,
+}
+
+impl RepRange {
+    pub fn new(min: u32, max: u32) -> Result<RepRange, RepTargetError> {
         if min == 0 || max == 0 {
             return Err(RepTargetError::ZeroReps);
         }
         if max <= min {
             return Err(RepTargetError::NonAscendingRange { min, max });
         }
-        Ok(RepTarget::Range { min, max })
+        Ok(RepRange { min, max })
+    }
+
+    pub fn min(self) -> u32 {
+        self.min
+    }
+
+    pub fn max(self) -> u32 {
+        self.max
     }
 }
 
@@ -568,11 +605,16 @@ mod tests {
 
     #[test]
     fn rep_target_keeps_its_prescription() {
-        assert_eq!(RepTarget::exact(8).unwrap(), RepTarget::Exact(8));
         assert_eq!(
-            RepTarget::range(8, 12).unwrap(),
-            RepTarget::Range { min: 8, max: 12 }
+            RepTarget::exact(8).unwrap(),
+            RepTarget::Exact(RepCount::new(8).unwrap())
         );
+
+        let RepTarget::Range(range) = RepTarget::range(8, 12).unwrap() else {
+            panic!("range constructor should produce a Range");
+        };
+        assert_eq!(range.min(), 8);
+        assert_eq!(range.max(), 12);
     }
 
     #[test]

@@ -7,6 +7,7 @@ use structure_core::persistence::library_exercises::LibraryExerciseError;
 use structure_core::persistence::mesocycles::MesocycleError;
 use structure_core::persistence::microcycles::MicrocycleError;
 use structure_core::persistence::planned_exercises::PlannedExerciseError;
+use structure_core::persistence::set_groups::SetGroupError;
 use structure_core::persistence::sets::SetError;
 use structure_core::persistence::workouts::WorkoutError;
 
@@ -151,6 +152,29 @@ impl From<SetError> for ApiError {
     }
 }
 
+impl From<SetGroupError> for ApiError {
+    fn from(error: SetGroupError) -> Self {
+        match error {
+            SetGroupError::Database(error) => ApiError::internal(error),
+            SetGroupError::AssociatedPlannedExerciseNotFound { id } => {
+                ApiError::not_found(format!("planned exercise {id} not found"))
+            }
+            SetGroupError::NotFound { id } => {
+                ApiError::not_found(format!("set group {id} not found"))
+            }
+            SetGroupError::ReorderMismatch {
+                planned_exercise_id,
+            } => ApiError::unprocessable(format!(
+                "reorder list does not match the set groups of planned exercise {planned_exercise_id}"
+            )),
+            SetGroupError::Invalid(error) => ApiError::unprocessable(error.to_string()),
+            SetGroupError::Corrupt(detail) => {
+                ApiError::internal(format!("corrupt set group data: {detail}"))
+            }
+        }
+    }
+}
+
 impl From<FullMesocycleError> for ApiError {
     fn from(error: FullMesocycleError) -> Self {
         match error {
@@ -159,6 +183,7 @@ impl From<FullMesocycleError> for ApiError {
             FullMesocycleError::Workout(error) => error.into(),
             FullMesocycleError::PlannedExercise(error) => error.into(),
             FullMesocycleError::Set(error) => error.into(),
+            FullMesocycleError::SetGroup(error) => error.into(),
         }
     }
 }

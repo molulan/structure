@@ -4,6 +4,7 @@ mod library_exercises;
 mod mesocycles;
 mod microcycles;
 mod planned_exercises;
+mod set_groups;
 mod sets;
 mod workouts;
 
@@ -22,6 +23,7 @@ pub fn router(store: Store) -> Router {
         .merge(library_exercises::routes())
         .merge(planned_exercises::routes())
         .merge(sets::routes())
+        .merge(set_groups::routes())
         .layer(CorsLayer::permissive())
         .with_state(store)
 }

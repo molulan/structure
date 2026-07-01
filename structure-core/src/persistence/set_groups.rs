@@ -356,14 +356,12 @@ fn decode_u32(value: i64, column: &str) -> Result<u32, SetGroupError> {
     u32::try_from(value).map_err(|_| corrupt(format!("{column} {value} is out of u32 range")))
 }
 
-/// Reads a `REAL` column that must hold a whole number: the integer intensities
+/// Reads a `REAL` column that must hold an integer value: the integer intensities
 /// (`Rir`/`Rpe`/`PercentOneRepMax`) share the `intensity_value` column with
 /// genuine float weights, so a fractional value there is corruption.
-fn decode_whole(value: f64, kind: &str) -> Result<i64, SetGroupError> {
+fn decode_integer(value: f64, kind: &str) -> Result<i64, SetGroupError> {
     if !value.is_finite() || value.fract() != 0.0 {
-        return Err(corrupt(format!(
-            "{kind} value {value} is not a whole number"
-        )));
+        return Err(corrupt(format!("{kind} value {value} is not an integer")));
     }
     Ok(value as i64)
 }
@@ -411,15 +409,16 @@ fn decode_intensity(
 ) -> Result<Intensity, SetGroupError> {
     let intensity = match intensity_type {
         "Rir" => {
-            let value = i8::try_from(decode_whole(value, "Rir")?).map_err(corrupt)?;
+            let value = i8::try_from(decode_integer(value, "Rir")?).map_err(corrupt)?;
             Intensity::Rir(Rir::new(value).map_err(corrupt)?)
         }
         "Rpe" => {
-            let value = u8::try_from(decode_whole(value, "Rpe")?).map_err(corrupt)?;
+            let value = u8::try_from(decode_integer(value, "Rpe")?).map_err(corrupt)?;
             Intensity::Rpe(Rpe::new(value).map_err(corrupt)?)
         }
         "PercentOneRepMax" => {
-            let value = u8::try_from(decode_whole(value, "PercentOneRepMax")?).map_err(corrupt)?;
+            let value =
+                u8::try_from(decode_integer(value, "PercentOneRepMax")?).map_err(corrupt)?;
             Intensity::PercentOneRepMax(PercentOneRepMax::new(value).map_err(corrupt)?)
         }
         "TargetWeight" => Intensity::TargetWeight(decode_weight(value, unit)?),

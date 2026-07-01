@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 use serde::Serialize;
 
 #[derive(Serialize, Debug, Clone, PartialEq)]
@@ -56,13 +54,12 @@ pub enum MesocycleMode {
     Manual,
 }
 
-impl Display for MesocycleMode {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
+impl MesocycleMode {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
             Self::Algorithmic => "Algorithmic",
             Self::Manual => "Manual",
-        };
-        f.write_str(s)
+        }
     }
 }
 
@@ -102,14 +99,13 @@ pub enum Phase {
     Deload,
 }
 
-impl Display for Phase {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
+impl Phase {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
             Self::Accumulation => "Accumulation",
             Self::Intensification => "Intensification",
             Self::Deload => "Deload",
-        };
-        f.write_str(s)
+        }
     }
 }
 
@@ -461,15 +457,14 @@ pub enum ExerciseType {
     Weighted,
 }
 
-impl Display for ExerciseType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
+impl ExerciseType {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
             Self::Bodyweight => "Bodyweight",
             Self::WeightedBodyweight => "WeightedBodyweight",
             Self::AssistedBodyweight => "AssistedBodyweight",
             Self::Weighted => "Weighted",
-        };
-        f.write_str(s)
+        }
     }
 }
 

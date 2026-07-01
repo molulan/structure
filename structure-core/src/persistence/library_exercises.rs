@@ -69,7 +69,7 @@ pub fn create(
 
     conn.execute(
         "INSERT INTO library_exercises (name, exercise_type) VALUES (?1, ?2)",
-        params![name.as_str(), exercise_type.to_string()],
+        params![name.as_str(), exercise_type.as_str()],
     )?;
 
     let id = conn.last_insert_rowid();
@@ -150,7 +150,7 @@ pub fn update(
 
     conn.execute(
         "UPDATE library_exercises SET name = ?1, exercise_type = ?2 WHERE id = ?3",
-        params![name.as_str(), exercise_type.to_string(), id],
+        params![name.as_str(), exercise_type.as_str(), id],
     )?;
 
     Ok(LibraryExercise::new(id, name, exercise_type))

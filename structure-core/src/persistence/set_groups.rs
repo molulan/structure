@@ -17,6 +17,12 @@ pub enum SetGroupError {
     ReorderMismatch { planned_exercise_id: i64 },
     #[error(transparent)]
     Invalid(#[from] SetGroupValidationError),
+    #[error("corrupt set group data in the database: {0}")]
+    Corrupt(String),
+}
+
+fn corrupt(detail: impl std::fmt::Display) -> SetGroupError {
+    SetGroupError::Corrupt(detail.to_string())
 }
 
 pub(super) fn create_set_groups_table(conn: &Connection) -> rusqlite::Result<()> {
@@ -182,9 +188,7 @@ pub fn update(
         .optional()?;
 
     let position = match position {
-        Some(position) => {
-            u32::try_from(position).expect("position stored in DB was originally a u32")
-        }
+        Some(position) => decode_u32(position, "position")?,
         None => return Err(SetGroupError::NotFound { id }),
     };
 
@@ -225,14 +229,11 @@ pub fn reorder(
     }
 }
 
-fn row_to_set_group(row: &rusqlite::Row<'_>) -> rusqlite::Result<SetGroup> {
-    let id = row.get(0)?;
-    let position: i64 = row.get(1)?;
-    let position = u32::try_from(position).expect("position stored in DB was originally a u32");
+fn decode_row(row: &rusqlite::Row<'_>) -> Result<SetGroup, SetGroupError> {
+    let id: i64 = row.get(0)?;
+    let position = decode_u32(row.get(1)?, "position")?;
     let set_type: String = row.get(2)?;
-    let number_of_sets: i64 = row.get(3)?;
-    let number_of_sets =
-        u32::try_from(number_of_sets).expect("number_of_sets stored in DB was originally a u32");
+    let number_of_sets = decode_u32(row.get(3)?, "number_of_sets")?;
     let rep_min: Option<i64> = row.get(4)?;
     let rep_max: Option<i64> = row.get(5)?;
     let intensity_type: Option<String> = row.get(6)?;
@@ -246,7 +247,7 @@ fn row_to_set_group(row: &rusqlite::Row<'_>) -> rusqlite::Result<SetGroup> {
         intensity_type.as_deref(),
         intensity_value,
         intensity_weight_unit.as_deref(),
-    );
+    )?;
 
     Ok(SetGroup::new_unchecked(
         id,
@@ -271,11 +272,12 @@ pub fn list(conn: &Connection, planned_exercise_id: i64) -> Result<Vec<SetGroup>
          ORDER BY position ASC",
     )?;
 
-    let rows = stmt.query_map([planned_exercise_id], row_to_set_group)?;
-
+    // `query_map`'s closure can only yield `rusqlite::Result`, so we iterate
+    // manually to let a decode error surface as a typed `SetGroupError`.
+    let mut rows = stmt.query([planned_exercise_id])?;
     let mut groups = Vec::new();
-    for row in rows {
-        groups.push(row?);
+    while let Some(row) = rows.next()? {
+        groups.push(decode_row(row)?);
     }
     Ok(groups)
 }
@@ -284,7 +286,7 @@ pub fn list(conn: &Connection, planned_exercise_id: i64) -> Result<Vec<SetGroup>
 /// `MyorepMatch` leaves every prescription column `NULL`; a `Prescribed` group
 /// fills them from its set type, reps, and intensity.
 struct SetGroupTypeColumns {
-    set_type: &'static str,
+    set_type: String,
     rep_min: Option<i64>,
     rep_max: Option<i64>,
     intensity_type: Option<&'static str>,
@@ -295,7 +297,7 @@ struct SetGroupTypeColumns {
 fn encode_set_group_type(set_group_type: SetGroupType) -> SetGroupTypeColumns {
     match set_group_type {
         SetGroupType::MyorepMatch => SetGroupTypeColumns {
-            set_type: "MyorepMatch",
+            set_type: "MyorepMatch".to_string(),
             rep_min: None,
             rep_max: None,
             intensity_type: None,
@@ -311,7 +313,7 @@ fn encode_set_group_type(set_group_type: SetGroupType) -> SetGroupTypeColumns {
             let (intensity_type, intensity_value, intensity_weight_unit) =
                 encode_intensity(intensity);
             SetGroupTypeColumns {
-                set_type: prescribed_set_type_to_str(set_type),
+                set_type: set_type.to_string(),
                 rep_min: Some(rep_min),
                 rep_max,
                 intensity_type: Some(intensity_type),
@@ -329,26 +331,41 @@ fn decode_set_group_type(
     intensity_type: Option<&str>,
     intensity_value: Option<f64>,
     intensity_weight_unit: Option<&str>,
-) -> SetGroupType {
+) -> Result<SetGroupType, SetGroupError> {
     if set_type == "MyorepMatch" {
-        return SetGroupType::MyorepMatch;
+        return Ok(SetGroupType::MyorepMatch);
     }
 
-    let reps = decode_reps(
-        rep_min.expect("prescribed set group has NULL rep_min in DB"),
-        rep_max,
-    );
-    let intensity = decode_intensity(
-        intensity_type.expect("prescribed set group has NULL intensity_type in DB"),
-        intensity_value.expect("prescribed set group has NULL intensity_value in DB"),
-        intensity_weight_unit,
-    );
+    let rep_min = rep_min.ok_or_else(|| corrupt("prescribed set group has NULL rep_min"))?;
+    let reps = decode_reps(rep_min, rep_max)?;
+    let intensity_type =
+        intensity_type.ok_or_else(|| corrupt("prescribed set group has NULL intensity_type"))?;
+    let intensity_value =
+        intensity_value.ok_or_else(|| corrupt("prescribed set group has NULL intensity_value"))?;
+    let intensity = decode_intensity(intensity_type, intensity_value, intensity_weight_unit)?;
 
-    SetGroupType::Prescribed {
-        set_type: prescribed_set_type_from_str(set_type),
+    Ok(SetGroupType::Prescribed {
+        set_type: prescribed_set_type_from_str(set_type)?,
         reps,
         intensity,
+    })
+}
+
+/// Reads an `i64` column that must fit a `u32` (positions and counts).
+fn decode_u32(value: i64, column: &str) -> Result<u32, SetGroupError> {
+    u32::try_from(value).map_err(|_| corrupt(format!("{column} {value} is out of u32 range")))
+}
+
+/// Reads a `REAL` column that must hold a whole number: the integer intensities
+/// (`Rir`/`Rpe`/`PercentOneRepMax`) share the `intensity_value` column with
+/// genuine float weights, so a fractional value there is corruption.
+fn decode_whole(value: f64, kind: &str) -> Result<i64, SetGroupError> {
+    if !value.is_finite() || value.fract() != 0.0 {
+        return Err(corrupt(format!(
+            "{kind} value {value} is not a whole number"
+        )));
     }
+    Ok(value as i64)
 }
 
 fn encode_reps(reps: RepTarget) -> (i64, Option<i64>) {
@@ -358,13 +375,13 @@ fn encode_reps(reps: RepTarget) -> (i64, Option<i64>) {
     }
 }
 
-fn decode_reps(rep_min: i64, rep_max: Option<i64>) -> RepTarget {
-    let min = u32::try_from(rep_min).expect("rep_min out of u32 range");
+fn decode_reps(rep_min: i64, rep_max: Option<i64>) -> Result<RepTarget, SetGroupError> {
+    let min = decode_u32(rep_min, "rep_min")?;
     match rep_max {
-        None => RepTarget::exact(min).expect("rep count stored in DB was validated on write"),
+        None => RepTarget::exact(min).map_err(corrupt),
         Some(max) => {
-            let max = u32::try_from(max).expect("rep_max out of u32 range");
-            RepTarget::range(min, max).expect("rep range stored in DB was validated on write")
+            let max = decode_u32(max, "rep_max")?;
+            RepTarget::range(min, max).map_err(corrupt)
         }
     }
 }
@@ -387,38 +404,42 @@ fn encode_intensity(intensity: Intensity) -> (&'static str, f64, Option<&'static
     }
 }
 
-fn decode_intensity(intensity_type: &str, value: f64, unit: Option<&str>) -> Intensity {
-    match intensity_type {
-        "Rir" => Intensity::Rir(Rir::new(value as i8).expect("invalid Rir value in DB")),
-        "Rpe" => Intensity::Rpe(Rpe::new(value as u8).expect("invalid Rpe value in DB")),
-        "PercentOneRepMax" => Intensity::PercentOneRepMax(
-            PercentOneRepMax::new(value as u8).expect("invalid PercentOneRepMax value in DB"),
-        ),
-        "TargetWeight" => Intensity::TargetWeight(decode_weight(value, unit)),
-        "WeightIncrement" => Intensity::WeightIncrement(decode_weight(value, unit)),
-        other => panic!("unknown intensity_type in DB: {other}"),
-    }
+fn decode_intensity(
+    intensity_type: &str,
+    value: f64,
+    unit: Option<&str>,
+) -> Result<Intensity, SetGroupError> {
+    let intensity = match intensity_type {
+        "Rir" => {
+            let value = i8::try_from(decode_whole(value, "Rir")?).map_err(corrupt)?;
+            Intensity::Rir(Rir::new(value).map_err(corrupt)?)
+        }
+        "Rpe" => {
+            let value = u8::try_from(decode_whole(value, "Rpe")?).map_err(corrupt)?;
+            Intensity::Rpe(Rpe::new(value).map_err(corrupt)?)
+        }
+        "PercentOneRepMax" => {
+            let value = u8::try_from(decode_whole(value, "PercentOneRepMax")?).map_err(corrupt)?;
+            Intensity::PercentOneRepMax(PercentOneRepMax::new(value).map_err(corrupt)?)
+        }
+        "TargetWeight" => Intensity::TargetWeight(decode_weight(value, unit)?),
+        "WeightIncrement" => Intensity::WeightIncrement(decode_weight(value, unit)?),
+        other => return Err(corrupt(format!("unknown intensity_type: {other}"))),
+    };
+    Ok(intensity)
 }
 
-fn decode_weight(value: f64, unit: Option<&str>) -> Weight {
-    let unit = unit.expect("weight intensity has no weight unit in DB");
-    Weight::new(value, weight_unit_from_str(unit))
+fn decode_weight(value: f64, unit: Option<&str>) -> Result<Weight, SetGroupError> {
+    let unit = unit.ok_or_else(|| corrupt("weight intensity has NULL weight unit"))?;
+    Ok(Weight::new(value, weight_unit_from_str(unit)?))
 }
 
-fn prescribed_set_type_to_str(set_type: PrescribedSetType) -> &'static str {
-    match set_type {
-        PrescribedSetType::Regular => "Regular",
-        PrescribedSetType::Myorep => "Myorep",
-        PrescribedSetType::Drop => "Drop",
-    }
-}
-
-fn prescribed_set_type_from_str(s: &str) -> PrescribedSetType {
+fn prescribed_set_type_from_str(s: &str) -> Result<PrescribedSetType, SetGroupError> {
     match s {
-        "Regular" => PrescribedSetType::Regular,
-        "Myorep" => PrescribedSetType::Myorep,
-        "Drop" => PrescribedSetType::Drop,
-        other => panic!("unknown prescribed set_type in DB: {other}"),
+        "Regular" => Ok(PrescribedSetType::Regular),
+        "Myorep" => Ok(PrescribedSetType::Myorep),
+        "Drop" => Ok(PrescribedSetType::Drop),
+        other => Err(corrupt(format!("unknown prescribed set_type: {other}"))),
     }
 }
 
@@ -429,11 +450,11 @@ fn weight_unit_to_str(unit: WeightUnit) -> &'static str {
     }
 }
 
-fn weight_unit_from_str(s: &str) -> WeightUnit {
+fn weight_unit_from_str(s: &str) -> Result<WeightUnit, SetGroupError> {
     match s {
-        "Kg" => WeightUnit::Kg,
-        "Lbs" => WeightUnit::Lbs,
-        other => panic!("unknown weight_unit in DB: {other}"),
+        "Kg" => Ok(WeightUnit::Kg),
+        "Lbs" => Ok(WeightUnit::Lbs),
+        other => Err(corrupt(format!("unknown weight_unit: {other}"))),
     }
 }
 
@@ -575,6 +596,26 @@ mod tests {
             result.is_err(),
             "a MyorepMatch row must not carry a weight unit"
         );
+    }
+
+    #[test]
+    fn list_surfaces_a_corrupt_row_as_a_typed_error_rather_than_panicking() {
+        let conn = setup_test_db();
+        let planned = weighted_planned_exercise(&conn);
+        // A fractional Rir value passes every CHECK (intensity_value is REAL) but
+        // is not a whole number, so decoding it must fail rather than truncate.
+        conn.execute(
+            "INSERT INTO set_groups
+                (planned_exercise_id, position, set_type, number_of_sets,
+                 rep_min, intensity_type, intensity_value)
+             VALUES (?1, 0, 'Regular', 3, 5, 'Rir', 2.5)",
+            [planned.id()],
+        )
+        .expect("the raw row itself satisfies the CHECK constraints");
+
+        let result = list(&conn, planned.id());
+
+        assert!(matches!(result, Err(SetGroupError::Corrupt(_))));
     }
 
     #[test]

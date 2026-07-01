@@ -285,6 +285,17 @@ impl PrescribedSetType {
     }
 }
 
+impl Display for PrescribedSetType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            Self::Regular => "Regular",
+            Self::Myorep => "Myorep",
+            Self::Drop => "Drop",
+        };
+        f.write_str(s)
+    }
+}
+
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum SetGroupValidationError {
     #[error("a set group must prescribe at least one set")]

@@ -598,6 +598,15 @@ pub enum WeightUnit {
     Lbs,
 }
 
+impl WeightUnit {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Kg => "Kg",
+            Self::Lbs => "Lbs",
+        }
+    }
+}
+
 #[derive(Debug, thiserror::Error, PartialEq)]
 pub enum EffortError {
     #[error(transparent)]

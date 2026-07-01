@@ -389,15 +389,13 @@ fn encode_intensity(intensity: Intensity) -> (&'static str, f64, Option<&'static
         Intensity::Rir(rir) => ("Rir", rir.value() as f64, None),
         Intensity::Rpe(rpe) => ("Rpe", rpe.value() as f64, None),
         Intensity::PercentOneRepMax(pct) => ("PercentOneRepMax", pct.value() as f64, None),
-        Intensity::TargetWeight(weight) => (
-            "TargetWeight",
-            weight.value(),
-            Some(weight_unit_to_str(weight.unit())),
-        ),
+        Intensity::TargetWeight(weight) => {
+            ("TargetWeight", weight.value(), Some(weight.unit().as_str()))
+        }
         Intensity::WeightIncrement(weight) => (
             "WeightIncrement",
             weight.value(),
-            Some(weight_unit_to_str(weight.unit())),
+            Some(weight.unit().as_str()),
         ),
     }
 }
@@ -439,13 +437,6 @@ fn prescribed_set_type_from_str(s: &str) -> Result<PrescribedSetType, SetGroupEr
         "Myorep" => Ok(PrescribedSetType::Myorep),
         "Drop" => Ok(PrescribedSetType::Drop),
         other => Err(corrupt(format!("unknown prescribed set_type: {other}"))),
-    }
-}
-
-fn weight_unit_to_str(unit: WeightUnit) -> &'static str {
-    match unit {
-        WeightUnit::Kg => "Kg",
-        WeightUnit::Lbs => "Lbs",
     }
 }
 

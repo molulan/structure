@@ -360,7 +360,7 @@ fn decode_u32(value: i64, column: &str) -> Result<u32, SetGroupError> {
 /// integer intensities (`Rir`/`Rpe`/`PercentOneRepMax`) share the
 /// `intensity_value` column with genuine float weights, so a fractional or
 /// out-of-range value there is corruption.
-fn decode_integer<T: TryFrom<i64>>(value: f64, kind: &str) -> Result<T, SetGroupError> {
+fn decode_int_from_real<T: TryFrom<i64>>(value: f64, kind: &str) -> Result<T, SetGroupError> {
     if !value.is_finite() || value.fract() != 0.0 {
         return Err(corrupt(format!("{kind} value {value} is not an integer")));
     }
@@ -407,10 +407,11 @@ fn decode_intensity(
     unit: Option<&str>,
 ) -> Result<Intensity, SetGroupError> {
     let intensity = match intensity_type {
-        "Rir" => Intensity::Rir(Rir::new(decode_integer(value, "Rir")?).map_err(corrupt)?),
-        "Rpe" => Intensity::Rpe(Rpe::new(decode_integer(value, "Rpe")?).map_err(corrupt)?),
+        "Rir" => Intensity::Rir(Rir::new(decode_int_from_real(value, "Rir")?).map_err(corrupt)?),
+        "Rpe" => Intensity::Rpe(Rpe::new(decode_int_from_real(value, "Rpe")?).map_err(corrupt)?),
         "PercentOneRepMax" => Intensity::PercentOneRepMax(
-            PercentOneRepMax::new(decode_integer(value, "PercentOneRepMax")?).map_err(corrupt)?,
+            PercentOneRepMax::new(decode_int_from_real(value, "PercentOneRepMax")?)
+                .map_err(corrupt)?,
         ),
         "TargetWeight" => Intensity::TargetWeight(decode_weight(value, unit)?),
         "WeightIncrement" => Intensity::WeightIncrement(decode_weight(value, unit)?),

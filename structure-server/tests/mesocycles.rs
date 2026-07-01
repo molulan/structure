@@ -151,6 +151,9 @@ async fn get_full_mesocycle_returns_the_whole_tree() {
     assert_eq!(planned["id"].as_i64(), Some(planned_id));
     assert_eq!(planned["exercise"]["name"], "Bench Press");
     assert_eq!(planned["sets"][0]["id"].as_i64(), Some(set_id));
+    // The new set-group prescription layer is exposed alongside the legacy
+    // sets; no create-set-group route exists yet, so it serializes as empty.
+    assert_eq!(planned["set_groups"].as_array().map(Vec::len), Some(0));
 }
 
 #[tokio::test]

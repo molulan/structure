@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 use serde::Serialize;
 
-use crate::domain::planning::{LibraryExercise, MesocycleMode, Phase, Set, Weight};
+use crate::domain::planning::{LibraryExercise, MesocycleMode, Phase, Set, SetGroup, Weight};
 use crate::domain::tracking::LoggedSet;
 use crate::persistence::logged_exercises::{self, LoggedExerciseError};
 use crate::persistence::logged_sessions::{self, LoggedSessionError};
@@ -9,6 +9,7 @@ use crate::persistence::logged_sets::{self, LoggedSetError};
 use crate::persistence::mesocycles::{self, MesocycleError};
 use crate::persistence::microcycles::{self, MicrocycleError};
 use crate::persistence::planned_exercises::{self, PlannedExerciseError};
+use crate::persistence::set_groups::{self, SetGroupError};
 use crate::persistence::sets::{self, SetError};
 use crate::persistence::workouts::{self, WorkoutError};
 
@@ -24,6 +25,8 @@ pub enum FullMesocycleError {
     PlannedExercise(#[from] PlannedExerciseError),
     #[error(transparent)]
     Set(#[from] SetError),
+    #[error(transparent)]
+    SetGroup(#[from] SetGroupError),
 }
 
 #[derive(Serialize)]
@@ -56,6 +59,7 @@ pub struct FullPlannedExercise {
     pub exercise: LibraryExercise,
     pub position: u32,
     pub sets: Vec<Set>,
+    pub set_groups: Vec<SetGroup>,
 }
 
 pub fn get_full_mesocycle(
@@ -73,11 +77,13 @@ pub fn get_full_mesocycle(
             let mut planned_exercises = Vec::new();
             for planned in planned_exercises::list(conn, workout.id())? {
                 let sets = sets::list(conn, planned.id())?;
+                let set_groups = set_groups::list(conn, planned.id())?;
                 planned_exercises.push(FullPlannedExercise {
                     id: planned.id(),
                     exercise: planned.exercise().clone(),
                     position: planned.position(),
                     sets,
+                    set_groups,
                 });
             }
             workouts.push(FullWorkout {
@@ -169,8 +175,14 @@ pub fn get_full_logged_session(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::planning::{ExerciseType, Load, SetType, Weight, WeightUnit};
-    use crate::persistence::{connection, library_exercises, logged_exercises, logged_sessions};
+    use crate::domain::planning::{
+        ExerciseType, Intensity, Load, PrescribedSetType, RepTarget, Rir, SetGroupType, SetType,
+        Weight, WeightUnit,
+    };
+    use crate::persistence::{
+        connection, library_exercises, logged_exercises, logged_sessions, mesocycles, microcycles,
+        planned_exercises, set_groups, workouts,
+    };
 
     const STARTED: &str = "2026-06-26T10:00:00Z";
 
@@ -182,6 +194,43 @@ mod tests {
         Load::Weighted {
             weight: Some(Weight::new(value, WeightUnit::Kg)),
         }
+    }
+
+    #[test]
+    fn get_full_mesocycle_exposes_planned_exercise_set_groups() {
+        let mut conn = setup_test_db();
+        let mesocycle = mesocycles::create(&conn, "Test Mesocycle", MesocycleMode::Algorithmic)
+            .expect("mesocycle creation should succeed");
+        let microcycle =
+            microcycles::create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let workout = workouts::create(&conn, microcycle.id(), "Push")
+            .expect("workout creation should succeed");
+        let bench = library_exercises::create(&conn, "Bench Press", ExerciseType::Weighted)
+            .expect("exercise creation should succeed");
+        let planned = planned_exercises::create(&conn, workout.id(), bench.id())
+            .expect("planned exercise creation should succeed");
+
+        let top_set = SetGroupType::Prescribed {
+            set_type: PrescribedSetType::Regular,
+            reps: RepTarget::exact(5).unwrap(),
+            intensity: Intensity::Rir(Rir::new(2).unwrap()),
+        };
+        set_groups::create(&mut conn, planned.id(), 3, top_set)
+            .expect("set group creation should succeed");
+        set_groups::create(&mut conn, planned.id(), 1, SetGroupType::MyorepMatch)
+            .expect("set group creation should succeed");
+
+        let full = get_full_mesocycle(&conn, mesocycle.id())
+            .expect("query should succeed")
+            .expect("mesocycle should exist");
+
+        let planned_view = &full.microcycles[0].workouts[0].planned_exercises[0];
+        assert_eq!(planned_view.set_groups.len(), 2);
+        assert_eq!(planned_view.set_groups[0].number_of_sets(), 3);
+        assert_eq!(
+            planned_view.set_groups[1].set_group_type(),
+            SetGroupType::MyorepMatch
+        );
     }
 
     #[test]

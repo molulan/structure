@@ -87,7 +87,7 @@ pub fn update_phase(
 ) -> Result<(), MicrocycleError> {
     let updated = conn.execute(
         "UPDATE microcycles SET phase = ?2 WHERE id = ?1",
-        params![id, phase.map(|p| p.to_string())],
+        params![id, phase.map(|p| p.as_str())],
     )?;
 
     if updated == 0 {

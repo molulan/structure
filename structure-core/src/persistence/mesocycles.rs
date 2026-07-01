@@ -44,7 +44,7 @@ pub fn create(
 
     conn.execute(
         "INSERT INTO mesocycles (name, mode) VALUES (?1, ?2)",
-        params![name.as_str(), mode.to_string()],
+        params![name.as_str(), mode.as_str()],
     )?;
 
     let id = conn.last_insert_rowid();
@@ -120,7 +120,7 @@ pub fn update(
 
     let updated = conn.execute(
         "UPDATE mesocycles SET name = ?1, mode = ?2 WHERE id = ?3",
-        params![name.as_str(), mode.to_string(), id],
+        params![name.as_str(), mode.as_str(), id],
     )?;
 
     if updated == 0 {

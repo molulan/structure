@@ -283,16 +283,13 @@ impl PrescribedSetType {
     fn is_failure_based(self) -> bool {
         matches!(self, PrescribedSetType::Myorep | PrescribedSetType::Drop)
     }
-}
 
-impl Display for PrescribedSetType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
             Self::Regular => "Regular",
             Self::Myorep => "Myorep",
             Self::Drop => "Drop",
-        };
-        f.write_str(s)
+        }
     }
 }
 

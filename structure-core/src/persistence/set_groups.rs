@@ -286,7 +286,7 @@ pub fn list(conn: &Connection, planned_exercise_id: i64) -> Result<Vec<SetGroup>
 /// `MyorepMatch` leaves every prescription column `NULL`; a `Prescribed` group
 /// fills them from its set type, reps, and intensity.
 struct SetGroupTypeColumns {
-    set_type: String,
+    set_type: &'static str,
     rep_min: Option<i64>,
     rep_max: Option<i64>,
     intensity_type: Option<&'static str>,
@@ -297,7 +297,7 @@ struct SetGroupTypeColumns {
 fn encode_set_group_type(set_group_type: SetGroupType) -> SetGroupTypeColumns {
     match set_group_type {
         SetGroupType::MyorepMatch => SetGroupTypeColumns {
-            set_type: "MyorepMatch".to_string(),
+            set_type: "MyorepMatch",
             rep_min: None,
             rep_max: None,
             intensity_type: None,
@@ -313,7 +313,7 @@ fn encode_set_group_type(set_group_type: SetGroupType) -> SetGroupTypeColumns {
             let (intensity_type, intensity_value, intensity_weight_unit) =
                 encode_intensity(intensity);
             SetGroupTypeColumns {
-                set_type: set_type.to_string(),
+                set_type: set_type.as_str(),
                 rep_min: Some(rep_min),
                 rep_max,
                 intensity_type: Some(intensity_type),

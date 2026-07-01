@@ -116,7 +116,7 @@ pub fn create(
     let position = u32::try_from(next_position)
         .expect("positions are non-negative and no exercise will have 4 billion set groups");
 
-    let columns = SetGroupTypeColumns::from_set_group_type(set_group_type);
+    let columns = encode_set_group_type(set_group_type);
 
     tx.execute(
         "INSERT INTO set_groups
@@ -158,7 +158,7 @@ pub fn update(
         return Err(SetGroupError::NotFound { id });
     };
 
-    let columns = SetGroupTypeColumns::from_set_group_type(set_group_type);
+    let columns = encode_set_group_type(set_group_type);
 
     let position: Option<i64> = tx
         .query_row(
@@ -292,33 +292,31 @@ struct SetGroupTypeColumns {
     intensity_weight_unit: Option<&'static str>,
 }
 
-impl SetGroupTypeColumns {
-    fn from_set_group_type(set_group_type: SetGroupType) -> SetGroupTypeColumns {
-        match set_group_type {
-            SetGroupType::MyorepMatch => SetGroupTypeColumns {
-                set_type: "MyorepMatch",
-                rep_min: None,
-                rep_max: None,
-                intensity_type: None,
-                intensity_value: None,
-                intensity_weight_unit: None,
-            },
-            SetGroupType::Prescribed {
-                set_type,
-                reps,
-                intensity,
-            } => {
-                let (rep_min, rep_max) = encode_reps(reps);
-                let (intensity_type, intensity_value, intensity_weight_unit) =
-                    encode_intensity(intensity);
-                SetGroupTypeColumns {
-                    set_type: prescribed_set_type_to_str(set_type),
-                    rep_min: Some(rep_min),
-                    rep_max,
-                    intensity_type: Some(intensity_type),
-                    intensity_value: Some(intensity_value),
-                    intensity_weight_unit,
-                }
+fn encode_set_group_type(set_group_type: SetGroupType) -> SetGroupTypeColumns {
+    match set_group_type {
+        SetGroupType::MyorepMatch => SetGroupTypeColumns {
+            set_type: "MyorepMatch",
+            rep_min: None,
+            rep_max: None,
+            intensity_type: None,
+            intensity_value: None,
+            intensity_weight_unit: None,
+        },
+        SetGroupType::Prescribed {
+            set_type,
+            reps,
+            intensity,
+        } => {
+            let (rep_min, rep_max) = encode_reps(reps);
+            let (intensity_type, intensity_value, intensity_weight_unit) =
+                encode_intensity(intensity);
+            SetGroupTypeColumns {
+                set_type: prescribed_set_type_to_str(set_type),
+                rep_min: Some(rep_min),
+                rep_max,
+                intensity_type: Some(intensity_type),
+                intensity_value: Some(intensity_value),
+                intensity_weight_unit,
             }
         }
     }

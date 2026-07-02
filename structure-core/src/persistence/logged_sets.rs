@@ -11,8 +11,8 @@ pub enum LoggedSetError {
     Database(#[from] rusqlite::Error),
     #[error("associated logged exercise {id} not found")]
     AssociatedLoggedExerciseNotFound { id: i64 },
-    #[error("associated planned set {id} not found")]
-    AssociatedPlannedSetNotFound { id: i64 },
+    #[error("associated set group {id} not found")]
+    AssociatedSetGroupNotFound { id: i64 },
     #[error("logging drop sets is not yet supported")]
     DropLoggingNotSupported,
     #[error("logged set {id} not found")]
@@ -26,7 +26,7 @@ pub(super) fn create_logged_sets_table(conn: &Connection) -> rusqlite::Result<()
         "CREATE TABLE IF NOT EXISTS logged_sets (
             id INTEGER PRIMARY KEY,
             logged_exercise_id INTEGER NOT NULL REFERENCES logged_exercises(id) ON DELETE CASCADE,
-            planned_set_id INTEGER REFERENCES planned_sets(id) ON DELETE SET NULL,
+            planned_set_group_id INTEGER REFERENCES set_groups(id) ON DELETE SET NULL,
             position INTEGER NOT NULL,
             set_type TEXT NOT NULL CHECK(
                 set_type IN ('Regular', 'Myorep', 'MyorepMatch', 'Drop')
@@ -62,9 +62,9 @@ fn logged_exercise_type(
     .map(|name| name.map(|name| exercise_type_from_str(&name)))
 }
 
-fn planned_set_exists(conn: &Connection, id: i64) -> rusqlite::Result<bool> {
+fn set_group_exists(conn: &Connection, id: i64) -> rusqlite::Result<bool> {
     let count: i64 = conn.query_row(
-        "SELECT COUNT(*) FROM planned_sets WHERE id = ?1",
+        "SELECT COUNT(*) FROM set_groups WHERE id = ?1",
         [id],
         |row| row.get(0),
     )?;
@@ -77,7 +77,7 @@ pub fn create(
     load: Load,
     reps: u32,
     set_type: SetType,
-    planned_set_id: Option<i64>,
+    planned_set_group_id: Option<i64>,
 ) -> Result<LoggedSet, LoggedSetError> {
     if matches!(set_type, SetType::Drop) {
         return Err(LoggedSetError::DropLoggingNotSupported);
@@ -91,10 +91,10 @@ pub fn create(
         });
     };
 
-    if let Some(planned_id) = planned_set_id
-        && !planned_set_exists(&tx, planned_id)?
+    if let Some(group_id) = planned_set_group_id
+        && !set_group_exists(&tx, group_id)?
     {
-        return Err(LoggedSetError::AssociatedPlannedSetNotFound { id: planned_id });
+        return Err(LoggedSetError::AssociatedSetGroupNotFound { id: group_id });
     }
 
     let next_position: i64 = tx.query_row(
@@ -109,12 +109,12 @@ pub fn create(
 
     tx.execute(
         "INSERT INTO logged_sets
-            (logged_exercise_id, planned_set_id, position, set_type, load_type,
+            (logged_exercise_id, planned_set_group_id, position, set_type, load_type,
              weight_value, weight_unit, reps, effort_type, effort_value)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             logged_exercise_id,
-            planned_set_id,
+            planned_set_group_id,
             position,
             columns.set_type,
             columns.load_type,
@@ -134,7 +134,7 @@ pub fn create(
         load,
         reps,
         set_type,
-        planned_set_id,
+        planned_set_group_id,
     )?;
     tx.commit()?;
     Ok(set)
@@ -144,7 +144,7 @@ pub fn get(conn: &Connection, id: i64) -> Result<Option<LoggedSet>, LoggedSetErr
     let set = conn
         .query_row(
             "SELECT id, position, set_type, load_type, weight_value,
-                    weight_unit, reps, effort_type, effort_value, planned_set_id
+                    weight_unit, reps, effort_type, effort_value, planned_set_group_id
              FROM logged_sets
              WHERE id = ?1",
             [id],
@@ -164,7 +164,7 @@ pub fn list(conn: &Connection, logged_exercise_id: i64) -> Result<Vec<LoggedSet>
 
     let mut stmt = conn.prepare(
         "SELECT id, position, set_type, load_type, weight_value,
-                weight_unit, reps, effort_type, effort_value, planned_set_id
+                weight_unit, reps, effort_type, effort_value, planned_set_group_id
          FROM logged_sets
          WHERE logged_exercise_id = ?1
          ORDER BY position ASC",
@@ -197,7 +197,7 @@ fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<LoggedSet> {
     let reps: i64 = row.get(6)?;
     let effort_type: Option<String> = row.get(7)?;
     let effort_value: Option<i64> = row.get(8)?;
-    let planned_set_id: Option<i64> = row.get(9)?;
+    let planned_set_group_id: Option<i64> = row.get(9)?;
 
     let (load, set_type) = set_columns::parse_load_and_set_type(
         &set_type,
@@ -216,7 +216,7 @@ fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<LoggedSet> {
         load,
         reps,
         set_type,
-        planned_set_id,
+        planned_set_group_id,
     ))
 }
 
@@ -224,11 +224,11 @@ fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<LoggedSet> {
 mod tests {
     use super::*;
     use crate::domain::planning::{
-        Effort, MesocycleMode, Rir, SetValidationError, Weight, WeightUnit,
+        Effort, MesocycleMode, Rir, SetGroupType, SetValidationError, Weight, WeightUnit,
     };
     use crate::persistence::{
         connection, library_exercises, logged_exercises, logged_sessions, mesocycles, microcycles,
-        planned_exercises, sets, workouts,
+        planned_exercises, set_groups, workouts,
     };
 
     const STARTED: &str = "2026-06-26T10:00:00Z";
@@ -255,7 +255,7 @@ mod tests {
         }
     }
 
-    fn create_planned_set(conn: &mut Connection) -> i64 {
+    fn create_set_group(conn: &mut Connection) -> i64 {
         let mesocycle = mesocycles::create(conn, "Test Mesocycle", MesocycleMode::Manual)
             .expect("mesocycle creation should succeed");
         let microcycle =
@@ -266,15 +266,9 @@ mod tests {
             .expect("exercise creation should succeed");
         let planned = planned_exercises::create(conn, workout.id(), exercise.id())
             .expect("planned exercise creation should succeed");
-        sets::create(
-            conn,
-            planned.id(),
-            weighted(100.0),
-            Some(5),
-            SetType::Regular { effort: None },
-        )
-        .expect("planned set creation should succeed")
-        .id()
+        set_groups::create(conn, planned.id(), 3, SetGroupType::MyorepMatch)
+            .expect("set group creation should succeed")
+            .id()
     }
 
     #[test]
@@ -295,7 +289,7 @@ mod tests {
         assert_eq!(set.position(), 0);
         assert_eq!(set.reps(), 5);
         assert_eq!(set.load(), weighted(100.0));
-        assert_eq!(set.planned_set_id(), None);
+        assert_eq!(set.planned_set_group_id(), None);
     }
 
     #[test]
@@ -402,9 +396,9 @@ mod tests {
     }
 
     #[test]
-    fn create_set_linked_to_a_planned_set_stores_the_link() {
+    fn create_set_linked_to_a_set_group_stores_the_link() {
         let mut conn = setup_test_db();
-        let planned_set_id = create_planned_set(&mut conn);
+        let planned_set_group_id = create_set_group(&mut conn);
         let logged_exercise_id = create_weighted_logged_exercise(&conn);
 
         let set = create(
@@ -413,15 +407,15 @@ mod tests {
             weighted(100.0),
             5,
             SetType::Regular { effort: None },
-            Some(planned_set_id),
+            Some(planned_set_group_id),
         )
         .expect("logged set creation should succeed");
 
-        assert_eq!(set.planned_set_id(), Some(planned_set_id));
+        assert_eq!(set.planned_set_group_id(), Some(planned_set_group_id));
     }
 
     #[test]
-    fn create_set_with_nonexistent_planned_set_returns_error() {
+    fn create_set_with_nonexistent_set_group_returns_error() {
         let mut conn = setup_test_db();
         let logged_exercise_id = create_weighted_logged_exercise(&conn);
 
@@ -436,7 +430,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(LoggedSetError::AssociatedPlannedSetNotFound { id: 9999 })
+            Err(LoggedSetError::AssociatedSetGroupNotFound { id: 9999 })
         ));
     }
 
@@ -544,9 +538,9 @@ mod tests {
     }
 
     #[test]
-    fn deleting_a_planned_set_nulls_the_link_but_keeps_the_logged_set() {
+    fn deleting_a_set_group_nulls_the_link_but_keeps_the_logged_set() {
         let mut conn = setup_test_db();
-        let planned_set_id = create_planned_set(&mut conn);
+        let planned_set_group_id = create_set_group(&mut conn);
         let logged_exercise_id = create_weighted_logged_exercise(&conn);
         let set = create(
             &mut conn,
@@ -554,16 +548,16 @@ mod tests {
             weighted(100.0),
             5,
             SetType::Regular { effort: None },
-            Some(planned_set_id),
+            Some(planned_set_group_id),
         )
         .expect("creation should succeed");
 
-        sets::delete(&conn, planned_set_id).expect("planned set deletion should succeed");
+        set_groups::delete(&conn, planned_set_group_id).expect("set group deletion should succeed");
 
         let persisted = get(&conn, set.id())
             .expect("query should succeed")
             .expect("logged set should still exist");
-        assert_eq!(persisted.planned_set_id(), None);
+        assert_eq!(persisted.planned_set_group_id(), None);
     }
 
     #[test]

@@ -5,7 +5,7 @@ use crate::domain::planning::{Effort, Load, Rir, Rpe, SetType, Weight, WeightUni
 /// `planned_sets` and `logged_sets` store identically shaped set data; this
 /// module is the single `Load`/`SetType`/`Effort` ↔ column mapping shared by
 /// both. Callers own the columns that differ between the two tables (reps,
-/// `planned_set_id`).
+/// `planned_set_group_id`).
 pub(super) struct SetColumns {
     pub set_type: &'static str,
     pub load_type: &'static str,

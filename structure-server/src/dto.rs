@@ -219,7 +219,7 @@ pub enum SetGroupInputError {
 }
 
 /// Input enum mirroring [`RepTarget`].
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize)]
 pub enum RepTargetInput {
     Exact(u32),
     Range { min: u32, max: u32 },
@@ -237,7 +237,7 @@ impl TryFrom<RepTargetInput> for RepTarget {
 }
 
 /// Input enum mirroring [`Intensity`].
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize)]
 pub enum IntensityInput {
     Rir(i8),
     Rpe(u8),
@@ -263,7 +263,7 @@ impl TryFrom<IntensityInput> for Intensity {
 }
 
 /// Input enum mirroring [`PrescribedSetType`].
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize)]
 pub enum PrescribedSetTypeInput {
     Regular,
     Myorep,
@@ -281,7 +281,7 @@ impl From<PrescribedSetTypeInput> for PrescribedSetType {
 }
 
 /// Input enum mirroring [`SetGroupType`].
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize)]
 pub enum SetGroupTypeInput {
     Prescribed {
         set_type: PrescribedSetTypeInput,

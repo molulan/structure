@@ -6,7 +6,7 @@ use structure_core::domain::planning::{
 };
 
 /// Input enum mirroring [`MesocycleMode`].
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize)]
 pub enum MesocycleModeInput {
     Algorithmic,
     Manual,
@@ -41,7 +41,7 @@ pub struct ReorderRequest {
 }
 
 /// Input enum mirroring [`Phase`].
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize)]
 pub enum PhaseInput {
     Accumulation,
     Intensification,
@@ -71,7 +71,7 @@ pub struct WorkoutNameRequest {
 }
 
 /// Input enum mirroring [`ExerciseType`].
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize)]
 pub enum ExerciseTypeInput {
     Bodyweight,
     WeightedBodyweight,
@@ -103,7 +103,7 @@ pub struct PlannedExerciseRequest {
     pub library_exercise_id: i64,
 }
 
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize)]
 pub enum WeightUnitInput {
     Kg,
     Lbs,
@@ -118,7 +118,7 @@ impl From<WeightUnitInput> for WeightUnit {
     }
 }
 
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize)]
 pub struct WeightInput {
     pub value: f64,
     pub unit: WeightUnitInput,
@@ -130,7 +130,7 @@ impl From<WeightInput> for Weight {
     }
 }
 
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize)]
 pub enum LoadInput {
     Bodyweight,
     WeightedBodyweight { added_weight: Option<WeightInput> },
@@ -157,7 +157,7 @@ impl From<LoadInput> for Load {
 
 /// The validated value types live here: `Rpe`/`Rir` ranges are enforced by the
 /// domain constructors, so this conversion is fallible and surfaces as a 422.
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize)]
 pub enum EffortInput {
     Rir(i8),
     Rpe(u8),
@@ -174,7 +174,7 @@ impl TryFrom<EffortInput> for Effort {
     }
 }
 
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize)]
 pub enum SetTypeInput {
     Regular { effort: Option<EffortInput> },
     Myorep,

@@ -281,7 +281,7 @@ impl From<PrescribedSetTypeInput> for PrescribedSetType {
 }
 
 /// Input enum mirroring [`SetGroupType`].
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Copy)]
 pub enum SetGroupTypeInput {
     Prescribed {
         set_type: PrescribedSetTypeInput,

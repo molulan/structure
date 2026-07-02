@@ -980,6 +980,7 @@ dependencies = [
  "serde",
  "serde_json",
  "structure-core",
+ "thiserror",
  "tokio",
  "tower",
  "tower-http",

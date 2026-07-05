@@ -403,6 +403,18 @@ impl Intensity {
     }
 }
 
+/// Aggregates the value-object errors raised when building an [`Intensity`] from
+/// primitives, so a caller can propagate any of them uniformly with `?`.
+#[derive(Debug, thiserror::Error, PartialEq)]
+pub enum IntensityError {
+    #[error(transparent)]
+    InvalidRir(#[from] RirError),
+    #[error(transparent)]
+    InvalidRpe(#[from] RpeError),
+    #[error(transparent)]
+    InvalidPercentOneRepMax(#[from] PercentOneRepMaxError),
+}
+
 /// Whether a `Load` is valid for an exercise of the given `ExerciseType`.
 pub(crate) fn load_matches_exercise_type(exercise_type: ExerciseType, load: Load) -> bool {
     matches!(
@@ -526,14 +538,6 @@ impl WeightUnit {
             Self::Lbs => "Lbs",
         }
     }
-}
-
-#[derive(Debug, thiserror::Error, PartialEq)]
-pub enum EffortError {
-    #[error(transparent)]
-    InvalidRpe(#[from] RpeError),
-    #[error(transparent)]
-    InvalidRir(#[from] RirError),
 }
 
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]

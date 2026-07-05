@@ -1,8 +1,7 @@
 use serde::Deserialize;
 use structure_core::domain::planning::{
-    ExerciseType, Intensity, MesocycleMode, PercentOneRepMax, PercentOneRepMaxError, Phase,
-    PrescribedSetType, RepTarget, RepTargetError, Rir, RirError, Rpe, RpeError, SetGroupType,
-    Weight, WeightUnit,
+    ExerciseType, Intensity, IntensityError, MesocycleMode, PercentOneRepMax, Phase,
+    PrescribedSetType, RepTarget, RepTargetError, Rir, Rpe, SetGroupType, Weight, WeightUnit,
 };
 
 /// Input enum mirroring [`MesocycleMode`].
@@ -130,19 +129,15 @@ impl From<WeightInput> for Weight {
     }
 }
 
-/// The value types a set group builds from are validated by their domain
-/// constructors (rep counts, `Rir`/`Rpe`/`PercentOneRepMax` ranges), so
-/// assembling a [`SetGroupType`] from input is fallible and surfaces as a 422.
+/// Assembling a [`SetGroupType::Prescribed`] from input is fallible in two
+/// independent ways — the rep target and the intensity — each validated by its
+/// domain constructor. This unions them so the conversion surfaces a 422.
 #[derive(Debug, thiserror::Error)]
-pub enum SetGroupInputError {
+pub enum SetGroupTypeInputError {
     #[error(transparent)]
     RepTarget(#[from] RepTargetError),
     #[error(transparent)]
-    Rir(#[from] RirError),
-    #[error(transparent)]
-    Rpe(#[from] RpeError),
-    #[error(transparent)]
-    PercentOneRepMax(#[from] PercentOneRepMaxError),
+    Intensity(#[from] IntensityError),
 }
 
 /// Input enum mirroring [`RepTarget`].
@@ -174,9 +169,9 @@ pub enum IntensityInput {
 }
 
 impl TryFrom<IntensityInput> for Intensity {
-    type Error = SetGroupInputError;
+    type Error = IntensityError;
 
-    fn try_from(value: IntensityInput) -> Result<Self, SetGroupInputError> {
+    fn try_from(value: IntensityInput) -> Result<Self, IntensityError> {
         Ok(match value {
             IntensityInput::Rir(value) => Intensity::Rir(Rir::new(value)?),
             IntensityInput::Rpe(value) => Intensity::Rpe(Rpe::new(value)?),
@@ -219,9 +214,9 @@ pub enum SetGroupTypeInput {
 }
 
 impl TryFrom<SetGroupTypeInput> for SetGroupType {
-    type Error = SetGroupInputError;
+    type Error = SetGroupTypeInputError;
 
-    fn try_from(value: SetGroupTypeInput) -> Result<Self, SetGroupInputError> {
+    fn try_from(value: SetGroupTypeInput) -> Result<Self, SetGroupTypeInputError> {
         Ok(match value {
             SetGroupTypeInput::Prescribed {
                 set_type,

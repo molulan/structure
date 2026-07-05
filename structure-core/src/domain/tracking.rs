@@ -126,7 +126,7 @@ impl LoggedExercise {
 /// planned `Set`.
 ///
 /// `reps` is concrete (a set that was logged was performed; a skipped set has no
-/// row at all). `planned_set_id` is `None` for unplanned (extra) sets. Effort is
+/// row at all). `planned_set_group_id` is `None` for unplanned (extra) sets. Effort is
 /// carried on `SetType::Regular`, exactly as in the plan. Drop sets are not yet
 /// loggable here — they require segment storage that is deferred.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]
@@ -136,7 +136,7 @@ pub struct LoggedSet {
     load: Load,
     reps: u32,
     set_type: SetType,
-    planned_set_id: Option<i64>,
+    planned_set_group_id: Option<i64>,
 }
 
 impl LoggedSet {
@@ -147,7 +147,7 @@ impl LoggedSet {
         load: Load,
         reps: u32,
         set_type: SetType,
-        planned_set_id: Option<i64>,
+        planned_set_group_id: Option<i64>,
     ) -> Result<LoggedSet, SetValidationError> {
         if !load_matches_exercise_type(exercise_type, load) {
             return Err(SetValidationError::LoadMismatch {
@@ -161,7 +161,7 @@ impl LoggedSet {
             load,
             reps,
             set_type,
-            planned_set_id,
+            planned_set_group_id,
         })
     }
 
@@ -175,7 +175,7 @@ impl LoggedSet {
         load: Load,
         reps: u32,
         set_type: SetType,
-        planned_set_id: Option<i64>,
+        planned_set_group_id: Option<i64>,
     ) -> LoggedSet {
         LoggedSet {
             id,
@@ -183,7 +183,7 @@ impl LoggedSet {
             load,
             reps,
             set_type,
-            planned_set_id,
+            planned_set_group_id,
         }
     }
 
@@ -207,7 +207,7 @@ impl LoggedSet {
         self.set_type
     }
 
-    pub fn planned_set_id(&self) -> Option<i64> {
-        self.planned_set_id
+    pub fn planned_set_group_id(&self) -> Option<i64> {
+        self.planned_set_group_id
     }
 }

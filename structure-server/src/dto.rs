@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use structure_core::domain::planning::{
     ExerciseType, Intensity, IntensityError, MesocycleMode, PercentOneRepMax, Phase,
-    PrescribedSetType, RepTarget, RepTargetError, Rir, Rpe, SetGroupType, Weight, WeightUnit,
+    PrescribedSetType, RepTarget, RepTargetError, Rir, Rpe, Weight, WeightUnit,
 };
 
 /// Input enum mirroring [`MesocycleMode`].
@@ -129,17 +129,6 @@ impl From<WeightInput> for Weight {
     }
 }
 
-/// Assembling a [`SetGroupType::Prescribed`] from input is fallible in two
-/// independent ways — the rep target and the intensity — each validated by its
-/// domain constructor. This unions them so the conversion surfaces a 422.
-#[derive(Debug, thiserror::Error)]
-pub enum SetGroupTypeInputError {
-    #[error(transparent)]
-    RepTarget(#[from] RepTargetError),
-    #[error(transparent)]
-    Intensity(#[from] IntensityError),
-}
-
 /// Input enum mirroring [`RepTarget`].
 #[derive(Deserialize)]
 pub enum RepTargetInput {
@@ -202,7 +191,9 @@ impl From<PrescribedSetTypeInput> for PrescribedSetType {
     }
 }
 
-/// Input enum mirroring [`SetGroupType`].
+/// Input enum mirroring [`SetGroupType`](structure_core::domain::planning::SetGroupType).
+/// Assembled into the domain type by the set-groups route module, where the
+/// rep-target and intensity conversions can surface directly as a 422.
 #[derive(Deserialize)]
 pub enum SetGroupTypeInput {
     Prescribed {
@@ -211,25 +202,6 @@ pub enum SetGroupTypeInput {
         intensity: IntensityInput,
     },
     MyorepMatch,
-}
-
-impl TryFrom<SetGroupTypeInput> for SetGroupType {
-    type Error = SetGroupTypeInputError;
-
-    fn try_from(value: SetGroupTypeInput) -> Result<Self, SetGroupTypeInputError> {
-        Ok(match value {
-            SetGroupTypeInput::Prescribed {
-                set_type,
-                reps,
-                intensity,
-            } => SetGroupType::Prescribed {
-                set_type: set_type.into(),
-                reps: RepTarget::try_from(reps)?,
-                intensity: Intensity::try_from(intensity)?,
-            },
-            SetGroupTypeInput::MyorepMatch => SetGroupType::MyorepMatch,
-        })
-    }
 }
 
 #[derive(Deserialize)]

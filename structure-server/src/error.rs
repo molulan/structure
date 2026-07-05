@@ -2,6 +2,7 @@ use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use serde_json::json;
+use structure_core::domain::planning::{IntensityError, RepTargetError};
 use structure_core::persistence::aggregates::FullMesocycleError;
 use structure_core::persistence::library_exercises::LibraryExerciseError;
 use structure_core::persistence::mesocycles::MesocycleError;
@@ -153,6 +154,20 @@ impl From<SetGroupError> for ApiError {
                 ApiError::internal(format!("corrupt set group data: {detail}"))
             }
         }
+    }
+}
+
+// The value-object failures raised while assembling a set group's prescription
+// from request input; both are out-of-range inputs, so a 422.
+impl From<RepTargetError> for ApiError {
+    fn from(error: RepTargetError) -> Self {
+        ApiError::unprocessable(error.to_string())
+    }
+}
+
+impl From<IntensityError> for ApiError {
+    fn from(error: IntensityError) -> Self {
+        ApiError::unprocessable(error.to_string())
     }
 }
 

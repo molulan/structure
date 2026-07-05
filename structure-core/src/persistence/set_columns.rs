@@ -1,11 +1,9 @@
 use crate::domain::planning::{Effort, Load, Rir, Rpe, SetType, Weight, WeightUnit};
 
-/// The persisted column values for a set's `load` and `set_type`.
+/// The persisted column values for a logged set's `load` and `set_type`.
 ///
-/// `planned_sets` and `logged_sets` store identically shaped set data; this
-/// module is the single `Load`/`SetType`/`Effort` ↔ column mapping shared by
-/// both. Callers own the columns that differ between the two tables (reps,
-/// `planned_set_group_id`).
+/// Holds the `Load`/`SetType`/`Effort` ↔ column mapping for `logged_sets`.
+/// Callers own the columns outside this shape (reps, `planned_set_group_id`).
 pub(super) struct SetColumns {
     pub set_type: &'static str,
     pub load_type: &'static str,

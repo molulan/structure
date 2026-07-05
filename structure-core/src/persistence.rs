@@ -10,6 +10,5 @@ pub mod planned_exercises;
 mod positions;
 mod set_columns;
 pub mod set_groups;
-pub mod sets;
 pub mod store;
 pub mod workouts;

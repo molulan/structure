@@ -109,18 +109,6 @@ pub async fn create_planned_exercise(
     created["id"].as_i64().expect("id should be a number")
 }
 
-/// Creates a plain bodyweight set (10 reps, regular, no effort) and returns its id.
-pub async fn create_set(app: &Router, planned_exercise_id: i64) -> i64 {
-    let (_, created) = send(
-        app,
-        "POST",
-        &format!("/planned-exercises/{planned_exercise_id}/sets"),
-        Some(json!({ "load": { "Weighted": { "weight": null } }, "reps": 10, "set_type": { "Regular": { "effort": null } } })),
-    )
-    .await;
-    created["id"].as_i64().expect("id should be a number")
-}
-
 /// Creates a plain prescribed set group (3 sets, regular, 5 reps @ RIR 2) and
 /// returns its id.
 pub async fn create_set_group(app: &Router, planned_exercise_id: i64) -> i64 {

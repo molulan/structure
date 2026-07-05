@@ -1,8 +1,8 @@
 use serde::Deserialize;
 use structure_core::domain::planning::{
-    Effort, EffortError, ExerciseType, Intensity, Load, MesocycleMode, PercentOneRepMax,
-    PercentOneRepMaxError, Phase, PrescribedSetType, RepTarget, RepTargetError, Rir, RirError, Rpe,
-    RpeError, SetGroupType, SetType, Weight, WeightUnit,
+    ExerciseType, Intensity, MesocycleMode, PercentOneRepMax, PercentOneRepMaxError, Phase,
+    PrescribedSetType, RepTarget, RepTargetError, Rir, RirError, Rpe, RpeError, SetGroupType,
+    Weight, WeightUnit,
 };
 
 /// Input enum mirroring [`MesocycleMode`].
@@ -128,79 +128,6 @@ impl From<WeightInput> for Weight {
     fn from(value: WeightInput) -> Self {
         Weight::new(value.value, value.unit.into())
     }
-}
-
-#[derive(Deserialize)]
-pub enum LoadInput {
-    Bodyweight,
-    WeightedBodyweight { added_weight: Option<WeightInput> },
-    AssistedBodyweight { assistance: Option<WeightInput> },
-    Weighted { weight: Option<WeightInput> },
-}
-
-impl From<LoadInput> for Load {
-    fn from(value: LoadInput) -> Self {
-        match value {
-            LoadInput::Bodyweight => Load::Bodyweight,
-            LoadInput::WeightedBodyweight { added_weight } => Load::WeightedBodyweight {
-                added_weight: added_weight.map(Weight::from),
-            },
-            LoadInput::AssistedBodyweight { assistance } => Load::AssistedBodyweight {
-                assistance: assistance.map(Weight::from),
-            },
-            LoadInput::Weighted { weight } => Load::Weighted {
-                weight: weight.map(Weight::from),
-            },
-        }
-    }
-}
-
-/// The validated value types live here: `Rpe`/`Rir` ranges are enforced by the
-/// domain constructors, so this conversion is fallible and surfaces as a 422.
-#[derive(Deserialize)]
-pub enum EffortInput {
-    Rir(i8),
-    Rpe(u8),
-}
-
-impl TryFrom<EffortInput> for Effort {
-    type Error = EffortError;
-
-    fn try_from(value: EffortInput) -> Result<Self, EffortError> {
-        match value {
-            EffortInput::Rir(value) => Ok(Effort::Rir(Rir::new(value)?)),
-            EffortInput::Rpe(value) => Ok(Effort::Rpe(Rpe::new(value)?)),
-        }
-    }
-}
-
-#[derive(Deserialize)]
-pub enum SetTypeInput {
-    Regular { effort: Option<EffortInput> },
-    Myorep,
-    MyorepMatch,
-    Drop,
-}
-
-impl TryFrom<SetTypeInput> for SetType {
-    type Error = EffortError;
-
-    fn try_from(value: SetTypeInput) -> Result<Self, Self::Error> {
-        let effort = |effort: Option<EffortInput>| effort.map(Effort::try_from).transpose();
-        Ok(match value {
-            SetTypeInput::Regular { effort: e } => SetType::Regular { effort: effort(e)? },
-            SetTypeInput::Myorep => SetType::Myorep,
-            SetTypeInput::MyorepMatch => SetType::MyorepMatch,
-            SetTypeInput::Drop => SetType::Drop,
-        })
-    }
-}
-
-#[derive(Deserialize)]
-pub struct SetRequest {
-    pub load: LoadInput,
-    pub reps: Option<u32>,
-    pub set_type: SetTypeInput,
 }
 
 /// The value types a set group builds from are validated by their domain

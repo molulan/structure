@@ -1,7 +1,7 @@
 use serde::Deserialize;
 use structure_core::domain::planning::{
     ExerciseType, Intensity, IntensityError, MesocycleMode, PercentOneRepMax, Phase,
-    PrescribedSetType, RepTarget, RepTargetError, Rir, Rpe, Weight, WeightUnit,
+    PrescribedSetType, RepTarget, RepTargetError, Rir, Rpe, SetGroupType, Weight, WeightUnit,
 };
 
 /// Input enum mirroring [`MesocycleMode`].
@@ -191,9 +191,7 @@ impl From<PrescribedSetTypeInput> for PrescribedSetType {
     }
 }
 
-/// Input enum mirroring [`SetGroupType`](structure_core::domain::planning::SetGroupType).
-/// Assembled into the domain type by the set-groups route module, where the
-/// rep-target and intensity conversions can surface directly as a 422.
+/// Input enum mirroring [`SetGroupType`].
 #[derive(Deserialize)]
 pub enum SetGroupTypeInput {
     Prescribed {
@@ -202,6 +200,36 @@ pub enum SetGroupTypeInput {
         intensity: IntensityInput,
     },
     MyorepMatch,
+}
+
+/// Assembling a [`SetGroupType::Prescribed`] from input fails in two independent
+/// ways — the rep target and the intensity — each validated by its own domain
+/// constructor; this unions them into the conversion's single error type.
+#[derive(Debug, thiserror::Error, PartialEq)]
+pub enum SetGroupTypeInputError {
+    #[error(transparent)]
+    RepTarget(#[from] RepTargetError),
+    #[error(transparent)]
+    Intensity(#[from] IntensityError),
+}
+
+impl TryFrom<SetGroupTypeInput> for SetGroupType {
+    type Error = SetGroupTypeInputError;
+
+    fn try_from(value: SetGroupTypeInput) -> Result<Self, SetGroupTypeInputError> {
+        Ok(match value {
+            SetGroupTypeInput::Prescribed {
+                set_type,
+                reps,
+                intensity,
+            } => SetGroupType::Prescribed {
+                set_type: set_type.into(),
+                reps: RepTarget::try_from(reps)?,
+                intensity: Intensity::try_from(intensity)?,
+            },
+            SetGroupTypeInput::MyorepMatch => SetGroupType::MyorepMatch,
+        })
+    }
 }
 
 #[derive(Deserialize)]

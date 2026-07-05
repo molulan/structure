@@ -1,5 +1,5 @@
 use crate::{
-    dto::{ReorderRequest, SetGroupRequest, SetGroupTypeInput},
+    dto::{ReorderRequest, SetGroupRequest},
     error::ApiError,
 };
 use axum::{
@@ -34,29 +34,12 @@ async fn list(
     Ok(Json(set_groups))
 }
 
-/// Assembles the domain [`SetGroupType`] from request input. The rep-target and
-/// intensity value objects validate their own ranges, each surfacing as a 422.
-fn build_set_group_type(input: SetGroupTypeInput) -> Result<SetGroupType, ApiError> {
-    Ok(match input {
-        SetGroupTypeInput::Prescribed {
-            set_type,
-            reps,
-            intensity,
-        } => SetGroupType::Prescribed {
-            set_type: set_type.into(),
-            reps: reps.try_into()?,
-            intensity: intensity.try_into()?,
-        },
-        SetGroupTypeInput::MyorepMatch => SetGroupType::MyorepMatch,
-    })
-}
-
 async fn create(
     State(store): State<Store>,
     Path(planned_exercise_id): Path<i64>,
     Json(body): Json<SetGroupRequest>,
 ) -> Result<(StatusCode, Json<SetGroup>), ApiError> {
-    let set_group_type = build_set_group_type(body.set_group_type)?;
+    let set_group_type = SetGroupType::try_from(body.set_group_type)?;
     let set_group = store.with_conn(|conn| {
         set_groups::create(
             conn,
@@ -73,7 +56,7 @@ async fn update(
     Path(id): Path<i64>,
     Json(body): Json<SetGroupRequest>,
 ) -> Result<Json<SetGroup>, ApiError> {
-    let set_group_type = build_set_group_type(body.set_group_type)?;
+    let set_group_type = SetGroupType::try_from(body.set_group_type)?;
     let set_group = store
         .with_conn(|conn| set_groups::update(conn, id, body.number_of_sets, set_group_type))?;
     Ok(Json(set_group))

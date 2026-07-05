@@ -3,7 +3,7 @@ mod common;
 use axum::http::StatusCode;
 use common::{
     create_library_exercise, create_microcycle, create_planned_exercise, create_program,
-    create_set, create_workout, send, test_app,
+    create_set_group, create_workout, send, test_app,
 };
 use serde_json::json;
 
@@ -130,7 +130,7 @@ async fn get_full_mesocycle_returns_the_whole_tree() {
     let workout_id = create_workout(&app, microcycle_id, "Push").await;
     let exercise_id = create_library_exercise(&app, "Bench Press", "Weighted").await;
     let planned_id = create_planned_exercise(&app, workout_id, exercise_id).await;
-    let set_id = create_set(&app, planned_id).await;
+    let set_group_id = create_set_group(&app, planned_id).await;
 
     let (status, full) = send(
         &app,
@@ -150,10 +150,7 @@ async fn get_full_mesocycle_returns_the_whole_tree() {
     let planned = &workout["planned_exercises"][0];
     assert_eq!(planned["id"].as_i64(), Some(planned_id));
     assert_eq!(planned["exercise"]["name"], "Bench Press");
-    assert_eq!(planned["sets"][0]["id"].as_i64(), Some(set_id));
-    // The new set-group prescription layer is exposed alongside the legacy
-    // sets; no create-set-group route exists yet, so it serializes as empty.
-    assert_eq!(planned["set_groups"].as_array().map(Vec::len), Some(0));
+    assert_eq!(planned["set_groups"][0]["id"].as_i64(), Some(set_group_id));
 }
 
 #[tokio::test]

@@ -5,7 +5,6 @@ mod mesocycles;
 mod microcycles;
 mod planned_exercises;
 mod set_groups;
-mod sets;
 mod workouts;
 
 use axum::{Router, routing::get};
@@ -22,7 +21,6 @@ pub fn router(store: Store) -> Router {
         .merge(workouts::routes())
         .merge(library_exercises::routes())
         .merge(planned_exercises::routes())
-        .merge(sets::routes())
         .merge(set_groups::routes())
         .layer(CorsLayer::permissive())
         .with_state(store)

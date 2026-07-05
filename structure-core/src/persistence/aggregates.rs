@@ -1,7 +1,7 @@
 use rusqlite::Connection;
 use serde::Serialize;
 
-use crate::domain::planning::{LibraryExercise, MesocycleMode, Phase, Set, SetGroup, Weight};
+use crate::domain::planning::{LibraryExercise, MesocycleMode, Phase, SetGroup, Weight};
 use crate::domain::tracking::LoggedSet;
 use crate::persistence::logged_exercises::{self, LoggedExerciseError};
 use crate::persistence::logged_sessions::{self, LoggedSessionError};
@@ -10,7 +10,6 @@ use crate::persistence::mesocycles::{self, MesocycleError};
 use crate::persistence::microcycles::{self, MicrocycleError};
 use crate::persistence::planned_exercises::{self, PlannedExerciseError};
 use crate::persistence::set_groups::{self, SetGroupError};
-use crate::persistence::sets::{self, SetError};
 use crate::persistence::workouts::{self, WorkoutError};
 
 #[derive(Debug, thiserror::Error)]
@@ -23,8 +22,6 @@ pub enum FullMesocycleError {
     Workout(#[from] WorkoutError),
     #[error(transparent)]
     PlannedExercise(#[from] PlannedExerciseError),
-    #[error(transparent)]
-    Set(#[from] SetError),
     #[error(transparent)]
     SetGroup(#[from] SetGroupError),
 }
@@ -58,7 +55,6 @@ pub struct FullPlannedExercise {
     pub id: i64,
     pub exercise: LibraryExercise,
     pub position: u32,
-    pub sets: Vec<Set>,
     pub set_groups: Vec<SetGroup>,
 }
 
@@ -76,13 +72,11 @@ pub fn get_full_mesocycle(
         for workout in workouts::list(conn, microcycle.id())? {
             let mut planned_exercises = Vec::new();
             for planned in planned_exercises::list(conn, workout.id())? {
-                let sets = sets::list(conn, planned.id())?;
                 let set_groups = set_groups::list(conn, planned.id())?;
                 planned_exercises.push(FullPlannedExercise {
                     id: planned.id(),
                     exercise: planned.exercise().clone(),
                     position: planned.position(),
-                    sets,
                     set_groups,
                 });
             }

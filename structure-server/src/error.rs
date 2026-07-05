@@ -8,7 +8,6 @@ use structure_core::persistence::mesocycles::MesocycleError;
 use structure_core::persistence::microcycles::MicrocycleError;
 use structure_core::persistence::planned_exercises::PlannedExerciseError;
 use structure_core::persistence::set_groups::SetGroupError;
-use structure_core::persistence::sets::SetError;
 use structure_core::persistence::workouts::WorkoutError;
 
 /// An error rendered as a JSON `{ "error": ... }` body with a status code.
@@ -134,24 +133,6 @@ impl From<PlannedExerciseError> for ApiError {
     }
 }
 
-impl From<SetError> for ApiError {
-    fn from(error: SetError) -> Self {
-        match error {
-            SetError::Database(error) => ApiError::internal(error),
-            SetError::AssociatedPlannedExerciseNotFound { id } => {
-                ApiError::not_found(format!("planned exercise {id} not found"))
-            }
-            SetError::NotFound { id } => ApiError::not_found(format!("set {id} not found")),
-            SetError::ReorderMismatch {
-                planned_exercise_id,
-            } => ApiError::unprocessable(format!(
-                "reorder list does not match the sets of planned exercise {planned_exercise_id}"
-            )),
-            SetError::Invalid(error) => ApiError::unprocessable(error.to_string()),
-        }
-    }
-}
-
 impl From<SetGroupError> for ApiError {
     fn from(error: SetGroupError) -> Self {
         match error {
@@ -182,7 +163,6 @@ impl From<FullMesocycleError> for ApiError {
             FullMesocycleError::Microcycle(error) => error.into(),
             FullMesocycleError::Workout(error) => error.into(),
             FullMesocycleError::PlannedExercise(error) => error.into(),
-            FullMesocycleError::Set(error) => error.into(),
             FullMesocycleError::SetGroup(error) => error.into(),
         }
     }

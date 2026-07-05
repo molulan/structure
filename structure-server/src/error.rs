@@ -158,7 +158,7 @@ impl From<SetGroupError> for ApiError {
 }
 
 // The value-object failures raised while assembling a set group's prescription
-// from request input; both are out-of-range inputs, so a 422.
+// from request input; both are invalid inputs, so a 422.
 impl From<RepTargetError> for ApiError {
     fn from(error: RepTargetError) -> Self {
         ApiError::unprocessable(error.to_string())

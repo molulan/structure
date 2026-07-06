@@ -304,9 +304,10 @@ pub enum SetGroupValidationError {
     WeightIntensityOnBodyweight { intensity: Intensity },
 }
 
-/// A planned rep prescription: a single count or a closed `[min, max]` range.
-/// Both variants carry validated newtypes, so an invalid `RepTarget` is
-/// unrepresentable even though the variants themselves are public.
+/// A planned rep prescription: a single count, a closed `[min, max]` range, or
+/// an open-ended `at least n` (AMRAP) target. Each variant carries a validated
+/// newtype, so an invalid `RepTarget` is unrepresentable even though the
+/// variants themselves are public.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub enum RepTarget {
     Exact(RepCount),

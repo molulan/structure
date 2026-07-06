@@ -711,31 +711,33 @@ mod tests {
         let mut conn = setup_test_db();
         let planned = weighted_planned_exercise(&conn);
 
+        let valid_reps = "the rep target is valid";
+        let valid_intensity = "the intensity value is in range";
         let created: Vec<SetGroup> = [
             regular(
-                RepTarget::exact(5).unwrap(),
-                Intensity::Rir(Rir::new(0).unwrap()),
+                RepTarget::exact(5).expect(valid_reps),
+                Intensity::Rir(Rir::new(0).expect(valid_intensity)),
             ),
             regular(
-                RepTarget::range(8, 12).unwrap(),
-                Intensity::Rpe(Rpe::new(9).unwrap()),
+                RepTarget::range(8, 12).expect(valid_reps),
+                Intensity::Rpe(Rpe::new(9).expect(valid_intensity)),
             ),
             regular(
-                RepTarget::exact(3).unwrap(),
-                Intensity::PercentOneRepMax(PercentOneRepMax::new(85).unwrap()),
+                RepTarget::exact(3).expect(valid_reps),
+                Intensity::PercentOneRepMax(PercentOneRepMax::new(85).expect(valid_intensity)),
             ),
             regular(
-                RepTarget::at_least(12).unwrap(),
-                Intensity::Rir(Rir::new(0).unwrap()),
+                RepTarget::at_least(12).expect(valid_reps),
+                Intensity::Rir(Rir::new(0).expect(valid_intensity)),
             ),
             SetGroupType::Prescribed {
                 set_type: PrescribedSetType::Myorep,
-                reps: RepTarget::range(6, 10).unwrap(),
+                reps: RepTarget::range(6, 10).expect(valid_reps),
                 intensity: Intensity::TargetWeight(Weight::new(100.0, WeightUnit::Kg)),
             },
             SetGroupType::Prescribed {
                 set_type: PrescribedSetType::Drop,
-                reps: RepTarget::exact(8).unwrap(),
+                reps: RepTarget::exact(8).expect(valid_reps),
                 intensity: Intensity::WeightIncrement(Weight::new(-2.5, WeightUnit::Lbs)),
             },
             SetGroupType::MyorepMatch,
@@ -750,6 +752,26 @@ mod tests {
         let listed = list(&conn, planned.id()).expect("listing should succeed");
 
         assert_eq!(listed, created);
+    }
+
+    #[test]
+    fn reps_encode_and_decode_distinguish_exact_range_and_at_least() {
+        let valid = "the rep target is valid";
+        let cases = [
+            (RepTarget::exact(5).expect(valid), (5_i64, Some(5_i64))),
+            (RepTarget::range(8, 12).expect(valid), (8, Some(12))),
+            (RepTarget::at_least(12).expect(valid), (12, None)),
+        ];
+
+        for (reps, columns) in cases {
+            assert_eq!(encode_reps(reps), columns, "encode {reps:?}");
+            let (rep_min, rep_max) = columns;
+            assert_eq!(
+                decode_reps(rep_min, rep_max).expect("decoding valid columns should succeed"),
+                reps,
+                "decode {columns:?}"
+            );
+        }
     }
 
     #[test]

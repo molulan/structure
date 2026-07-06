@@ -1,8 +1,8 @@
 use serde::Deserialize;
 use structure_core::domain::planning::{
-    ExerciseType, Intensity, MesocycleMode, PercentOneRepMax, PercentOneRepMaxError, Phase,
-    PrescribedSetType, RepTarget, RepTargetError, Rir, RirError, Rpe, RpeError, SetGroupType,
-    Weight, WeightUnit,
+    ExerciseType, Intensity, MesocycleMode, MuscleGroup, PercentOneRepMax, PercentOneRepMaxError,
+    Phase, PrescribedSetType, RepTarget, RepTargetError, Rir, RirError, Rpe, RpeError,
+    SetGroupType, Weight, WeightUnit,
 };
 
 /// Input enum mirroring [`MesocycleMode`].
@@ -90,11 +90,42 @@ impl From<ExerciseTypeInput> for ExerciseType {
     }
 }
 
+/// Input enum mirroring [`MuscleGroup`].
+#[derive(Deserialize)]
+pub enum MuscleGroupInput {
+    Chest,
+    Back,
+    Shoulders,
+    Quads,
+    Hamstrings,
+    Glutes,
+    Biceps,
+    Triceps,
+    Calves,
+}
+
+impl From<MuscleGroupInput> for MuscleGroup {
+    fn from(value: MuscleGroupInput) -> Self {
+        match value {
+            MuscleGroupInput::Chest => MuscleGroup::Chest,
+            MuscleGroupInput::Back => MuscleGroup::Back,
+            MuscleGroupInput::Shoulders => MuscleGroup::Shoulders,
+            MuscleGroupInput::Quads => MuscleGroup::Quads,
+            MuscleGroupInput::Hamstrings => MuscleGroup::Hamstrings,
+            MuscleGroupInput::Glutes => MuscleGroup::Glutes,
+            MuscleGroupInput::Biceps => MuscleGroup::Biceps,
+            MuscleGroupInput::Triceps => MuscleGroup::Triceps,
+            MuscleGroupInput::Calves => MuscleGroup::Calves,
+        }
+    }
+}
+
 /// A library exercise's fields, used for both creating and updating.
 #[derive(Deserialize)]
 pub struct LibraryExerciseRequest {
     pub name: String,
     pub exercise_type: ExerciseTypeInput,
+    pub muscle_group: MuscleGroupInput,
 }
 
 /// Which library exercise to place into a workout.

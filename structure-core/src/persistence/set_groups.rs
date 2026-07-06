@@ -446,7 +446,7 @@ fn weight_unit_from_str(s: &str) -> Result<WeightUnit, SetGroupError> {
 mod tests {
     use super::*;
     use crate::{
-        domain::planning::{MesocycleMode, PlannedExercise},
+        domain::planning::{MesocycleMode, MuscleGroup, PlannedExercise},
         persistence::{
             connection, library_exercises, mesocycles, microcycles, planned_exercises, workouts,
         },
@@ -463,8 +463,9 @@ mod tests {
             microcycles::create(conn, mesocycle.id()).expect("microcycle creation should succeed");
         let workout = workouts::create(conn, microcycle.id(), "Test Workout")
             .expect("workout creation should succeed");
-        let exercise = library_exercises::create(conn, "Bench Press", exercise_type)
-            .expect("exercise creation should succeed");
+        let exercise =
+            library_exercises::create(conn, "Bench Press", exercise_type, MuscleGroup::Chest)
+                .expect("exercise creation should succeed");
         planned_exercises::create(conn, workout.id(), exercise.id())
             .expect("planned exercise creation should succeed")
     }

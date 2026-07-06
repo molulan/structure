@@ -170,8 +170,8 @@ pub fn get_full_logged_session(
 mod tests {
     use super::*;
     use crate::domain::planning::{
-        ExerciseType, Intensity, Load, PrescribedSetType, RepTarget, Rir, SetGroupType, SetType,
-        Weight, WeightUnit,
+        ExerciseType, Intensity, Load, MuscleGroup, PrescribedSetType, RepTarget, Rir,
+        SetGroupType, SetType, Weight, WeightUnit,
     };
     use crate::persistence::{
         connection, library_exercises, logged_exercises, logged_sessions, mesocycles, microcycles,
@@ -199,8 +199,13 @@ mod tests {
             microcycles::create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
         let workout = workouts::create(&conn, microcycle.id(), "Push")
             .expect("workout creation should succeed");
-        let bench = library_exercises::create(&conn, "Bench Press", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
+        let bench = library_exercises::create(
+            &conn,
+            "Bench Press",
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+        )
+        .expect("exercise creation should succeed");
         let planned = planned_exercises::create(&conn, workout.id(), bench.id())
             .expect("planned exercise creation should succeed");
 
@@ -247,10 +252,16 @@ mod tests {
             Some("good session"),
         )
         .expect("session creation should succeed");
-        let bench = library_exercises::create(&conn, "Bench Press", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
-        let row = library_exercises::create(&conn, "Row", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
+        let bench = library_exercises::create(
+            &conn,
+            "Bench Press",
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+        )
+        .expect("exercise creation should succeed");
+        let row =
+            library_exercises::create(&conn, "Row", ExerciseType::Weighted, MuscleGroup::Back)
+                .expect("exercise creation should succeed");
 
         let logged_bench = logged_exercises::create(&conn, session.id(), bench.id(), None, None)
             .expect("logged exercise creation should succeed");

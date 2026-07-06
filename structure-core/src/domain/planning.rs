@@ -425,14 +425,21 @@ pub struct LibraryExercise {
     id: i64,
     name: Name,
     exercise_type: ExerciseType,
+    muscle_group: MuscleGroup,
 }
 
 impl LibraryExercise {
-    pub(crate) fn new(id: i64, name: Name, exercise_type: ExerciseType) -> LibraryExercise {
+    pub(crate) fn new(
+        id: i64,
+        name: Name,
+        exercise_type: ExerciseType,
+        muscle_group: MuscleGroup,
+    ) -> LibraryExercise {
         LibraryExercise {
             id,
             name,
             exercise_type,
+            muscle_group,
         }
     }
 
@@ -446,6 +453,10 @@ impl LibraryExercise {
 
     pub fn exercise_type(&self) -> ExerciseType {
         self.exercise_type
+    }
+
+    pub fn muscle_group(&self) -> MuscleGroup {
+        self.muscle_group
     }
 }
 
@@ -464,6 +475,37 @@ impl ExerciseType {
             Self::WeightedBodyweight => "WeightedBodyweight",
             Self::AssistedBodyweight => "AssistedBodyweight",
             Self::Weighted => "Weighted",
+        }
+    }
+}
+
+/// The primary muscle a [`LibraryExercise`] trains, used to attribute its
+/// planned volume when building per-muscle set counts.
+#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
+pub enum MuscleGroup {
+    Chest,
+    Back,
+    Shoulders,
+    Quads,
+    Hamstrings,
+    Glutes,
+    Biceps,
+    Triceps,
+    Calves,
+}
+
+impl MuscleGroup {
+    pub(crate) fn as_str(self) -> &'static str {
+        match self {
+            Self::Chest => "Chest",
+            Self::Back => "Back",
+            Self::Shoulders => "Shoulders",
+            Self::Quads => "Quads",
+            Self::Hamstrings => "Hamstrings",
+            Self::Glutes => "Glutes",
+            Self::Biceps => "Biceps",
+            Self::Triceps => "Triceps",
+            Self::Calves => "Calves",
         }
     }
 }
@@ -639,8 +681,12 @@ mod tests {
 
     #[test]
     fn new_bodyweight_exercise_has_bodyweight_type_with_correct_name_and_id_and_position() {
-        let exercise =
-            LibraryExercise::new(2, Name::new("Squat").unwrap(), ExerciseType::Bodyweight);
+        let exercise = LibraryExercise::new(
+            2,
+            Name::new("Squat").unwrap(),
+            ExerciseType::Bodyweight,
+            MuscleGroup::Quads,
+        );
         let planned_exercise = PlannedExercise::new(1, exercise, 1);
 
         assert_eq!(
@@ -654,7 +700,12 @@ mod tests {
 
     #[test]
     fn new_weighted_exercise_has_weighted_type_with_correct_name_and_id_and_position() {
-        let exercise = LibraryExercise::new(2, Name::new("Squat").unwrap(), ExerciseType::Weighted);
+        let exercise = LibraryExercise::new(
+            2,
+            Name::new("Squat").unwrap(),
+            ExerciseType::Weighted,
+            MuscleGroup::Quads,
+        );
         let planned_exercise = PlannedExercise::new(1, exercise, 2);
 
         assert_eq!(
@@ -673,6 +724,7 @@ mod tests {
             2,
             Name::new("Squat").unwrap(),
             ExerciseType::AssistedBodyweight,
+            MuscleGroup::Quads,
         );
         let planned_exercise = PlannedExercise::new(3, exercise, 5);
 
@@ -831,6 +883,7 @@ mod tests {
             2,
             Name::new("Pull Ups").unwrap(),
             ExerciseType::WeightedBodyweight,
+            MuscleGroup::Back,
         );
         let planned_exercise = PlannedExercise::new(15, exercise, 9);
 

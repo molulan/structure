@@ -1,12 +1,14 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::domain::tracking::LoggedExercise;
-use crate::persistence::library_exercises;
+use crate::persistence::library_exercises::{self, LibraryExerciseError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum LoggedExerciseError {
     #[error("database error: {0}")]
     Database(#[from] rusqlite::Error),
+    #[error(transparent)]
+    LibraryExercise(#[from] LibraryExerciseError),
     #[error("associated logged session {id} not found")]
     AssociatedSessionNotFound { id: i64 },
     #[error("associated library exercise {id} not found")]
@@ -193,7 +195,9 @@ fn build(conn: &Connection, parts: Parts) -> Result<LoggedExercise, LoggedExerci
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::domain::planning::{ExerciseType, LibraryExercise, MesocycleMode, Workout};
+    use crate::domain::planning::{
+        ExerciseType, LibraryExercise, MesocycleMode, MuscleGroup, Workout,
+    };
     use crate::persistence::{
         connection, library_exercises, logged_sessions, mesocycles, microcycles, planned_exercises,
         workouts,
@@ -214,8 +218,13 @@ mod tests {
     }
 
     fn create_test_exercise(conn: &Connection) -> LibraryExercise {
-        library_exercises::create(conn, "Bench Press", ExerciseType::Weighted)
-            .expect("exercise creation should succeed")
+        library_exercises::create(
+            conn,
+            "Bench Press",
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+        )
+        .expect("exercise creation should succeed")
     }
 
     fn create_test_session(conn: &Connection) -> i64 {
@@ -305,10 +314,16 @@ mod tests {
     fn exercises_in_same_session_get_sequential_positions() {
         let conn = setup_test_db();
         let session_id = create_test_session(&conn);
-        let bench = library_exercises::create(&conn, "Bench Press", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
-        let row = library_exercises::create(&conn, "Row", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
+        let bench = library_exercises::create(
+            &conn,
+            "Bench Press",
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+        )
+        .expect("exercise creation should succeed");
+        let row =
+            library_exercises::create(&conn, "Row", ExerciseType::Weighted, MuscleGroup::Back)
+                .expect("exercise creation should succeed");
 
         let first =
             create(&conn, session_id, bench.id(), None, None).expect("creation should succeed");
@@ -332,10 +347,16 @@ mod tests {
     fn list_returns_exercises_for_a_session_in_position_order() {
         let conn = setup_test_db();
         let session_id = create_test_session(&conn);
-        let bench = library_exercises::create(&conn, "Bench Press", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
-        let row = library_exercises::create(&conn, "Row", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
+        let bench = library_exercises::create(
+            &conn,
+            "Bench Press",
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+        )
+        .expect("exercise creation should succeed");
+        let row =
+            library_exercises::create(&conn, "Row", ExerciseType::Weighted, MuscleGroup::Back)
+                .expect("exercise creation should succeed");
         let first =
             create(&conn, session_id, bench.id(), None, None).expect("creation should succeed");
         let second =

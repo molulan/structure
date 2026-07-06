@@ -107,6 +107,9 @@ impl From<LibraryExerciseError> for ApiError {
                 "library exercise {id} is used by one or more planned exercises"
             )),
             LibraryExerciseError::InvalidName(error) => ApiError::unprocessable(error.to_string()),
+            LibraryExerciseError::Corrupt(detail) => {
+                ApiError::internal(format!("corrupt library exercise data: {detail}"))
+            }
         }
     }
 }
@@ -115,6 +118,7 @@ impl From<PlannedExerciseError> for ApiError {
     fn from(error: PlannedExerciseError) -> Self {
         match error {
             PlannedExerciseError::Database(error) => ApiError::internal(error),
+            PlannedExerciseError::LibraryExercise(error) => error.into(),
             PlannedExerciseError::AssociatedWorkoutNotFound { id } => {
                 ApiError::not_found(format!("workout {id} not found"))
             }

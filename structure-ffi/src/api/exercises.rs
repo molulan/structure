@@ -1,7 +1,7 @@
 use crate::dto::planning::{ExerciseTypeDTO, LibraryExerciseDTO, PlannedExerciseDTO};
 use flutter_rust_bridge::frb;
 use structure_core::{
-    domain::planning::ExerciseType,
+    domain::planning::{ExerciseType, MuscleGroup},
     persistence::{
         connection,
         library_exercises::{self, LibraryExerciseError},
@@ -16,7 +16,15 @@ pub fn create_library_exercise(
 ) -> Result<LibraryExerciseDTO, LibraryExerciseError> {
     let conn = connection::init_db("structure.db")?;
 
-    let exercise = library_exercises::create(&conn, &name, ExerciseType::from(exercise_type))?;
+    // TODO(mobile): thread muscle_group through the FFI/DTO surface when the
+    // mobile client is built. Deferred for now — the web stack owns this field;
+    // this placeholder keeps the FFI crate compiling without an unused DTO.
+    let exercise = library_exercises::create(
+        &conn,
+        &name,
+        ExerciseType::from(exercise_type),
+        MuscleGroup::Chest,
+    )?;
 
     Ok(LibraryExerciseDTO::from(&exercise))
 }

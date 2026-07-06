@@ -224,7 +224,8 @@ fn row_to_set(row: &rusqlite::Row<'_>) -> rusqlite::Result<LoggedSet> {
 mod tests {
     use super::*;
     use crate::domain::planning::{
-        Effort, MesocycleMode, Rir, SetGroupType, SetValidationError, Weight, WeightUnit,
+        Effort, MesocycleMode, MuscleGroup, Rir, SetGroupType, SetValidationError, Weight,
+        WeightUnit,
     };
     use crate::persistence::{
         connection, library_exercises, logged_exercises, logged_sessions, mesocycles, microcycles,
@@ -242,8 +243,13 @@ mod tests {
         let session = logged_sessions::create(conn, STARTED, None, None, None)
             .expect("session creation should succeed")
             .id();
-        let exercise = library_exercises::create(conn, "Bench Press", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
+        let exercise = library_exercises::create(
+            conn,
+            "Bench Press",
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+        )
+        .expect("exercise creation should succeed");
         logged_exercises::create(conn, session, exercise.id(), None, None)
             .expect("logged exercise creation should succeed")
             .id()
@@ -262,8 +268,9 @@ mod tests {
             microcycles::create(conn, mesocycle.id()).expect("microcycle creation should succeed");
         let workout = workouts::create(conn, microcycle.id(), "Push")
             .expect("workout creation should succeed");
-        let exercise = library_exercises::create(conn, "Squat", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
+        let exercise =
+            library_exercises::create(conn, "Squat", ExerciseType::Weighted, MuscleGroup::Quads)
+                .expect("exercise creation should succeed");
         let planned = planned_exercises::create(conn, workout.id(), exercise.id())
             .expect("planned exercise creation should succeed");
         set_groups::create(conn, planned.id(), 3, SetGroupType::MyorepMatch)

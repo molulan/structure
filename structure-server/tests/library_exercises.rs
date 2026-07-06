@@ -49,9 +49,10 @@ async fn created_exercise_carries_its_secondary_muscle_groups() {
     .await;
 
     assert_eq!(status, StatusCode::CREATED);
+    // Secondaries come back sorted by name.
     assert_eq!(
         created["secondary_muscle_groups"],
-        json!(["Triceps", "Shoulders"])
+        json!(["Shoulders", "Triceps"])
     );
 }
 
@@ -106,6 +107,40 @@ async fn update_replaces_secondary_muscle_groups() {
 }
 
 #[tokio::test]
+async fn update_can_clear_secondary_muscle_groups() {
+    let app = test_app();
+    let (_, created) = send(
+        &app,
+        "POST",
+        "/library-exercises",
+        Some(json!({
+            "name": "Row",
+            "exercise_type": "Weighted",
+            "primary_muscle_group": "Back",
+            "secondary_muscle_groups": ["Biceps"],
+        })),
+    )
+    .await;
+    let id = created["id"].as_i64().expect("id should be a number");
+
+    let (status, updated) = send(
+        &app,
+        "PUT",
+        &format!("/library-exercises/{id}"),
+        Some(json!({
+            "name": "Row",
+            "exercise_type": "Weighted",
+            "primary_muscle_group": "Back",
+            "secondary_muscle_groups": [],
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(updated["secondary_muscle_groups"], json!([]));
+}
+
+#[tokio::test]
 async fn create_with_secondary_matching_primary_returns_422() {
     let app = test_app();
 
@@ -123,7 +158,13 @@ async fn create_with_secondary_matching_primary_returns_422() {
     .await;
 
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
-    assert!(body["error"].is_string());
+    // Assert the message identifies the primary/secondary clash, not just any 422.
+    assert!(
+        body["error"]
+            .as_str()
+            .expect("error should be a string")
+            .contains("primary")
+    );
 }
 
 #[tokio::test]

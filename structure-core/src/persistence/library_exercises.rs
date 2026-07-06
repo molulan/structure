@@ -135,7 +135,8 @@ fn insert_secondary_muscle_groups(
 }
 
 /// Rejects a secondary that duplicates the primary (which would double-count the
-/// muscle's volume) and drops repeats, yielding the set actually stored.
+/// muscle's volume) and drops repeats. The result is sorted by name so a written
+/// exercise matches the order [`secondary_muscle_groups`] reads back.
 fn checked_secondaries(
     primary: MuscleGroup,
     secondaries: &[MuscleGroup],
@@ -151,6 +152,7 @@ fn checked_secondaries(
             checked.push(muscle);
         }
     }
+    checked.sort_by_key(|muscle| muscle.as_str());
     Ok(checked)
 }
 
@@ -166,7 +168,7 @@ fn decode_exercise(
 ) -> Result<LibraryExercise, LibraryExerciseError> {
     let exercise_type = exercise_type_from_str(&exercise_type);
     let primary_muscle_group = muscle_group_from_str(&primary_muscle_group)?;
-    let name = Name::new(name).expect("name stored in the database was validated on write");
+    let name = Name::new(name).map_err(corrupt)?;
     Ok(LibraryExercise::new(
         id,
         name,
@@ -884,17 +886,18 @@ mod tests {
         )
         .expect("exercise creation should succeed");
 
+        // Secondaries are stored and returned sorted by name, so the written and
+        // read-back orders agree regardless of the order they were passed in.
         assert_eq!(created.primary_muscle_group(), MuscleGroup::Chest);
         assert_eq!(
             created.secondary_muscle_groups(),
-            [MuscleGroup::Triceps, MuscleGroup::Shoulders]
+            [MuscleGroup::Shoulders, MuscleGroup::Triceps]
         );
 
         let fetched = get(&conn, created.id())
             .expect("query should succeed")
             .expect("exercise should exist");
         assert_eq!(fetched.primary_muscle_group(), MuscleGroup::Chest);
-        // Read back sorted by name, so the fetched order is deterministic.
         assert_eq!(
             fetched.secondary_muscle_groups(),
             [MuscleGroup::Shoulders, MuscleGroup::Triceps]
@@ -1051,5 +1054,22 @@ mod tests {
             result.is_err(),
             "an unknown primary_muscle_group must be rejected"
         );
+    }
+
+    #[test]
+    fn read_surfaces_a_corrupt_name_as_a_typed_error_rather_than_panicking() {
+        let conn = setup_test_db();
+        // A single space passes the length > 0 CHECK but is not a valid Name, so
+        // decoding it must degrade to a typed error instead of panicking.
+        conn.execute(
+            "INSERT INTO library_exercises (name, exercise_type, primary_muscle_group)
+             VALUES (' ', 'Weighted', 'Chest')",
+            [],
+        )
+        .expect("the raw row itself satisfies the CHECK constraints");
+
+        let result = list(&conn);
+
+        assert!(matches!(result, Err(LibraryExerciseError::Corrupt(_))));
     }
 }

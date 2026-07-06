@@ -1,6 +1,6 @@
 use serde::Deserialize;
 use structure_core::domain::planning::{
-    ExerciseType, Intensity, IntensityError, MesocycleMode, PercentOneRepMax, Phase,
+    ExerciseType, Intensity, IntensityError, MesocycleMode, MuscleGroup, PercentOneRepMax, Phase,
     PrescribedSetType, RepTarget, RepTargetError, Rir, Rpe, SetGroupType, Weight, WeightUnit,
 };
 
@@ -70,7 +70,7 @@ pub struct WorkoutNameRequest {
 }
 
 /// Input enum mirroring [`ExerciseType`].
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Copy)]
 pub enum ExerciseTypeInput {
     Bodyweight,
     WeightedBodyweight,
@@ -89,11 +89,57 @@ impl From<ExerciseTypeInput> for ExerciseType {
     }
 }
 
-/// A library exercise's fields, used for both creating and updating.
+/// Input enum mirroring [`MuscleGroup`].
+#[derive(Deserialize, Clone, Copy)]
+pub enum MuscleGroupInput {
+    Chest,
+    Back,
+    Traps,
+    Shoulders,
+    Quads,
+    Hamstrings,
+    Glutes,
+    Biceps,
+    Triceps,
+    Calves,
+}
+
+impl From<MuscleGroupInput> for MuscleGroup {
+    fn from(value: MuscleGroupInput) -> Self {
+        match value {
+            MuscleGroupInput::Chest => MuscleGroup::Chest,
+            MuscleGroupInput::Back => MuscleGroup::Back,
+            MuscleGroupInput::Traps => MuscleGroup::Traps,
+            MuscleGroupInput::Shoulders => MuscleGroup::Shoulders,
+            MuscleGroupInput::Quads => MuscleGroup::Quads,
+            MuscleGroupInput::Hamstrings => MuscleGroup::Hamstrings,
+            MuscleGroupInput::Glutes => MuscleGroup::Glutes,
+            MuscleGroupInput::Biceps => MuscleGroup::Biceps,
+            MuscleGroupInput::Triceps => MuscleGroup::Triceps,
+            MuscleGroupInput::Calves => MuscleGroup::Calves,
+        }
+    }
+}
+
+/// A library exercise's fields, used for both creating and updating. Secondary
+/// muscle groups default to empty when the field is omitted.
 #[derive(Deserialize)]
 pub struct LibraryExerciseRequest {
     pub name: String,
     pub exercise_type: ExerciseTypeInput,
+    pub primary_muscle_group: MuscleGroupInput,
+    #[serde(default)]
+    pub secondary_muscle_groups: Vec<MuscleGroupInput>,
+}
+
+impl LibraryExerciseRequest {
+    /// The secondary muscle groups as domain values, ready to hand to persistence.
+    pub fn secondary_muscle_groups(&self) -> Vec<MuscleGroup> {
+        self.secondary_muscle_groups
+            .iter()
+            .map(|&m| m.into())
+            .collect()
+    }
 }
 
 /// Which library exercise to place into a workout.

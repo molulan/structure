@@ -15,16 +15,156 @@ async fn created_library_exercise_appears_in_list() {
         &app,
         "POST",
         "/library-exercises",
-        Some(json!({ "name": "Bench Press", "exercise_type": "Weighted" })),
+        Some(
+            json!({ "name": "Bench Press", "exercise_type": "Weighted", "primary_muscle_group": "Chest" }),
+        ),
     )
     .await;
     assert_eq!(status, StatusCode::CREATED);
     assert_eq!(created["name"], "Bench Press");
     assert_eq!(created["exercise_type"], "Weighted");
+    assert_eq!(created["primary_muscle_group"], "Chest");
 
     let (status, list) = send(&app, "GET", "/library-exercises", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(list.as_array().expect("list should be an array").len(), 1);
+    assert_eq!(list[0]["primary_muscle_group"], "Chest");
+}
+
+#[tokio::test]
+async fn created_exercise_carries_its_secondary_muscle_groups() {
+    let app = test_app();
+
+    let (status, created) = send(
+        &app,
+        "POST",
+        "/library-exercises",
+        Some(json!({
+            "name": "Bench Press",
+            "exercise_type": "Weighted",
+            "primary_muscle_group": "Chest",
+            "secondary_muscle_groups": ["Triceps", "Shoulders"],
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::CREATED);
+    // Secondaries come back sorted by name.
+    assert_eq!(
+        created["secondary_muscle_groups"],
+        json!(["Shoulders", "Triceps"])
+    );
+}
+
+#[tokio::test]
+async fn create_defaults_secondary_muscle_groups_to_empty_when_omitted() {
+    let app = test_app();
+
+    let (status, created) = send(
+        &app,
+        "POST",
+        "/library-exercises",
+        Some(json!({ "name": "Squat", "exercise_type": "Weighted", "primary_muscle_group": "Quads" })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(created["secondary_muscle_groups"], json!([]));
+}
+
+#[tokio::test]
+async fn update_replaces_secondary_muscle_groups() {
+    let app = test_app();
+    let (_, created) = send(
+        &app,
+        "POST",
+        "/library-exercises",
+        Some(json!({
+            "name": "Row",
+            "exercise_type": "Weighted",
+            "primary_muscle_group": "Back",
+            "secondary_muscle_groups": ["Biceps"],
+        })),
+    )
+    .await;
+    let id = created["id"].as_i64().expect("id should be a number");
+
+    let (status, updated) = send(
+        &app,
+        "PUT",
+        &format!("/library-exercises/{id}"),
+        Some(json!({
+            "name": "Row",
+            "exercise_type": "Weighted",
+            "primary_muscle_group": "Back",
+            "secondary_muscle_groups": ["Traps"],
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(updated["secondary_muscle_groups"], json!(["Traps"]));
+}
+
+#[tokio::test]
+async fn update_can_clear_secondary_muscle_groups() {
+    let app = test_app();
+    let (_, created) = send(
+        &app,
+        "POST",
+        "/library-exercises",
+        Some(json!({
+            "name": "Row",
+            "exercise_type": "Weighted",
+            "primary_muscle_group": "Back",
+            "secondary_muscle_groups": ["Biceps"],
+        })),
+    )
+    .await;
+    let id = created["id"].as_i64().expect("id should be a number");
+
+    let (status, updated) = send(
+        &app,
+        "PUT",
+        &format!("/library-exercises/{id}"),
+        Some(json!({
+            "name": "Row",
+            "exercise_type": "Weighted",
+            "primary_muscle_group": "Back",
+            "secondary_muscle_groups": [],
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(updated["secondary_muscle_groups"], json!([]));
+}
+
+#[tokio::test]
+async fn create_with_secondary_matching_primary_returns_422() {
+    let app = test_app();
+
+    let (status, body) = send(
+        &app,
+        "POST",
+        "/library-exercises",
+        Some(json!({
+            "name": "Curl",
+            "exercise_type": "Weighted",
+            "primary_muscle_group": "Biceps",
+            "secondary_muscle_groups": ["Biceps"],
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+    // Assert the message identifies the primary/secondary clash, not just any 422.
+    assert!(
+        body["error"]
+            .as_str()
+            .expect("error should be a string")
+            .contains("primary")
+    );
 }
 
 #[tokio::test]
@@ -34,7 +174,7 @@ async fn create_with_duplicate_name_returns_409() {
         &app,
         "POST",
         "/library-exercises",
-        Some(json!({ "name": "Squat", "exercise_type": "Weighted" })),
+        Some(json!({ "name": "Squat", "exercise_type": "Weighted", "primary_muscle_group": "Chest" })),
     )
     .await;
 
@@ -42,7 +182,7 @@ async fn create_with_duplicate_name_returns_409() {
         &app,
         "POST",
         "/library-exercises",
-        Some(json!({ "name": "Squat", "exercise_type": "Bodyweight" })),
+        Some(json!({ "name": "Squat", "exercise_type": "Bodyweight", "primary_muscle_group": "Chest" })),
     )
     .await;
 
@@ -58,7 +198,7 @@ async fn create_with_empty_name_returns_422() {
         &app,
         "POST",
         "/library-exercises",
-        Some(json!({ "name": "", "exercise_type": "Weighted" })),
+        Some(json!({ "name": "", "exercise_type": "Weighted", "primary_muscle_group": "Chest" })),
     )
     .await;
 
@@ -74,7 +214,7 @@ async fn update_changes_name_and_type() {
         &app,
         "PUT",
         &format!("/library-exercises/{id}"),
-        Some(json!({ "name": "Incline Press", "exercise_type": "Bodyweight" })),
+        Some(json!({ "name": "Incline Press", "exercise_type": "Bodyweight", "primary_muscle_group": "Chest" })),
     )
     .await;
 
@@ -93,7 +233,7 @@ async fn update_to_a_name_taken_by_another_returns_409() {
         &app,
         "PUT",
         &format!("/library-exercises/{id}"),
-        Some(json!({ "name": "Squat", "exercise_type": "Weighted" })),
+        Some(json!({ "name": "Squat", "exercise_type": "Weighted", "primary_muscle_group": "Chest" })),
     )
     .await;
 
@@ -108,7 +248,7 @@ async fn update_missing_library_exercise_returns_404() {
         &app,
         "PUT",
         "/library-exercises/999",
-        Some(json!({ "name": "X", "exercise_type": "Weighted" })),
+        Some(json!({ "name": "X", "exercise_type": "Weighted", "primary_muscle_group": "Chest" })),
     )
     .await;
 

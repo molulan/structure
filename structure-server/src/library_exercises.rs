@@ -26,7 +26,17 @@ async fn create(
     Json(body): Json<LibraryExerciseRequest>,
 ) -> Result<(StatusCode, Json<LibraryExercise>), ApiError> {
     let exercise_type = body.exercise_type.into();
-    let exercise = store.with_conn(|conn| db::create(conn, &body.name, exercise_type))?;
+    let primary_muscle_group = body.primary_muscle_group.into();
+    let secondary_muscle_groups = body.secondary_muscle_groups();
+    let exercise = store.with_conn(|conn| {
+        db::create(
+            conn,
+            &body.name,
+            exercise_type,
+            primary_muscle_group,
+            &secondary_muscle_groups,
+        )
+    })?;
     Ok((StatusCode::CREATED, Json(exercise)))
 }
 
@@ -36,7 +46,18 @@ async fn update(
     Json(body): Json<LibraryExerciseRequest>,
 ) -> Result<Json<LibraryExercise>, ApiError> {
     let exercise_type = body.exercise_type.into();
-    let exercise = store.with_conn(|conn| db::update(conn, id, &body.name, exercise_type))?;
+    let primary_muscle_group = body.primary_muscle_group.into();
+    let secondary_muscle_groups = body.secondary_muscle_groups();
+    let exercise = store.with_conn(|conn| {
+        db::update(
+            conn,
+            id,
+            &body.name,
+            exercise_type,
+            primary_muscle_group,
+            &secondary_muscle_groups,
+        )
+    })?;
     Ok(Json(exercise))
 }
 

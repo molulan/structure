@@ -1,12 +1,14 @@
 use rusqlite::{Connection, OptionalExtension, params};
 
 use crate::domain::planning::PlannedExercise;
-use crate::persistence::library_exercises;
+use crate::persistence::library_exercises::{self, LibraryExerciseError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum PlannedExerciseError {
     #[error("database error: {0}")]
     Database(#[from] rusqlite::Error),
+    #[error(transparent)]
+    LibraryExercise(#[from] LibraryExerciseError),
     #[error("associated workout {id} not found")]
     AssociatedWorkoutNotFound { id: i64 },
     #[error("associated exercise {id} not found")]
@@ -165,7 +167,7 @@ pub fn reorder(
 mod tests {
     use super::*;
     use crate::{
-        domain::planning::{ExerciseType, LibraryExercise, MesocycleMode, Workout},
+        domain::planning::{ExerciseType, LibraryExercise, MesocycleMode, MuscleGroup, Workout},
         persistence::{connection, library_exercises, mesocycles, microcycles, workouts},
     };
 
@@ -184,8 +186,14 @@ mod tests {
     }
 
     fn create_test_exercise(conn: &Connection) -> LibraryExercise {
-        library_exercises::create(conn, "Bench Press", ExerciseType::Weighted)
-            .expect("exercise creation should succeed")
+        library_exercises::create(
+            conn,
+            "Bench Press",
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+            &[],
+        )
+        .expect("exercise creation should succeed")
     }
 
     #[test]
@@ -222,12 +230,30 @@ mod tests {
     fn multiple_planned_exercises_in_same_workout_get_sequential_positions() {
         let conn = setup_test_db();
         let workout = create_test_workout(&conn);
-        let exercise_1 = library_exercises::create(&conn, "Bench Press", ExerciseType::Weighted)
-            .expect("first exercise creation should succeed");
-        let exercise_2 = library_exercises::create(&conn, "Squat", ExerciseType::Weighted)
-            .expect("second exercise creation should succeed");
-        let exercise_3 = library_exercises::create(&conn, "Deadlift", ExerciseType::Weighted)
-            .expect("third exercise creation should succeed");
+        let exercise_1 = library_exercises::create(
+            &conn,
+            "Bench Press",
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+            &[],
+        )
+        .expect("first exercise creation should succeed");
+        let exercise_2 = library_exercises::create(
+            &conn,
+            "Squat",
+            ExerciseType::Weighted,
+            MuscleGroup::Quads,
+            &[],
+        )
+        .expect("second exercise creation should succeed");
+        let exercise_3 = library_exercises::create(
+            &conn,
+            "Deadlift",
+            ExerciseType::Weighted,
+            MuscleGroup::Back,
+            &[],
+        )
+        .expect("third exercise creation should succeed");
         let planned_1 = create(&conn, workout.id(), exercise_1.id())
             .expect("first planned exercise creation should succeed");
         let planned_2 = create(&conn, workout.id(), exercise_2.id())
@@ -243,10 +269,22 @@ mod tests {
     fn multiple_planned_exercises_in_same_workout_get_unique_ids() {
         let conn = setup_test_db();
         let workout = create_test_workout(&conn);
-        let exercise_1 = library_exercises::create(&conn, "Bench Press", ExerciseType::Weighted)
-            .expect("first exercise creation should succeed");
-        let exercise_2 = library_exercises::create(&conn, "Squat", ExerciseType::Weighted)
-            .expect("second exercise creation should succeed");
+        let exercise_1 = library_exercises::create(
+            &conn,
+            "Bench Press",
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+            &[],
+        )
+        .expect("first exercise creation should succeed");
+        let exercise_2 = library_exercises::create(
+            &conn,
+            "Squat",
+            ExerciseType::Weighted,
+            MuscleGroup::Quads,
+            &[],
+        )
+        .expect("second exercise creation should succeed");
         let planned_1 = create(&conn, workout.id(), exercise_1.id())
             .expect("first planned exercise creation should succeed");
         let planned_2 = create(&conn, workout.id(), exercise_2.id())
@@ -265,10 +303,22 @@ mod tests {
     fn get_planned_exercise_returns_correct_planned_exercise() {
         let conn = setup_test_db();
         let workout = create_test_workout(&conn);
-        let exercise_1 = library_exercises::create(&conn, "Squat", ExerciseType::Weighted)
-            .expect("first exercise creation should succeed");
-        let exercise_2 = library_exercises::create(&conn, "Bench Press", ExerciseType::Weighted)
-            .expect("second exercise creation should succeed");
+        let exercise_1 = library_exercises::create(
+            &conn,
+            "Squat",
+            ExerciseType::Weighted,
+            MuscleGroup::Quads,
+            &[],
+        )
+        .expect("first exercise creation should succeed");
+        let exercise_2 = library_exercises::create(
+            &conn,
+            "Bench Press",
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+            &[],
+        )
+        .expect("second exercise creation should succeed");
         let _ = create(&conn, workout.id(), exercise_1.id())
             .expect("first planned exercise creation should succeed");
         let target = create(&conn, workout.id(), exercise_2.id())
@@ -322,19 +372,32 @@ mod tests {
         let workout_2 = workouts::create(&conn, microcycle.id(), "legs..")
             .expect("workout creation should succeed");
 
-        let exercise_1 =
-            library_exercises::create(&conn, "Arnolds Favorite Armblaster", ExerciseType::Weighted)
-                .expect("exercise creation should succeed");
+        let exercise_1 = library_exercises::create(
+            &conn,
+            "Arnolds Favorite Armblaster",
+            ExerciseType::Weighted,
+            MuscleGroup::Biceps,
+            &[],
+        )
+        .expect("exercise creation should succeed");
 
         let exercise_2 = library_exercises::create(
             &conn,
             "Arnolds Second Favorite Armblaster",
             ExerciseType::Bodyweight,
+            MuscleGroup::Biceps,
+            &[],
         )
         .expect("exercise creation should succeed");
 
-        let exercise_3 = library_exercises::create(&conn, "squat", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
+        let exercise_3 = library_exercises::create(
+            &conn,
+            "squat",
+            ExerciseType::Weighted,
+            MuscleGroup::Quads,
+            &[],
+        )
+        .expect("exercise creation should succeed");
 
         let planned_exercise_1 = create(&conn, target_workout.id(), exercise_1.id())
             .expect("planned_exercise creation should succeed");
@@ -373,8 +436,14 @@ mod tests {
 
         delete(&conn, middle.id()).expect("delete should succeed");
 
-        let exercise = library_exercises::create(&conn, "Squat", ExerciseType::Weighted)
-            .expect("exercise creation should succeed");
+        let exercise = library_exercises::create(
+            &conn,
+            "Squat",
+            ExerciseType::Weighted,
+            MuscleGroup::Quads,
+            &[],
+        )
+        .expect("exercise creation should succeed");
         let next = create(&conn, workout_id, exercise.id()).expect("creation should succeed");
         assert_eq!(next.position(), 3);
     }

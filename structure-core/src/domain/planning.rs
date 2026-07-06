@@ -913,4 +913,21 @@ mod tests {
         assert_eq!(planned_exercise.id(), 15);
         assert_eq!(planned_exercise.position(), 9);
     }
+
+    #[test]
+    fn library_exercise_exposes_its_primary_and_secondary_muscle_groups() {
+        let exercise = LibraryExercise::new(
+            1,
+            Name::new("Bench Press").expect("Bench Press is a valid name"),
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+            vec![MuscleGroup::Triceps, MuscleGroup::Shoulders],
+        );
+
+        assert_eq!(exercise.primary_muscle_group(), MuscleGroup::Chest);
+        assert_eq!(
+            exercise.secondary_muscle_groups(),
+            [MuscleGroup::Triceps, MuscleGroup::Shoulders]
+        );
+    }
 }

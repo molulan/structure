@@ -36,9 +36,11 @@ pub(super) fn create_set_groups_table(conn: &Connection) -> rusqlite::Result<()>
             ),
             number_of_sets INTEGER NOT NULL CHECK(number_of_sets > 0),
             rep_min INTEGER CHECK(rep_min IS NULL OR rep_min > 0),
-            -- A non-NULL rep_max requires a non-NULL rep_min (and must ascend), so
-            -- a MyorepMatch row (rep_min NULL) cannot carry a stray rep_max.
-            rep_max INTEGER CHECK(rep_max IS NULL OR (rep_min IS NOT NULL AND rep_max > rep_min)),
+            -- rep_min/rep_max are the inclusive lower/upper bounds of the rep
+            -- target: equal is Exact, ascending is a Range, and a NULL rep_max on
+            -- a prescribed row (rep_min NOT NULL) is an open-ended AMRAP target.
+            -- A MyorepMatch row (rep_min NULL) carries no rep_max.
+            rep_max INTEGER CHECK(rep_max IS NULL OR (rep_min IS NOT NULL AND rep_max >= rep_min)),
             intensity_type TEXT CHECK(
                 intensity_type IN ('Rir', 'Rpe', 'PercentOneRepMax', 'TargetWeight', 'WeightIncrement')
             ),
@@ -369,7 +371,10 @@ fn decode_int_from_real<T: TryFrom<i64>>(value: f64, kind: &str) -> Result<T, Se
 
 fn encode_reps(reps: RepTarget) -> (i64, Option<i64>) {
     match reps {
-        RepTarget::Exact(count) => (count.value() as i64, None),
+        // A NULL upper bound marks the open-ended AMRAP target; Exact is the
+        // degenerate [n, n] range.
+        RepTarget::AtLeast(count) => (count.value() as i64, None),
+        RepTarget::Exact(count) => (count.value() as i64, Some(count.value() as i64)),
         RepTarget::Range(range) => (range.min() as i64, Some(range.max() as i64)),
     }
 }
@@ -377,10 +382,14 @@ fn encode_reps(reps: RepTarget) -> (i64, Option<i64>) {
 fn decode_reps(rep_min: i64, rep_max: Option<i64>) -> Result<RepTarget, SetGroupError> {
     let min = decode_u32(rep_min, "rep_min")?;
     match rep_max {
-        None => RepTarget::exact(min).map_err(corrupt),
+        None => RepTarget::at_least(min).map_err(corrupt),
         Some(max) => {
             let max = decode_u32(max, "rep_max")?;
-            RepTarget::range(min, max).map_err(corrupt)
+            if max == min {
+                RepTarget::exact(min).map_err(corrupt)
+            } else {
+                RepTarget::range(min, max).map_err(corrupt)
+            }
         }
     }
 }
@@ -714,6 +723,10 @@ mod tests {
             regular(
                 RepTarget::exact(3).unwrap(),
                 Intensity::PercentOneRepMax(PercentOneRepMax::new(85).unwrap()),
+            ),
+            regular(
+                RepTarget::at_least(12).unwrap(),
+                Intensity::Rir(Rir::new(0).unwrap()),
             ),
             SetGroupType::Prescribed {
                 set_type: PrescribedSetType::Myorep,

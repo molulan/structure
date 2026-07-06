@@ -311,6 +311,8 @@ pub enum SetGroupValidationError {
 pub enum RepTarget {
     Exact(RepCount),
     Range(RepRange),
+    /// An open-ended AMRAP target: at least this many reps, with no upper bound.
+    AtLeast(RepCount),
 }
 
 impl RepTarget {
@@ -320,6 +322,10 @@ impl RepTarget {
 
     pub fn range(min: u32, max: u32) -> Result<RepTarget, RepTargetError> {
         Ok(RepTarget::Range(RepRange::new(min, max)?))
+    }
+
+    pub fn at_least(reps: u32) -> Result<RepTarget, RepTargetError> {
+        Ok(RepTarget::AtLeast(RepCount::new(reps)?))
     }
 }
 
@@ -769,10 +775,19 @@ mod tests {
     }
 
     #[test]
+    fn rep_target_at_least_keeps_its_count() {
+        assert_eq!(
+            RepTarget::at_least(12).expect("12 is a valid rep count"),
+            RepTarget::AtLeast(RepCount::new(12).expect("12 is a valid rep count"))
+        );
+    }
+
+    #[test]
     fn rep_target_rejects_zero_reps() {
         assert_eq!(RepTarget::exact(0), Err(RepTargetError::ZeroReps));
         assert_eq!(RepTarget::range(0, 5), Err(RepTargetError::ZeroReps));
         assert_eq!(RepTarget::range(5, 0), Err(RepTargetError::ZeroReps));
+        assert_eq!(RepTarget::at_least(0), Err(RepTargetError::ZeroReps));
     }
 
     #[test]

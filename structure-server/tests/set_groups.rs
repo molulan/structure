@@ -58,6 +58,47 @@ async fn created_set_group_appears_in_list() {
 }
 
 #[tokio::test]
+async fn created_set_group_round_trips_an_amrap_rep_target() {
+    let app = test_app();
+    let planned_exercise_id = planned_exercise(&app).await;
+
+    let (status, created) = send(
+        &app,
+        "POST",
+        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        Some(json!({
+            "number_of_sets": 1,
+            "set_group_type": {
+                "Prescribed": {
+                    "set_type": "Regular",
+                    "reps": { "AtLeast": 12 },
+                    "intensity": { "Rir": 0 }
+                }
+            }
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(
+        created["set_group_type"]["Prescribed"]["reps"]["AtLeast"],
+        12
+    );
+
+    let (_, list) = send(
+        &app,
+        "GET",
+        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        None,
+    )
+    .await;
+    assert_eq!(
+        list[0]["set_group_type"]["Prescribed"]["reps"]["AtLeast"],
+        12
+    );
+}
+
+#[tokio::test]
 async fn created_myorep_match_set_group_serializes_as_the_bare_variant() {
     let app = test_app();
     let planned_exercise_id = planned_exercise(&app).await;

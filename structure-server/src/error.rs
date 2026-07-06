@@ -108,6 +108,9 @@ impl From<LibraryExerciseError> for ApiError {
                 "library exercise {id} is used by one or more planned exercises"
             )),
             LibraryExerciseError::InvalidName(error) => ApiError::unprocessable(error.to_string()),
+            LibraryExerciseError::SecondaryMatchesPrimary { muscle } => ApiError::unprocessable(
+                format!("muscle {muscle} is listed as both the primary and a secondary"),
+            ),
             LibraryExerciseError::Corrupt(detail) => {
                 ApiError::internal(format!("corrupt library exercise data: {detail}"))
             }

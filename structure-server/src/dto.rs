@@ -70,7 +70,7 @@ pub struct WorkoutNameRequest {
 }
 
 /// Input enum mirroring [`ExerciseType`].
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Copy)]
 pub enum ExerciseTypeInput {
     Bodyweight,
     WeightedBodyweight,
@@ -90,10 +90,11 @@ impl From<ExerciseTypeInput> for ExerciseType {
 }
 
 /// Input enum mirroring [`MuscleGroup`].
-#[derive(Deserialize)]
+#[derive(Deserialize, Clone, Copy)]
 pub enum MuscleGroupInput {
     Chest,
     Back,
+    Traps,
     Shoulders,
     Quads,
     Hamstrings,
@@ -108,6 +109,7 @@ impl From<MuscleGroupInput> for MuscleGroup {
         match value {
             MuscleGroupInput::Chest => MuscleGroup::Chest,
             MuscleGroupInput::Back => MuscleGroup::Back,
+            MuscleGroupInput::Traps => MuscleGroup::Traps,
             MuscleGroupInput::Shoulders => MuscleGroup::Shoulders,
             MuscleGroupInput::Quads => MuscleGroup::Quads,
             MuscleGroupInput::Hamstrings => MuscleGroup::Hamstrings,
@@ -119,12 +121,25 @@ impl From<MuscleGroupInput> for MuscleGroup {
     }
 }
 
-/// A library exercise's fields, used for both creating and updating.
+/// A library exercise's fields, used for both creating and updating. Secondary
+/// muscle groups default to empty when the field is omitted.
 #[derive(Deserialize)]
 pub struct LibraryExerciseRequest {
     pub name: String,
     pub exercise_type: ExerciseTypeInput,
-    pub muscle_group: MuscleGroupInput,
+    pub primary_muscle_group: MuscleGroupInput,
+    #[serde(default)]
+    pub secondary_muscle_groups: Vec<MuscleGroupInput>,
+}
+
+impl LibraryExerciseRequest {
+    /// The secondary muscle groups as domain values, ready to hand to persistence.
+    pub fn secondary_muscle_groups(&self) -> Vec<MuscleGroup> {
+        self.secondary_muscle_groups
+            .iter()
+            .map(|&m| m.into())
+            .collect()
+    }
 }
 
 /// Which library exercise to place into a workout.

@@ -223,6 +223,7 @@ mod tests {
             "Bench Press",
             ExerciseType::Weighted,
             MuscleGroup::Chest,
+            &[],
         )
         .expect("exercise creation should succeed")
     }
@@ -319,10 +320,11 @@ mod tests {
             "Bench Press",
             ExerciseType::Weighted,
             MuscleGroup::Chest,
+            &[],
         )
         .expect("exercise creation should succeed");
         let row =
-            library_exercises::create(&conn, "Row", ExerciseType::Weighted, MuscleGroup::Back)
+            library_exercises::create(&conn, "Row", ExerciseType::Weighted, MuscleGroup::Back, &[])
                 .expect("exercise creation should succeed");
 
         let first =
@@ -352,10 +354,11 @@ mod tests {
             "Bench Press",
             ExerciseType::Weighted,
             MuscleGroup::Chest,
+            &[],
         )
         .expect("exercise creation should succeed");
         let row =
-            library_exercises::create(&conn, "Row", ExerciseType::Weighted, MuscleGroup::Back)
+            library_exercises::create(&conn, "Row", ExerciseType::Weighted, MuscleGroup::Back, &[])
                 .expect("exercise creation should succeed");
         let first =
             create(&conn, session_id, bench.id(), None, None).expect("creation should succeed");

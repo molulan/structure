@@ -204,6 +204,7 @@ mod tests {
             "Bench Press",
             ExerciseType::Weighted,
             MuscleGroup::Chest,
+            &[],
         )
         .expect("exercise creation should succeed");
         let planned = planned_exercises::create(&conn, workout.id(), bench.id())
@@ -257,10 +258,11 @@ mod tests {
             "Bench Press",
             ExerciseType::Weighted,
             MuscleGroup::Chest,
+            &[],
         )
         .expect("exercise creation should succeed");
         let row =
-            library_exercises::create(&conn, "Row", ExerciseType::Weighted, MuscleGroup::Back)
+            library_exercises::create(&conn, "Row", ExerciseType::Weighted, MuscleGroup::Back, &[])
                 .expect("exercise creation should succeed");
 
         let logged_bench = logged_exercises::create(&conn, session.id(), bench.id(), None, None)

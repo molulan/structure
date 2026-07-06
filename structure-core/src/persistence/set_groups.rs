@@ -464,7 +464,7 @@ mod tests {
         let workout = workouts::create(conn, microcycle.id(), "Test Workout")
             .expect("workout creation should succeed");
         let exercise =
-            library_exercises::create(conn, "Bench Press", exercise_type, MuscleGroup::Chest)
+            library_exercises::create(conn, "Bench Press", exercise_type, MuscleGroup::Chest, &[])
                 .expect("exercise creation should succeed");
         planned_exercises::create(conn, workout.id(), exercise.id())
             .expect("planned exercise creation should succeed")

@@ -88,7 +88,7 @@ pub async fn create_library_exercise(app: &Router, name: &str, exercise_type: &s
         app,
         "POST",
         "/library-exercises",
-        Some(json!({ "name": name, "exercise_type": exercise_type, "muscle_group": "Chest" })),
+        Some(json!({ "name": name, "exercise_type": exercise_type, "primary_muscle_group": "Chest" })),
     )
     .await;
     created["id"].as_i64().expect("id should be a number")

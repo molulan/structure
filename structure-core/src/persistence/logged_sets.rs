@@ -248,6 +248,7 @@ mod tests {
             "Bench Press",
             ExerciseType::Weighted,
             MuscleGroup::Chest,
+            &[],
         )
         .expect("exercise creation should succeed");
         logged_exercises::create(conn, session, exercise.id(), None, None)
@@ -268,9 +269,14 @@ mod tests {
             microcycles::create(conn, mesocycle.id()).expect("microcycle creation should succeed");
         let workout = workouts::create(conn, microcycle.id(), "Push")
             .expect("workout creation should succeed");
-        let exercise =
-            library_exercises::create(conn, "Squat", ExerciseType::Weighted, MuscleGroup::Quads)
-                .expect("exercise creation should succeed");
+        let exercise = library_exercises::create(
+            conn,
+            "Squat",
+            ExerciseType::Weighted,
+            MuscleGroup::Quads,
+            &[],
+        )
+        .expect("exercise creation should succeed");
         let planned = planned_exercises::create(conn, workout.id(), exercise.id())
             .expect("planned exercise creation should succeed");
         set_groups::create(conn, planned.id(), 3, SetGroupType::MyorepMatch)

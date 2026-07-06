@@ -437,7 +437,8 @@ pub struct LibraryExercise {
     id: i64,
     name: Name,
     exercise_type: ExerciseType,
-    muscle_group: MuscleGroup,
+    primary_muscle_group: MuscleGroup,
+    secondary_muscle_groups: Vec<MuscleGroup>,
 }
 
 impl LibraryExercise {
@@ -445,13 +446,15 @@ impl LibraryExercise {
         id: i64,
         name: Name,
         exercise_type: ExerciseType,
-        muscle_group: MuscleGroup,
+        primary_muscle_group: MuscleGroup,
+        secondary_muscle_groups: Vec<MuscleGroup>,
     ) -> LibraryExercise {
         LibraryExercise {
             id,
             name,
             exercise_type,
-            muscle_group,
+            primary_muscle_group,
+            secondary_muscle_groups,
         }
     }
 
@@ -467,8 +470,12 @@ impl LibraryExercise {
         self.exercise_type
     }
 
-    pub fn muscle_group(&self) -> MuscleGroup {
-        self.muscle_group
+    pub fn primary_muscle_group(&self) -> MuscleGroup {
+        self.primary_muscle_group
+    }
+
+    pub fn secondary_muscle_groups(&self) -> &[MuscleGroup] {
+        &self.secondary_muscle_groups
     }
 }
 
@@ -491,12 +498,14 @@ impl ExerciseType {
     }
 }
 
-/// The primary muscle a [`LibraryExercise`] trains, used to attribute its
-/// planned volume when building per-muscle set counts.
+/// A muscle a [`LibraryExercise`] trains. An exercise names one as its primary
+/// mover and any number of secondaries, so planned volume can be attributed
+/// across muscles when building per-muscle set counts.
 #[derive(Serialize, Debug, Clone, Copy, PartialEq)]
 pub enum MuscleGroup {
     Chest,
     Back,
+    Traps,
     Shoulders,
     Quads,
     Hamstrings,
@@ -511,6 +520,7 @@ impl MuscleGroup {
         match self {
             Self::Chest => "Chest",
             Self::Back => "Back",
+            Self::Traps => "Traps",
             Self::Shoulders => "Shoulders",
             Self::Quads => "Quads",
             Self::Hamstrings => "Hamstrings",
@@ -687,9 +697,10 @@ mod tests {
     fn new_bodyweight_exercise_has_bodyweight_type_with_correct_name_and_id_and_position() {
         let exercise = LibraryExercise::new(
             2,
-            Name::new("Squat").unwrap(),
+            Name::new("Squat").expect("Squat is a valid name"),
             ExerciseType::Bodyweight,
             MuscleGroup::Quads,
+            vec![],
         );
         let planned_exercise = PlannedExercise::new(1, exercise, 1);
 
@@ -706,9 +717,10 @@ mod tests {
     fn new_weighted_exercise_has_weighted_type_with_correct_name_and_id_and_position() {
         let exercise = LibraryExercise::new(
             2,
-            Name::new("Squat").unwrap(),
+            Name::new("Squat").expect("Squat is a valid name"),
             ExerciseType::Weighted,
             MuscleGroup::Quads,
+            vec![],
         );
         let planned_exercise = PlannedExercise::new(1, exercise, 2);
 
@@ -726,9 +738,10 @@ mod tests {
      {
         let exercise = LibraryExercise::new(
             2,
-            Name::new("Squat").unwrap(),
+            Name::new("Squat").expect("Squat is a valid name"),
             ExerciseType::AssistedBodyweight,
             MuscleGroup::Quads,
+            vec![],
         );
         let planned_exercise = PlannedExercise::new(3, exercise, 5);
 
@@ -885,9 +898,10 @@ mod tests {
     fn new_weighted_bodyweight_exercise_has_weighted_bodyweight_type_with_correct_name_and_id() {
         let exercise = LibraryExercise::new(
             2,
-            Name::new("Pull Ups").unwrap(),
+            Name::new("Pull Ups").expect("Pull Ups is a valid name"),
             ExerciseType::WeightedBodyweight,
             MuscleGroup::Back,
+            vec![MuscleGroup::Biceps],
         );
         let planned_exercise = PlannedExercise::new(15, exercise, 9);
 

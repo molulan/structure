@@ -16,19 +16,59 @@ async fn created_library_exercise_appears_in_list() {
         "POST",
         "/library-exercises",
         Some(
-            json!({ "name": "Bench Press", "exercise_type": "Weighted", "muscle_group": "Chest" }),
+            json!({ "name": "Bench Press", "exercise_type": "Weighted", "primary_muscle_group": "Chest" }),
         ),
     )
     .await;
     assert_eq!(status, StatusCode::CREATED);
     assert_eq!(created["name"], "Bench Press");
     assert_eq!(created["exercise_type"], "Weighted");
-    assert_eq!(created["muscle_group"], "Chest");
+    assert_eq!(created["primary_muscle_group"], "Chest");
 
     let (status, list) = send(&app, "GET", "/library-exercises", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(list.as_array().expect("list should be an array").len(), 1);
-    assert_eq!(list[0]["muscle_group"], "Chest");
+    assert_eq!(list[0]["primary_muscle_group"], "Chest");
+}
+
+#[tokio::test]
+async fn created_exercise_carries_its_secondary_muscle_groups() {
+    let app = test_app();
+
+    let (status, created) = send(
+        &app,
+        "POST",
+        "/library-exercises",
+        Some(json!({
+            "name": "Bench Press",
+            "exercise_type": "Weighted",
+            "primary_muscle_group": "Chest",
+            "secondary_muscle_groups": ["Triceps", "Shoulders"],
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(
+        created["secondary_muscle_groups"],
+        json!(["Triceps", "Shoulders"])
+    );
+}
+
+#[tokio::test]
+async fn create_defaults_secondary_muscle_groups_to_empty_when_omitted() {
+    let app = test_app();
+
+    let (status, created) = send(
+        &app,
+        "POST",
+        "/library-exercises",
+        Some(json!({ "name": "Squat", "exercise_type": "Weighted", "primary_muscle_group": "Quads" })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::CREATED);
+    assert_eq!(created["secondary_muscle_groups"], json!([]));
 }
 
 #[tokio::test]
@@ -38,7 +78,7 @@ async fn create_with_duplicate_name_returns_409() {
         &app,
         "POST",
         "/library-exercises",
-        Some(json!({ "name": "Squat", "exercise_type": "Weighted", "muscle_group": "Chest" })),
+        Some(json!({ "name": "Squat", "exercise_type": "Weighted", "primary_muscle_group": "Chest" })),
     )
     .await;
 
@@ -46,7 +86,7 @@ async fn create_with_duplicate_name_returns_409() {
         &app,
         "POST",
         "/library-exercises",
-        Some(json!({ "name": "Squat", "exercise_type": "Bodyweight", "muscle_group": "Chest" })),
+        Some(json!({ "name": "Squat", "exercise_type": "Bodyweight", "primary_muscle_group": "Chest" })),
     )
     .await;
 
@@ -62,7 +102,7 @@ async fn create_with_empty_name_returns_422() {
         &app,
         "POST",
         "/library-exercises",
-        Some(json!({ "name": "", "exercise_type": "Weighted", "muscle_group": "Chest" })),
+        Some(json!({ "name": "", "exercise_type": "Weighted", "primary_muscle_group": "Chest" })),
     )
     .await;
 
@@ -78,7 +118,7 @@ async fn update_changes_name_and_type() {
         &app,
         "PUT",
         &format!("/library-exercises/{id}"),
-        Some(json!({ "name": "Incline Press", "exercise_type": "Bodyweight", "muscle_group": "Chest" })),
+        Some(json!({ "name": "Incline Press", "exercise_type": "Bodyweight", "primary_muscle_group": "Chest" })),
     )
     .await;
 
@@ -97,7 +137,7 @@ async fn update_to_a_name_taken_by_another_returns_409() {
         &app,
         "PUT",
         &format!("/library-exercises/{id}"),
-        Some(json!({ "name": "Squat", "exercise_type": "Weighted", "muscle_group": "Chest" })),
+        Some(json!({ "name": "Squat", "exercise_type": "Weighted", "primary_muscle_group": "Chest" })),
     )
     .await;
 
@@ -112,7 +152,7 @@ async fn update_missing_library_exercise_returns_404() {
         &app,
         "PUT",
         "/library-exercises/999",
-        Some(json!({ "name": "X", "exercise_type": "Weighted", "muscle_group": "Chest" })),
+        Some(json!({ "name": "X", "exercise_type": "Weighted", "primary_muscle_group": "Chest" })),
     )
     .await;
 

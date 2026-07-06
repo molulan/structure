@@ -234,6 +234,38 @@ mod tests {
     }
 
     #[test]
+    fn get_full_mesocycle_exposes_exercise_primary_and_secondary_muscle_groups() {
+        let conn = setup_test_db();
+        let mesocycle = mesocycles::create(&conn, "Test Mesocycle", MesocycleMode::Algorithmic)
+            .expect("mesocycle creation should succeed");
+        let microcycle =
+            microcycles::create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let workout = workouts::create(&conn, microcycle.id(), "Push")
+            .expect("workout creation should succeed");
+        let bench = library_exercises::create(
+            &conn,
+            "Bench Press",
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+            &[MuscleGroup::Triceps, MuscleGroup::Shoulders],
+        )
+        .expect("exercise creation should succeed");
+        planned_exercises::create(&conn, workout.id(), bench.id())
+            .expect("planned exercise creation should succeed");
+
+        let full = get_full_mesocycle(&conn, mesocycle.id())
+            .expect("query should succeed")
+            .expect("mesocycle should exist");
+
+        let exercise = &full.microcycles[0].workouts[0].planned_exercises[0].exercise;
+        assert_eq!(exercise.primary_muscle_group(), MuscleGroup::Chest);
+        assert_eq!(
+            exercise.secondary_muscle_groups(),
+            [MuscleGroup::Shoulders, MuscleGroup::Triceps]
+        );
+    }
+
+    #[test]
     fn get_full_logged_session_returns_none_when_it_does_not_exist() {
         let conn = setup_test_db();
 

@@ -1,3 +1,4 @@
+use crate::dto::SetGroupTypeInputError;
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
@@ -157,6 +158,14 @@ impl From<SetGroupError> for ApiError {
                 ApiError::internal(format!("corrupt set group data: {detail}"))
             }
         }
+    }
+}
+
+// An invalid rep target or intensity in a set group's prescription — an invalid
+// input value, so a 422.
+impl From<SetGroupTypeInputError> for ApiError {
+    fn from(error: SetGroupTypeInputError) -> Self {
+        ApiError::unprocessable(error.to_string())
     }
 }
 

@@ -39,8 +39,7 @@ async fn create(
     Path(planned_exercise_id): Path<i64>,
     Json(body): Json<SetGroupRequest>,
 ) -> Result<(StatusCode, Json<SetGroup>), ApiError> {
-    let set_group_type = SetGroupType::try_from(body.set_group_type)
-        .map_err(|error| ApiError::unprocessable(error.to_string()))?;
+    let set_group_type = SetGroupType::try_from(body.set_group_type)?;
     let set_group = store.with_conn(|conn| {
         set_groups::create(
             conn,
@@ -57,8 +56,7 @@ async fn update(
     Path(id): Path<i64>,
     Json(body): Json<SetGroupRequest>,
 ) -> Result<Json<SetGroup>, ApiError> {
-    let set_group_type = SetGroupType::try_from(body.set_group_type)
-        .map_err(|error| ApiError::unprocessable(error.to_string()))?;
+    let set_group_type = SetGroupType::try_from(body.set_group_type)?;
     let set_group = store
         .with_conn(|conn| set_groups::update(conn, id, body.number_of_sets, set_group_type))?;
     Ok(Json(set_group))

@@ -117,6 +117,31 @@ async fn create_set_group_with_out_of_range_rir_returns_422() {
 }
 
 #[tokio::test]
+async fn create_set_group_with_non_ascending_reps_returns_422() {
+    let app = test_app();
+    let planned_exercise_id = planned_exercise(&app).await;
+
+    let (status, _) = send(
+        &app,
+        "POST",
+        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        Some(json!({
+            "number_of_sets": 3,
+            "set_group_type": {
+                "Prescribed": {
+                    "set_type": "Regular",
+                    "reps": { "Range": { "min": 12, "max": 8 } },
+                    "intensity": { "Rir": 2 }
+                }
+            }
+        })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+}
+
+#[tokio::test]
 async fn create_prescribed_myorep_with_proximity_intensity_returns_422() {
     let app = test_app();
     let planned_exercise_id = planned_exercise(&app).await;

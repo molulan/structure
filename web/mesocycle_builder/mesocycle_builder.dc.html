@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; height:100%; }
+  body { font-family:'Space Grotesk',sans-serif; background:#f4f3ef; color:#1b1b1a; -webkit-font-smoothing:antialiased; }
+  [contenteditable]:focus { outline:none; }
+  ::-webkit-scrollbar { width:10px; height:10px; }
+  ::-webkit-scrollbar-thumb { background:#d8d5cc; border-radius:6px; border:3px solid #f4f3ef; }
+  .ex-acts { display:none; }
+  .ex-row:hover .ex-acts { display:flex; align-items:center; gap:7px; }
+  .day-acts { opacity:0; transition:opacity .12s; }
+  .day-row:hover .day-acts { opacity:1; }
+  .day-name { font-family:inherit; color:inherit; background:transparent; border:none; border-radius:5px; padding:1px 6px; margin:0 -3px; outline:none; box-sizing:content-box; cursor:pointer; transition:background .12s, box-shadow .12s; }
+  .day-name:hover { background:#ece9e1; }
+  .day-name:focus { background:#fff; box-shadow:inset 0 0 0 1.5px #2f43d4; cursor:text; }
+  .day-name-txt { border-radius:5px; padding:1px 6px; margin:0 -3px; transition:background .12s; }
+  .day-name-txt:hover { background:#ece9e1; }
+  .heattip { display:flex; flex-direction:column; gap:1px; background:#1b1b1a; color:#fff; border-radius:7px; padding:7px 10px; min-width:132px; max-width:240px; box-shadow:0 10px 30px rgba(0,0,0,.30); pointer-events:none; }
+  .tipday { display:flex; justify-content:space-between; gap:14px; align-items:baseline; font-family:'JetBrains Mono',monospace; white-space:nowrap; margin-top:6px; padding-top:5px; border-top:1px solid rgba(255,255,255,0.1); }
+  .tipday:first-child { margin-top:0; padding-top:0; border-top:none; }
+  .tipday .tdn { font-size:10px; font-weight:700; letter-spacing:0.4px; text-transform:uppercase; color:#fff; }
+  .tipday .tdt { font-size:11px; font-weight:700; color:#9fd0b4; }
+  .tiprow { display:flex; justify-content:space-between; gap:14px; font-family:'JetBrains Mono',monospace; font-size:10.5px; white-space:nowrap; line-height:1.5; padding-left:8px; }
+  .tiprow .tx { color:#b8b3a8; } .tiprow .tn { color:#e7e4dc; font-weight:600; }
+  .cpop { width:286px; background:#fff; border:1px solid #e4e2db; border-radius:11px; box-shadow:0 14px 40px rgba(0,0,0,.18); overflow:hidden; }
+  .cpop-hd { padding:12px 14px 11px; border-bottom:1px solid #efece6; display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .cpop-mus { font-size:16px; font-weight:600; line-height:1.1; }
+  .cpop-sub { font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#a8a499; margin-top:2px; }
+  .cpop-body { max-height:300px; overflow:auto; padding:5px 5px 7px; }
+  .cpop-day { display:flex; align-items:baseline; justify-content:space-between; padding:11px 34px 5px 10px; }
+  .cpop-day .dl { font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:1px; text-transform:uppercase; color:#a8a499; }
+  .cpop-day .dt { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#3f7d57; white-space:nowrap; }
+  .cpop-ex { display:grid; grid-template-columns:1fr auto 12px; align-items:center; gap:10px; padding:8px 10px; border-radius:7px; cursor:pointer; }
+  .cpop-ex:hover { background:#f3f1ea; }
+  .cpop-exn { font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cpop-spec { font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#8b8780; margin-top:2px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .cpop-sets { font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#3a3833; min-width:2.2em; text-align:right; }
+  .cpop-arr { font-size:12px; color:#c2bdb2; text-align:right; }
+  .g-dropline { height:0; border-top:2px solid #2f43d4; border-radius:2px; margin:0 2px 9px; }
+  .drop-gap { display:flex; align-items:center; gap:7px; height:40px; border:1.5px dashed #c0c7ec; border-radius:9px; background:#f4f6fe; margin-bottom:7px; padding:0 12px; }
+  .drop-gap .ar { color:#9aa3d8; font-size:13px; }
+  .drop-gap .lbl { font-family:'JetBrains Mono',monospace; font-size:11px; color:#7d88c4; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .day-ghost { display:flex; align-items:center; gap:9px; height:40px; border:1.5px solid #b9c2ee; border-radius:9px; background:#eef1fd; padding:0 13px; box-shadow:0 8px 20px rgba(47,67,212,0.14); }
+  .day-ghost .gn { font-size:15px; font-weight:600; color:#3a4ab0; }
+  .day-ghost .gm { font-family:'JetBrains Mono',monospace; font-size:10px; color:#8a93cf; white-space:nowrap; }
+  .day-dropline { height:0; border-top:2.5px solid #2f43d4; border-radius:2px; margin:10px 0; }
+</style>
+</helmet>
+
+<div style="height:100vh; display:flex; flex-direction:column; overflow:hidden;">
+
+  <!-- HEADER -->
+  <div style="display:flex; align-items:center; justify-content:space-between; padding:13px 20px; border-bottom:1px solid #e4e2db; background:#fbfaf7; flex:none;">
+    <div style="display:flex; align-items:baseline; gap:14px; min-width:0;">
+      <span style="font-weight:700; font-size:15px; letter-spacing:2px;">STRUCTURE</span>
+      <span style="width:1px; height:16px; background:#d8d5cc; display:inline-block; transform:translateY(3px);"></span>
+      <span contenteditable="true" suppresscontenteditablewarning="true" onBlur="{{ onName }}" style="font-size:18px; font-weight:500; padding:1px 4px; border-radius:5px;">{{ programName }}</span>
+      <span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#8b8780; white-space:nowrap;">{{ meta }}</span>
+    </div>
+  </div>
+
+  <!-- VOLUME strip moved into the left column (below) so it doesn't span the editor -->
+
+  <!-- heatmap tooltip (fixed, escapes the volume strip's scroll clip) -->
+  <sc-if value="{{ heatTipOpen }}" hint-placeholder-val="{{ false }}"><div class="heattip" style="{{ heatTipStyle }}"><sc-for list="{{ heatTipRows }}" as="tr" hint-placeholder-count="3"><sc-if value="{{ tr.isDay }}" hint-placeholder-val="{{ true }}"><div class="tipday"><span class="tdn">{{ tr.label }}</span><span class="tdt">{{ tr.val }}</span></div></sc-if><sc-if value="{{ tr.isEx }}" hint-placeholder-val="{{ false }}"><div class="tiprow"><span class="tx">{{ tr.label }}</span><span class="tn">{{ tr.val }}</span></div></sc-if></sc-for></div></sc-if>
+
+  <!-- BODY -->
+  <sc-if value="{{ cellPopOpen }}" hint-placeholder-val="{{ false }}"><div data-cellpop="1" class="cpop" style="{{ cellPopStyle }}"><div class="cpop-hd"><div><div class="cpop-mus">{{ cellPopMuscle }}</div><div class="cpop-sub">{{ cellPopSub }}</div></div><span style="{{ cellPopTotalStyle }}">{{ cellPopTotal }}</span></div><div class="cpop-body"><sc-for list="{{ cellPopDays }}" as="cd" hint-placeholder-count="2"><div class="cpop-day"><span class="dl">{{ cd.day }}</span><span class="dt">{{ cd.dayTotal }}</span></div><sc-for list="{{ cd.exs }}" as="ce" hint-placeholder-count="2"><div class="cpop-ex" onClick="{{ ce.onOpen }}"><div style="min-width:0;"><div class="cpop-exn">{{ ce.name }}</div><div class="cpop-spec">{{ ce.spec }}</div></div><span class="cpop-sets">{{ ce.sets }}</span><span class="cpop-arr">›</span></div></sc-for></sc-for></div></div></sc-if>
+  <div style="flex:1; display:flex; min-height:0; min-width:0;">
+
+    <!-- LEFT COLUMN: grid area + volume strip docked at its bottom -->
+    <div style="flex:1; display:flex; flex-direction:column; min-width:0; min-height:0;">
+
+    <!-- GRID AREA -->
+    <div data-gridscroll="1" onDragOver="{{ onGridDragOver }}" onDrop="{{ onGridDrop }}" style="flex:1; overflow:auto; min-width:0; padding:0 16px 40px;">
+
+      <!-- week header row (toolbar band) -->
+      <div style="position:sticky; top:0; z-index:15; background:#e9e7df; padding:14px 16px 9px; margin:0 -16px; border-bottom:1px solid #d6d2c8; display:flex; align-items:stretch; gap:8px; width:max-content; min-width:100%;">
+        <div style="{{ gridRowStyle }} flex:none;">
+        <div style="align-self:end; display:flex; align-items:flex-end; justify-content:flex-start;"><span onClick="{{ onToggleAll }}" title="{{ allTitle }}" style="display:inline-flex; align-items:center; justify-content:center; width:32px; height:24px; border:1px solid #d6d2c8; border-radius:6px; background:#fff; box-shadow:0 1px 2px rgba(0,0,0,.04); cursor:pointer; color:#5a5750;" style-hover="border-color:#b8b3a8; color:#1b1b1a;"><sc-if value="{{ anyCollapsed }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 8.5l3.5-3 3.5 3"></path></svg></sc-if><sc-if value="{{ allExpanded }}" hint-placeholder-val="{{ true }}"><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 5.5l3.5 3 3.5-3"></path></svg></sc-if></span></div>
+        <sc-for list="{{ weekCols }}" as="wc" hint-placeholder-count="6">
+          <div style="position:relative;">
+            <div onClick="{{ wc.onMenu }}" style="{{ wc.chipStyle }}" style-hover="background:#ddd9cf">
+              <span style="display:inline-flex; align-items:center; gap:6px;"><span style="font-size:13px; font-weight:600; letter-spacing:0.3px; {{ wc.dimStyle }}">{{ wc.label }}</span><span style="{{ wc.phaseBadgeStyle }}">{{ wc.phaseLabel }}</span></span>
+              <span style="font-size:9px; color:#b0aca1;">▾</span>
+            </div>
+            <sc-if value="{{ wc.menuOpen }}" hint-placeholder-val="{{ false }}">
+              <div style="position:absolute; top:calc(100% + 3px); left:50%; transform:translateX(-50%); z-index:30; background:#fff; border:1px solid #e4e2db; border-radius:9px; box-shadow:0 8px 24px rgba(0,0,0,0.14); padding:4px; min-width:212px; display:flex; flex-direction:column; text-align:left;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:8px; color:#a8a499; letter-spacing:1px; text-transform:uppercase; padding:4px 10px 4px;">Phase</span>
+                <sc-for list="{{ wc.phaseOpts }}" as="ph" hint-placeholder-count="3"><span onClick="{{ ph.onPick }}" style="{{ ph.style }}"><span style="{{ ph.dotStyle }}"></span>{{ ph.name }}<span style="{{ ph.checkStyle }}">✓</span></span></sc-for>
+                <div style="height:1px; background:#eceae3; margin:4px 0;"></div>
+                <span onClick="{{ wc.onAddAfter }}" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#2c2a26; padding:8px 10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:9px;" style-hover="background:#f3f1ea"><span style="width:15px; text-align:center; color:#8b8780; font-size:13px;">↦</span>Insert week after</span>
+                <span onClick="{{ wc.onDup }}" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#2c2a26; padding:8px 10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:9px;" style-hover="background:#f3f1ea"><span style="width:15px; text-align:center; color:#8b8780; font-size:13px;">⧉</span>Duplicate week</span>
+                <span onClick="{{ wc.onDel }}" style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#b2503f; padding:8px 10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:9px;" style-hover="background:#f6e9e4"><span style="width:15px; text-align:center; font-size:13px;">✕</span>Delete week</span>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
+        </div>
+        <div style="flex:none; align-self:center; position:relative;">
+          <div onClick="{{ onAddWeekCaret }}" style="display:flex; align-items:center; gap:5px; padding:3px 10px; border:1px dashed #c8c3b7; border-radius:6px; cursor:pointer; font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:600; line-height:1.3; color:#6f6b62; white-space:nowrap;" style-hover="background:#ddd9cf"><span style="font-size:13px; font-weight:400;">+</span>{{ nextWeekLabel }}</div>
+          <sc-if value="{{ addMenuOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute; top:calc(100% + 4px); right:0; z-index:30; background:#fff; border:1px solid #e4e2db; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.14); padding:3px; min-width:196px; display:flex; flex-direction:column;">
+              <span style="font-family:'JetBrains Mono',monospace; font-size:8px; color:#a8a499; letter-spacing:1px; text-transform:uppercase; padding:6px 10px 4px;">Add {{ nextWeekLabel }}</span>
+              <span onClick="{{ onAddWeekCopy }}" style="font-family:'JetBrains Mono',monospace; font-size:11px; padding:7px 10px; border-radius:5px; cursor:pointer; display:flex; flex-direction:column; gap:1px;" style-hover="background:#f3f1ea">{{ copySrcLabel }}<span style="color:#a8a499; font-size:9px;">same sets &amp; loads</span></span>
+              <span onClick="{{ onAddWeekEmpty }}" style="font-family:'JetBrains Mono',monospace; font-size:11px; padding:7px 10px; border-radius:5px; cursor:pointer; display:flex; flex-direction:column; gap:1px;" style-hover="background:#f3f1ea">New week<span style="color:#a8a499; font-size:9px;">blank exercises</span></span>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+
+      <!-- day bands -->
+      <div onDragOver="{{ onDayListDragOver }}" onDrop="{{ onDayListDrop }}" data-daywrap="1" style="position:relative;">
+      <sc-if value="{{ dayLineShow }}" hint-placeholder-val="{{ false }}"><div style="{{ dayLineStyle }}"></div></sc-if>
+      <sc-if value="{{ slotLineShow }}" hint-placeholder-val="{{ false }}"><div style="{{ slotLineStyle }}"></div></sc-if>
+      <sc-for list="{{ days }}" as="day" hint-placeholder-count="3">
+        <div data-dayband="1" data-dayid="{{ day.dayId }}" style="{{ day.bandStyle }}">
+          <!-- band header -->
+          <div onDragOver="{{ day.onHeaderDragOver }}" onDrop="{{ day.onHeaderDrop }}" class="day-row" style="{{ day.headerStyle }}">
+            <span onPointerDown="{{ day.onGripDown }}" style="cursor:grab; touch-action:none; color:#cbc7bd; font-size:13px; flex:none;">⠿</span>
+            <span onClick="{{ day.onToggle }}" style="cursor:pointer; font-size:12px; color:#8b8780; width:14px;">{{ day.caret }}</span>
+            <sc-if value="{{ day.editing }}" hint-placeholder-val="{{ false }}"><input class="day-name" type="text" defaultValue="{{ day.name }}" ref="{{ day.nameRef }}" onInput="{{ day.onNameInput }}" onKeyDown="{{ day.onNameKey }}" onBlur="{{ day.onRename }}" style="width: {{ day.nameWidth }}; font-size:16px; font-weight:600;" /></sc-if>
+            <sc-if value="{{ day.notEditing }}" hint-placeholder-val="{{ true }}"><span class="day-name-txt" onClick="{{ day.onToggle }}" style="font-size:16px; font-weight:600; cursor:pointer;">{{ day.name }}</span></sc-if>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#a8a499;">{{ day.meta }}</span>
+            <span class="day-acts" style="display:flex; align-items:center; gap:10px; padding-left:4px;">
+              <span onClick="{{ day.onEdit }}" style="font-size:12px; color:#bdb9af; cursor:pointer;" style-hover="color:#2f43d4">✎</span>
+              <span onClick="{{ day.onDup }}" style="font-size:13px; color:#bdb9af; cursor:pointer;" style-hover="color:#2f43d4">⧉</span>
+              <span onClick="{{ day.onDel }}" style="font-size:13px; color:#bdb9af; cursor:pointer;" style-hover="color:#c2543f">✕</span>
+            </span>
+            <span style="flex:1;"></span>
+          </div>
+
+          <sc-if value="{{ day.expanded }}" hint-placeholder-val="{{ true }}">
+            <div onDragOver="{{ day.onBodyDragOver }}" onDrop="{{ day.onBodyDrop }}">
+            <sc-for list="{{ day.blocks }}" as="blk" hint-placeholder-count="4">
+            <div style="{{ blk.boxStyle }}">
+              <sc-for list="{{ blk.rows }}" as="row" hint-placeholder-count="1">
+              <div data-slotid="{{ row.slotId }}" data-dayid="{{ row.dayId }}" class="ex-row" style="{{ row.rowStyle }}">
+                <div style="{{ row.labelStyle }}">
+                  <span style="font-size:15px; font-weight:600; display:flex; align-items:flex-start; gap:5px; line-height:1.2;"><span onPointerDown="{{ row.onGripDown }}" style="color:#cbc7bd; cursor:grab; touch-action:none; flex:none; transform:translateY(1px);">⠿</span><span onClick="{{ row.onChangeEx }}" style="min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; cursor:pointer;" style-hover="color:#2f43d4">{{ row.name }}</span><span style="margin-left:auto; flex:none; padding-left:6px; display:flex; align-items:center; gap:6px;"><span class="ex-acts" style="flex:none; gap:7px;"><span onClick="{{ row.onDup }}" style="font-size:11px; color:#bdb9af; cursor:pointer;" style-hover="color:#2f43d4">⧉</span><span onClick="{{ row.onDel }}" style="font-size:11px; color:#bdb9af; cursor:pointer;" style-hover="color:#c2543f">✕</span></span></span></span>
+                  <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#a8a499; white-space:nowrap;">{{ row.sub }}</span>
+                </div>
+                <sc-for list="{{ row.cells }}" as="c" hint-placeholder-count="6">
+                  <div data-setcell="1" data-cellslot="{{ c.slotId }}" data-cellwk="{{ c.wk }}" onClick="{{ c.onClick }}" style="{{ c.cellStyle }}">
+                    <sc-if value="{{ c.isVar }}" hint-placeholder-val="{{ false }}"><div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#6d5aa6; margin-bottom:2px; white-space:nowrap;">⇄ {{ c.exName }}</div></sc-if>
+                    <sc-for list="{{ c.lines }}" as="ln" hint-placeholder-count="1">
+                      <div style="display:flex; align-items:baseline; justify-content:space-between; gap:8px; font-family:'JetBrains Mono',monospace; font-size:12.5px; line-height:1.34; white-space:nowrap;"><span><span style="{{ ln.dim }} font-weight:500;">{{ ln.sr }}</span><span style="color:#bdb8ad;">{{ ln.srInh }}</span></span><span style="{{ ln.detailStyle }}">{{ ln.detail }}</span></div>
+                    </sc-for>
+                    <sc-if value="{{ c.empty }}" hint-placeholder-val="{{ false }}"><div style="font-family:'JetBrains Mono',monospace; font-size:12.5px; color:#c2bdb2;">+ set</div></sc-if>
+                  </div>
+                </sc-for>
+              </div>
+              </sc-for>
+            </div>
+            </sc-for>
+            <sc-if value="{{ day.gapAtEnd }}" hint-placeholder-val="{{ false }}"><div class="drop-gap"><span class="ar">⤵</span><span class="lbl">{{ day.dragName }}</span></div></sc-if>
+            <span onClick="{{ day.onAddEx }}" style="display:inline-flex; align-items:center; gap:5px; font-family:'JetBrains Mono',monospace; font-size:11px; color:#b0aca1; cursor:pointer; padding:6px 2px; margin-top:2px;" style-hover="color:#2f43d4">+ add exercise</span>
+            </div>
+          </sc-if>
+        </div>
+      </sc-for>
+      </div>
+      <div style="margin-top:22px; padding-top:16px; border-top:1px solid #e7e5df;">
+        <span onClick="{{ onAddDay }}" style="display:block; max-width:420px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:500; color:#2f43d4; border:1px dashed #c4cbf0; border-radius:9px; padding:12px; cursor:pointer;" style-hover="background:#f4f6fe">+ add workout</span>
+      </div>
+
+    </div>
+
+    <!-- VOLUME strip — docked at the bottom of the left column only -->
+    <div data-volume="1" style="flex:none; border-top:1px solid #e4e2db; background:#f8f7f3;">
+      <sc-if value="{{ volOpen }}" hint-placeholder-val="{{ false }}">
+      <div style="max-height:36vh; overflow:auto; padding:13px 16px 5px;">
+        <div style="{{ heatGridStyle }} margin-bottom:5px;">
+          <span></span>
+          <sc-for list="{{ weekCols }}" as="wc" hint-placeholder-count="6">
+            <div style="text-align:center; font-family:'JetBrains Mono',monospace; font-size:10px; font-weight:600; {{ wc.dimStyle }}">{{ wc.short }}</div>
+          </sc-for>
+        </div>
+        <sc-for list="{{ heat }}" as="hr" hint-placeholder-count="6">
+          <div style="{{ heatGridStyle }} margin-bottom:4px; align-items:center;">
+            <span onClick="{{ hr.onClick }}" style="{{ hr.rowStyle }}">{{ hr.muscle }}</span>
+            <sc-for list="{{ hr.cells }}" as="hc" hint-placeholder-count="6">
+              <div class="heatcell" data-heatcell="1" onClick="{{ hc.onClick }}" onMouseEnter="{{ hc.onEnter }}" onMouseLeave="{{ hc.onLeave }}" style="{{ hc.style }}">{{ hc.num }}</div>
+            </sc-for>
+          </div>
+        </sc-for>
+        <div style="{{ heatGridStyle }} align-items:center; margin-top:9px; padding-top:9px; border-top:1px solid #e4e2db;">
+          <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#a8a499; letter-spacing:1px; text-transform:uppercase;">Working sets per muscle / week</span>
+          <div style="grid-column:2 / -1; display:flex; align-items:center; justify-content:flex-end; gap:14px;">
+          <span style="display:flex; align-items:center; gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#b8b2a4;display:inline-block;"></span><span style="font-size:11px;color:#8b8780;">&lt;MEV</span></span>
+          <span style="display:flex; align-items:center; gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#6f8f5f;display:inline-block;"></span><span style="font-size:11px;color:#8b8780;">productive</span></span>
+          <span style="display:flex; align-items:center; gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#c69749;display:inline-block;"></span><span style="font-size:11px;color:#8b8780;">near MRV</span></span>
+          <span style="display:flex; align-items:center; gap:5px;"><span style="width:10px;height:10px;border-radius:2px;background:#b2503f;display:inline-block;"></span><span style="font-size:11px;color:#8b8780;">&gt;MRV</span></span>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+      <!-- toggle bar -->
+      <div style="display:flex; align-items:center; gap:10px; padding:8px 16px;">
+        <span onClick="{{ onToggleVol }}" style="{{ volExpandStyle }}">{{ volCaret }} {{ volExpandLabel }}</span>
+        <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#b0aca1;">volume per muscle across the mesocycle</span>
+      </div>
+    </div>
+    </div>
+    <!-- /left column -->
+
+    <!-- SIDE PANEL -->
+    <sc-if value="{{ panelOpen }}" hint-placeholder-val="{{ false }}">
+      <div data-setpanel="1" ref="{{ panel.popRef }}" style="{{ panel.popStyle }}">
+        <div style="padding:15px 16px 13px; border-bottom:1px solid #e7e5df;">
+          <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+            <div style="min-width:0;">
+              <div style="display:flex; align-items:center; gap:8px;"><span style="font-size:18px; font-weight:600; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ panel.exName }}</span><span onClick="{{ panel.onSwap }}" style="flex:none; margin-left:auto; font-family:'JetBrains Mono',monospace; font-size:10.5px; color:#6d5aa6; border:1px solid #d8d5cc; border-radius:6px; padding:4px 9px; cursor:pointer; display:inline-flex; align-items:center; gap:5px; white-space:nowrap;" style-hover="background:#f3eff8; border-color:#cfcabd;">⇄ Swap</span></div>
+              <div style="margin-top:3px;"><span style="font-family:'JetBrains Mono',monospace; font-size:12px; color:#8b8780; white-space:nowrap;">{{ panel.weekLabel }} · {{ panel.dayName }}</span></div>
+            </div>
+            <span onClick="{{ panel.onClose }}" style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8780; cursor:pointer; border:1px solid #e4e2db; border-radius:7px; padding:4px 9px; white-space:nowrap; flex:none;" style-hover="border-color:#1b1b1a; color:#1b1b1a">✕ close</span>
+          </div>
+          <div style="background:#fff; border:1px solid #ece9e1; border-radius:9px; padding:11px 12px; margin-top:11px;">
+            <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:9px;">
+              <span><span style="{{ panel.volBar.numStyle }}">{{ panel.volBar.num }}</span> <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#9a958b;">{{ panel.volBar.name }} sets / week</span></span>
+              <span style="{{ panel.volBar.pillStyle }}">{{ panel.volBar.zoneLabel }}</span>
+            </div>
+            <div style="position:relative; height:13px; border-radius:5px; background:#ece8e0; overflow:hidden;">
+              <div style="{{ panel.volBar.fillStyle }}"></div>
+              <div style="{{ panel.volBar.hatchStyle }}"></div>
+              <div style="{{ panel.volBar.mevStyle }}"></div>
+            </div>
+            <div style="position:relative; height:12px; margin-top:3px;">
+              <span style="{{ panel.volBar.mevLabelStyle }}">{{ panel.volBar.mevText }}</span>
+              <span style="position:absolute; right:0; font-family:'JetBrains Mono',monospace; font-size:8px; color:#a8a499;">{{ panel.volBar.mrvText }}</span>
+            </div>
+            <sc-if value="{{ panel.volBar.sessionHeavy }}" hint-placeholder-val="{{ false }}">
+              <div style="margin-top:8px; background:#f6e9e4; border:1px solid #ecccc2; border-radius:7px; padding:6px 9px; display:flex; align-items:center; gap:7px;">
+                <span style="color:#b2503f; font-size:12px;">⚠</span>
+                <span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#a23f2c; line-height:1.4;">{{ panel.volBar.sessionText }}<br><span style="color:#c77f6d;">{{ panel.volBar.sessionSub }}</span></span>
+              </div>
+            </sc-if>
+          </div>
+          <div style="background:#f3f1ea; border-radius:8px; padding:8px 10px; margin-top:8px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px;"><span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#a8a499; letter-spacing:0.5px; text-transform:uppercase;">{{ panel.prevHeader }}</span><sc-if value="{{ panel.canCopyPrev }}" hint-placeholder-val="{{ true }}"><span onClick="{{ panel.onCopyPrev }}" style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#2f43d4; cursor:pointer; display:inline-flex; align-items:center; gap:4px; flex:none;" style-hover="color:#1b2da8">⤓ copy</span></sc-if></div>
+            <sc-if value="{{ panel.prevIsBaseline }}" hint-placeholder-val="{{ false }}"><div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8378;">no previous week to compare</div></sc-if>
+            <sc-for list="{{ panel.prevLines }}" as="pl" hint-placeholder-count="1"><div style="font-family:'JetBrains Mono',monospace; font-size:11.5px; color:#6f6b62; line-height:1.5; white-space:nowrap;"><span style="{{ pl.srStyle }}">{{ pl.sr }}</span><span style="color:#c2bdb2;">{{ pl.sep }}</span>{{ pl.det }}</div></sc-for>
+          </div>
+        </div>
+        <div style="padding:13px 16px;">
+          <div style="display:flex; align-items:baseline; justify-content:space-between; margin-bottom:9px;">
+            <span style="font-family:'JetBrains Mono',monospace; font-size:9px; color:#a8a499; letter-spacing:0.5px; text-transform:uppercase;">Sets</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:13px; font-weight:700; color:#3a3833;">{{ panel.exTotalLabel }}</span>
+          </div>
+          <div data-grouplist="1" style="position:relative;">
+          <sc-if value="{{ panel.gLineShow }}" hint-placeholder-val="{{ false }}"><div style="{{ panel.gLineStyle }}"></div></sc-if>
+          <sc-for list="{{ panel.groups }}" as="pg" hint-placeholder-count="2">
+            <div data-gcard="1" style="{{ pg.cardStyle }}">
+              <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:9px;">
+                <div style="display:flex; align-items:center; gap:7px; min-width:0;">
+                  <span onPointerDown="{{ pg.onGripDown }}" style="cursor:grab; touch-action:none; color:#cbc7bd; font-size:13px; flex:none;">⠿</span>
+                  <div style="position:relative;">
+                    <span onClick="{{ pg.onTypeMenu }}" style="display:inline-block; white-space:nowrap; font-family:'JetBrains Mono',monospace; font-size:10px; color:#fff; background:{{ pg.color }}; padding:4px 9px; border-radius:5px; letter-spacing:0.3px; cursor:pointer;">{{ pg.typeLabel }} <span style="opacity:0.7;">▾</span></span>
+                    <sc-if value="{{ pg.typeMenuOpen }}" hint-placeholder-val="{{ false }}"><div style="{{ menuStyle }}">
+                      <span onClick="{{ pg.onTypeRegular }}" style="{{ menuItemStyle }}">Regular</span>
+                      <span onClick="{{ pg.onTypeMyorep }}" style="{{ menuItemStyle }}">Myorep</span>
+                      <span onClick="{{ pg.onTypeMyorepMatch }}" style="{{ menuItemStyle }}">Myorep match</span>
+                      <span onClick="{{ pg.onTypeDropset }}" style="{{ menuItemStyle }}">Dropset</span>
+                    </div></sc-if>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:9px;">
+                  <span onClick="{{ pg.onDup }}" style="font-size:12px; color:#cbc7bd; cursor:pointer;" style-hover="color:#2f43d4">⧉</span>
+                  <sc-if value="{{ pg.canDel }}" hint-placeholder-val="{{ false }}"><span onClick="{{ pg.onDel }}" style="font-size:12px; color:#cbc7bd; cursor:pointer;" style-hover="color:#c2543f">✕</span></sc-if>
+                </div>
+              </div>
+              <!-- sets -->
+              <div style="display:grid; grid-template-columns:96px 1fr; gap:10px; align-items:center; margin-bottom:8px;">
+                <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#6b675f;">Sets</span>
+                <div style="justify-self:start; width:132px; display:flex; align-items:center; border:1px solid #e4e2db; border-radius:7px; overflow:hidden;">
+                  <span onClick="{{ pg.onCountDec }}" style="padding:5px 11px; cursor:pointer; color:#6b675f; background:#faf9f6; font-size:15px; user-select:none;" style-hover="background:#efede7">−</span>
+                  <input value="{{ pg.count }}" onInput="{{ pg.onCountType }}" ref="{{ pg.setsRef }}" inputmode="numeric" placeholder="–" style="font-family:'JetBrains Mono',monospace; font-size:13px; flex:1; min-width:0; text-align:center; border:none; background:#fff; padding:5px 0;" />
+                  <span onClick="{{ pg.onCountInc }}" style="padding:5px 11px; cursor:pointer; color:#6b675f; background:#faf9f6; font-size:15px; user-select:none;" style-hover="background:#efede7">+</span>
+                </div>
+              </div>
+              <!-- reps -->
+              <sc-if value="{{ pg.showReps }}" hint-placeholder-val="{{ true }}">
+              <div style="display:grid; grid-template-columns:96px 1fr; gap:10px; align-items:center; margin-bottom:8px;">
+                <div style="position:relative;">
+                  <span onClick="{{ pg.onRepMenu }}" style="{{ pg.repDropStyle }}">{{ pg.repModeLabel }}<span style="color:#b0aca1;"> ▾</span></span>
+                  <sc-if value="{{ pg.repMenuOpen }}" hint-placeholder-val="{{ false }}"><div style="{{ menuStyle }}">
+                    <span onClick="{{ pg.onRepTarget }}" style="{{ menuItemStyle }}">Rep target</span>
+                    <span onClick="{{ pg.onRepRange }}" style="{{ menuItemStyle }}">Rep range</span>
+                  </div></sc-if>
+                </div>
+                <div style="justify-self:start; width:132px;">
+                  <sc-if value="{{ pg.repIsRange }}" hint-placeholder-val="{{ false }}">
+                    <div style="display:flex; align-items:center; gap:5px; width:132px;">
+                      <input value="{{ pg.repMin }}" onInput="{{ pg.onRepMin }}" inputmode="numeric" placeholder="–" style="font-family:'JetBrains Mono',monospace; font-size:13px; border:1px solid #e7e5df; border-radius:7px; padding:6px 4px; flex:1; min-width:0; text-align:center; background:#fff;" style-focus="border-color:#2f43d4" />
+                      <span style="color:#b8b4ab; font-size:13px;">–</span>
+                      <input value="{{ pg.repMax }}" onInput="{{ pg.onRepMax }}" inputmode="numeric" placeholder="–" style="font-family:'JetBrains Mono',monospace; font-size:13px; border:1px solid #e7e5df; border-radius:7px; padding:6px 4px; flex:1; min-width:0; text-align:center; background:#fff;" style-focus="border-color:#2f43d4" />
+                    </div>
+                  </sc-if>
+                  <sc-if value="{{ pg.repIsTarget }}" hint-placeholder-val="{{ true }}">
+                    <input value="{{ pg.reps }}" onInput="{{ pg.onReps }}" inputmode="numeric" placeholder="–" style="font-family:'JetBrains Mono',monospace; font-size:13px; border:1px solid #e7e5df; border-radius:7px; padding:6px 8px; width:132px; text-align:center; background:#fff;" style-focus="border-color:#2f43d4" />
+                  </sc-if>
+                </div>
+              </div>
+              </sc-if>
+              <sc-if value="{{ pg.isMatch }}" hint-placeholder-val="{{ false }}"><div style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8780; padding:2px 2px 8px; line-height:1.4;">↳ {{ pg.matchHint }}</div></sc-if>
+              <!-- intensity (working sets only) -->
+              <sc-if value="{{ pg.showHard }}" hint-placeholder-val="{{ true }}">
+              <div style="display:grid; grid-template-columns:96px 1fr; gap:10px; align-items:center;">
+                <div style="position:relative;">
+                  <span onClick="{{ pg.onIntMenu }}" style="{{ pg.intDropStyle }}">{{ pg.intModeLabel }}<span style="color:#b0aca1;"> ▾</span></span>
+                  <sc-if value="{{ pg.intMenuOpen }}" hint-placeholder-val="{{ false }}"><div style="{{ menuStyle }}">
+                    <sc-if value="{{ pg.notLoadOnly }}" hint-placeholder-val="{{ true }}"><span onClick="{{ pg.onRIR }}" style="{{ menuItemStyle }}">RIR</span></sc-if>
+                    <sc-if value="{{ pg.notLoadOnly }}" hint-placeholder-val="{{ true }}"><span onClick="{{ pg.onRPE }}" style="{{ menuItemStyle }}">RPE</span></sc-if>
+                    <span onClick="{{ pg.onPCT }}" style="{{ menuItemStyle }}">%1RM</span>
+                    <span onClick="{{ pg.onLOAD }}" style="{{ menuItemStyle }}">Exact load</span>
+                    <span onClick="{{ pg.onSTEP }}" style="{{ menuItemStyle }}">Load step</span>
+                    <sc-if value="{{ pg.loadOnly }}" hint-placeholder-val="{{ false }}"><span onClick="{{ pg.onFAIL }}" style="{{ menuItemStyle }}">No load</span></sc-if>
+                  </div></sc-if>
+                </div>
+                <sc-if value="{{ pg.hasAVal }}" hint-placeholder-val="{{ true }}">
+                <div style="justify-self:start; display:flex; align-items:center; gap:8px;">
+                  <div style="width:132px; display:flex; align-items:center; border:1px solid #e4e2db; border-radius:7px; overflow:hidden;">
+                    <span onClick="{{ pg.onAValDec }}" style="padding:5px 11px; cursor:pointer; color:#6b675f; background:#faf9f6; font-size:15px; user-select:none;" style-hover="background:#efede7">−</span>
+                    <input value="{{ pg.aValRaw }}" onInput="{{ pg.onAVal }}" inputmode="decimal" placeholder="–" style="font-family:'JetBrains Mono',monospace; font-size:13px; flex:1; min-width:0; text-align:center; border:none; background:#fff; padding:5px 0;" />
+                    <sc-if value="{{ pg.hasUnit }}" hint-placeholder-val="{{ false }}"><span style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#b0aca1; padding-right:6px; white-space:nowrap;">{{ pg.intUnit }}</span></sc-if>
+                    <span onClick="{{ pg.onAValInc }}" style="padding:5px 11px; cursor:pointer; color:#6b675f; background:#faf9f6; font-size:15px; user-select:none;" style-hover="background:#efede7">+</span>
+                  </div>
+                </div>
+                </sc-if>
+              </div>
+              </sc-if>
+            </div>
+          </sc-for>
+          </div>
+          <span onClick="{{ panel.onAddReg }}" style="display:flex; align-items:center; justify-content:center; gap:6px; font-family:'JetBrains Mono',monospace; font-size:12px; border:1px dashed #c4cbf0; border-radius:8px; padding:9px; cursor:pointer; color:#2f43d4; margin-top:6px;" style-hover="background:#f4f6fe; border-style:solid;"><span style="font-size:13px;">+</span> add sets</span>
+          <div onClick="{{ panel.onClose }}" style="margin-top:14px; text-align:center; font-family:'JetBrains Mono',monospace; font-size:12px; font-weight:600; color:#fbfaf7; background:#1b1b1a; border-radius:8px; padding:9px; cursor:pointer;" style-hover="background:#000">Done</div>
+        </div>
+      </div>
+    </sc-if>
+
+  </div>
+
+  <!-- LIBRARY MODAL -->
+  <sc-if value="{{ libOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ onCloseLib }}" style="position:fixed; inset:0; background:rgba(27,27,26,0.32); display:flex; align-items:center; justify-content:center; z-index:60;">
+    <div onClick="{{ stop }}" style="width:540px; max-width:92vw; max-height:80vh; background:#fbfaf7; border:1px solid #e4e2db; border-radius:14px; box-shadow:0 24px 60px rgba(0,0,0,0.22); display:flex; flex-direction:column; overflow:hidden;">
+      <div style="padding:15px 17px; border-bottom:1px solid #e7e5df; display:flex; align-items:center; justify-content:space-between;">
+        <span style="font-size:16px; font-weight:600;">{{ libTitle }}</span>
+        <span onClick="{{ onCloseLib }}" style="cursor:pointer; color:#a8a499; font-size:15px;">✕</span>
+      </div>
+      <div style="padding:12px 17px; border-bottom:1px solid #e7e5df;">
+        <input value="{{ libFilter }}" ref="{{ libSearchRef }}" onInput="{{ onFilter }}" onKeyDown="{{ onLibKey }}" placeholder="Search exercises…" style="width:100%; font-family:'Space Grotesk',sans-serif; font-size:14px; padding:9px 12px; border:1px solid #e2e0d8; border-radius:9px; background:#fff;" />
+      </div>
+      <div style="flex:1; overflow-y:auto; padding:6px 17px 12px;">
+        <sc-for list="{{ libItems }}" as="li" hint-placeholder-count="8">
+          <div onClick="{{ li.onPick }}" ref="{{ li.ref }}" style="{{ li.rowStyle }}" style-hover="background:#f2f1ec">
+            <span style="font-size:14px;">{{ li.name }}</span>
+            <span style="font-family:'JetBrains Mono',monospace; font-size:11px; color:#8b8780;">{{ li.muscle }}</span>
+          </div>
+        </sc-for>
+      </div>
+      <div style="padding:12px 17px; border-top:1px solid #e7e5df; background:#f4f3ef;">
+        <div style="font-family:'JetBrains Mono',monospace; font-size:10px; color:#a8a499; letter-spacing:1px; text-transform:uppercase; margin-bottom:7px;">Custom exercise</div>
+        <div style="display:flex; gap:7px; align-items:center;">
+          <input value="{{ customName }}" onInput="{{ onCustomName }}" placeholder="Name" style="flex:1; font-family:'Space Grotesk',sans-serif; font-size:14px; padding:8px 11px; border:1px solid #e2e0d8; border-radius:8px; background:#fff;" />
+          <div style="position:relative;">
+            <span onClick="{{ onCustomMuscleMenu }}" style="font-family:'JetBrains Mono',monospace; font-size:12px; border:1px solid #e2e0d8; border-radius:8px; padding:8px 11px; cursor:pointer; background:#fff; white-space:nowrap;">{{ customMuscle }} ▾</span>
+            <sc-if value="{{ customMuscleMenuOpen }}" hint-placeholder-val="{{ false }}"><div style="position:absolute; bottom:calc(100% + 3px); right:0; z-index:30; background:#fff; border:1px solid #e4e2db; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.14); padding:3px; max-height:200px; overflow:auto; display:flex; flex-direction:column;">
+              <sc-for list="{{ muscleOpts }}" as="mo" hint-placeholder-count="9"><span onClick="{{ mo.onPick }}" style="{{ menuItemStyle }}">{{ mo.name }}</span></sc-for>
+            </div></sc-if>
+          </div>
+          <span onClick="{{ onAddCustom }}" style="flex:none; background:#2f43d4; color:#fff; font-size:13px; font-weight:500; padding:9px 14px; border-radius:8px; cursor:pointer;">Add</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1320,&quot;height&quot;:860}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.MUSCLES=['Chest','Back','Shoulders','Quads','Hamstrings','Glutes','Biceps','Triceps','Calves'];
+    this.LAND={ Chest:{mev:10,mrv:22}, Back:{mev:10,mrv:25}, Shoulders:{mev:8,mrv:22}, Quads:{mev:8,mrv:20}, Hamstrings:{mev:6,mrv:16}, Glutes:{mev:4,mrv:16}, Biceps:{mev:8,mrv:20}, Triceps:{mev:6,mrv:18}, Calves:{mev:8,mrv:20} };
+    this.LIB=[['Bench Press','Chest'],['Incline DB Press','Chest'],['Cable Fly','Chest'],['Machine Press','Chest'],['Deadlift','Back'],['Pull-up','Back'],['Barbell Row','Back'],['Lat Pulldown','Back'],['Cable Row','Back'],['Overhead Press','Shoulders'],['Lateral Raise','Shoulders'],['Rear Delt Fly','Shoulders'],['Back Squat','Quads'],['Front Squat','Quads'],['Leg Press','Quads'],['Leg Extension','Quads'],['Hack Squat','Quads'],['Romanian DL','Hamstrings'],['Leg Curl','Hamstrings'],['Good Morning','Hamstrings'],['Hip Thrust','Glutes'],['Bulgarian Split Squat','Glutes'],['Barbell Curl','Biceps'],['Incline Curl','Biceps'],['Hammer Curl','Biceps'],['Tricep Pushdown','Triceps'],['Skullcrusher','Triceps'],['Overhead Extension','Triceps'],['Standing Calf Raise','Calves'],['Seated Calf Raise','Calves']];
+    this.KEY='structure_meso_v2';
+    this._uid=Date.now();
+    const saved=this.load();
+    this.state={ program: saved || this.genProgram(6), drill:null, drillRect:null, menu:null, weekMenu:null, addMenu:false, editingDay:null, hlMuscle:null, heatTip:null, cellPop:null, dayDrag:null, slotDrag:null, drag:null, overSlot:null, gdrag:null, gover:null, libOpen:false, libReplace:null, libSlot:null, libDayId:null, libSel:0, libFilter:'', customName:'', customMuscle:'Chest', customMuscleMenu:false, collapsed:{}, volOpen:false, v:0 };
+  }
+  uid(p){ return (p||'id')+(++this._uid); }
+  num(s){ const m=String(s).match(/-?\d+(\.\d+)?/); return m?parseFloat(m[0]):null; }
+  round25(n){ return Math.round(n/2.5)*2.5; }
+  clone(o){ return JSON.parse(JSON.stringify(o)); }
+  load(){ try{ const r=localStorage.getItem(this.KEY); return r?JSON.parse(r):null; }catch(e){ return null; } }
+  save(){ try{ localStorage.setItem(this.KEY, JSON.stringify(this.state.program)); }catch(e){} }
+  commit(){ this.save(); this.setState({v:this.state.v+1}); }
+  componentDidMount(){ this._esc=(e)=>{ if(e.key==='Escape'){ if(this.state.cellPop){ this.setState({cellPop:null}); return; } if(this.state.drill){ const t=e.target; if(t&&/^(INPUT|TEXTAREA)$/.test(t.tagName)){ t.blur(); } this.setState({drill:null, menu:null}); } } }; document.addEventListener('keydown', this._esc); this._out=(e)=>{ if(this.state.libOpen) return; if(this.state.cellPop){ const tc=e.target; if(!(tc&&tc.closest&&(tc.closest('[data-cellpop]')||tc.closest('[data-heatcell]')))) this.setState({cellPop:null}); } if(!this.state.drill) return; const t=e.target; if(t&&t.closest&&(t.closest('[data-setpanel]')||t.closest('[data-setcell]')||t.closest('[data-volume]'))) return; this.setState({drill:null, menu:null}); }; document.addEventListener('mousedown', this._out); }
+  componentWillUnmount(){ if(this._esc) document.removeEventListener('keydown', this._esc); if(this._out) document.removeEventListener('mousedown', this._out); }
+  positionPop(el){ if(!el) return; const r=this.state.drillRect; if(!r) return; const m=8, pad=12; const vw=window.innerWidth, vh=window.innerHeight; const w=el.offsetWidth||300; let left=r.left; if(left+w>vw-pad) left=Math.max(pad, vw-w-pad); if(left<pad) left=pad; const below=vh-pad-(r.bottom+m); const above=(r.top-m)-pad; const useBelow = below>=above; const space=Math.max(120, useBelow?below:above); el.style.maxHeight=space+'px'; const h=Math.min(el.offsetHeight||320, space); let top = useBelow ? (r.bottom+m) : (r.top-m-h); if(top<pad) top=pad; el.style.left=left+'px'; el.style.top=top+'px'; }
+
+  g(t,c,r,at,av){ return {type:t,count:c,reps:String(r),repMode:(String(r).includes('-')?'range':'target'),aType:at,aVal:String(av)}; }
+
+  rampGroup(base,w,NW){
+    const g=this.clone(base);
+    if(g.type!=='Regular') return g;
+    const n=this.num(g.aVal);
+    if(g.aType==='LOAD'&&n!==null) g.aVal=String(this.round25(n+2.5*w));
+    else if(g.aType==='PCT'&&n!==null) g.aVal=String(Math.min(95,n+1.5*w));
+    else if(g.aType==='RIR'&&n!==null) g.aVal=String(Math.max(0,n-Math.floor(w/2)));
+    g.count=base.count+(w>=2?1:0)+(w>=4?1:0);
+    return g;
+  }
+  deloadGroup(base){
+    const g=this.clone(base); if(g.type!=='Regular') return null;
+    const n=this.num(g.aVal);
+    g.count=Math.max(1,Math.round(base.count/2));
+    if(g.aType==='LOAD'&&n!==null) g.aVal=String(this.round25(n*0.6));
+    else if(g.aType==='PCT'&&n!==null) g.aVal=String(Math.max(40,n-18));
+    else if(g.aType==='RIR') g.aVal='4';
+    else if(g.aType==='STEP') g.aVal='+0';
+    return g;
+  }
+  expand(tpl,NW){
+    const cells=[];
+    for(let w=0;w<NW;w++){
+      if(w===NW-1){ const sets=tpl.base.map(b=>this.deloadGroup(b)).filter(Boolean); cells.push({exercise:tpl.def,sets}); }
+      else { cells.push({exercise:tpl.def, sets:tpl.base.map(b=>this.rampGroup(b,w,NW))}); }
+    }
+    return {id:this.uid('slot'), name:tpl.name, muscle:tpl.muscle, def:tpl.def, alts:tpl.alts||[], cells};
+  }
+  genProgram(NW){
+    const g=this.g.bind(this);
+    const S=(name,muscle,def,alts,base)=>({name,muscle,def,alts,base});
+    const dayDefs=[
+      ['Push',[
+        S('Bench Press','Chest','Bench Press',['Incline Bench','DB Press'],[g('Regular',3,'5','PCT','80'),g('Regular',2,'8-10','RIR','2')]),
+        S('Incline DB Press','Chest','Incline DB Press',['Incline Bench'],[g('Regular',3,'8-12','RIR','2')]),
+        S('Overhead Press','Shoulders','Overhead Press',['DB Shoulder Press'],[g('Regular',3,'6-8','RIR','2')]),
+        S('Lateral Raise','Shoulders','Lateral Raise',['Cable Lateral'],[g('Regular',3,'12-20','RIR','1'),g('Dropset',1,'10+','FAIL','')]),
+        S('Tricep Pushdown','Triceps','Tricep Pushdown',['Overhead Extension'],[g('Regular',3,'10-15','RIR','1')])
+      ]],
+      ['Pull',[
+        S('Deadlift','Back','Deadlift',['Trap Bar DL'],[g('Regular',3,'4','PCT','82')]),
+        S('Pull-up','Back','Pull-up',['Lat Pulldown'],[g('Regular',3,'6-10','RIR','2')]),
+        S('Barbell Row','Back','Barbell Row',['Cable Row'],[g('Regular',3,'8-12','RIR','2')]),
+        S('Rear Delt Fly','Shoulders','Rear Delt Fly',['Face Pull'],[g('Regular',3,'15-20','RIR','0')]),
+        S('Barbell Curl','Biceps','Barbell Curl',['Incline Curl'],[g('Regular',3,'8-12','RIR','1'),g('Myorep',1,'12+','FAIL','')])
+      ]],
+      ['Legs',[
+        S('Back Squat','Quads','Back Squat',['Front Squat','Hack Squat'],[g('Regular',3,'5','PCT','80'),g('Regular',2,'8-10','RIR','2')]),
+        S('Romanian DL','Hamstrings','Romanian DL',['Stiff-leg DL'],[g('Regular',3,'8-10','LOAD','100')]),
+        S('Leg Press','Quads','Leg Press',['Hack Squat'],[g('Regular',3,'10-15','RIR','1'),g('Myorep',1,'15+','FAIL','')]),
+        S('Leg Curl','Hamstrings','Leg Curl',['Nordic Curl'],[g('Regular',3,'12-15','RIR','1')]),
+        S('Standing Calf Raise','Calves','Standing Calf Raise',['Seated Calf Raise'],[g('Regular',4,'10-15','LOAD','80')])
+      ]],
+      ['Push',[
+        S('Incline Bench Press','Chest','Incline Bench Press',['Bench Press'],[g('Regular',4,'6-8','RIR','2')]),
+        S('Machine Chest Press','Chest','Machine Chest Press',['Pec Deck'],[g('Regular',3,'10-15','RIR','1')]),
+        S('DB Shoulder Press','Shoulders','DB Shoulder Press',['Machine Press'],[g('Regular',3,'8-12','RIR','2')]),
+        S('Cable Lateral','Shoulders','Cable Lateral',['Lateral Raise'],[g('Regular',4,'12-20','RIR','1')]),
+        S('Overhead Extension','Triceps','Overhead Extension',['Skullcrusher'],[g('Regular',3,'10-15','RIR','1')])
+      ]],
+      ['Pull',[
+        S('Trap Bar DL','Back','Trap Bar DL',['Deadlift'],[g('Regular',3,'5','PCT','78')]),
+        S('Lat Pulldown','Back','Lat Pulldown',['Pull-up'],[g('Regular',3,'10-12','RIR','2')]),
+        S('Chest-Supported Row','Back','Chest-Supported Row',['Cable Row'],[g('Regular',3,'10-15','RIR','1')]),
+        S('Face Pull','Shoulders','Face Pull',['Rear Delt Fly'],[g('Regular',3,'15-20','RIR','0')]),
+        S('Incline Curl','Biceps','Incline Curl',['Hammer Curl'],[g('Regular',3,'10-12','RIR','1'),g('Myorep',1,'12+','FAIL','')])
+      ]],
+      ['Legs',[
+        S('Front Squat','Quads','Front Squat',['Back Squat'],[g('Regular',3,'6-8','RIR','2')]),
+        S('Hip Thrust','Glutes','Hip Thrust',['Glute Bridge'],[g('Regular',3,'8-12','RIR','1')]),
+        S('Hack Squat','Quads','Hack Squat',['Leg Press'],[g('Regular',3,'10-15','RIR','1'),g('Myorep',1,'15+','FAIL','')]),
+        S('Seated Leg Curl','Hamstrings','Seated Leg Curl',['Leg Curl'],[g('Regular',3,'12-15','RIR','1')]),
+        S('Seated Calf Raise','Calves','Seated Calf Raise',['Standing Calf Raise'],[g('Regular',4,'12-20','RIR','1')])
+      ]]
+    ];
+    const weeks=[]; for(let w=0;w<NW;w++) weeks.push({deload:w===NW-1});
+    const days=dayDefs.map(([name,slots])=>({id:this.uid('day'), name, slots:slots.map(t=>this.expand(t,NW))}));
+    return { name:'Hypertrophy Block 1', weeks, days };
+  }
+
+  // ---- lookups ----
+  NW(){ return this.state.program.weeks.length; }
+  slot(id){ for(const d of this.state.program.days){ const s=d.slots.find(x=>x.id===id); if(s) return s; } return null; }
+  dayOfSlot(id){ for(const d of this.state.program.days){ if(d.slots.find(x=>x.id===id)) return d; } return null; }
+
+  anchorStr(g){ if(!g||!g.aType) return ''; switch(g.aType){ case 'PCT': return g.aVal+'%'; case 'RPE': return 'RPE '+g.aVal; case 'RIR': return 'RIR '+g.aVal; case 'LOAD': return g.aVal+'kg'; case 'STEP': return (/^[+\-]/.test(g.aVal)?g.aVal:'+'+g.aVal)+'kg'; case 'FAIL': return 'to failure'; default: return g.aVal; } }
+  moreIntense(cur,prev){ if(!cur) return false; if(cur.aType==='STEP') return this.num(cur.aVal)>0; if(!prev||cur.aType!==prev.aType) return false; const a=this.num(cur.aVal), b=this.num(prev.aVal); if(a===null||b===null) return false; if(cur.aType==='RIR') return a<b; return a>b; }
+  linesOf(cell){
+    const groups=cell.sets||[]; const work=groups.filter(g=>g.type==='Regular'); const fin=groups.filter(g=>g.type==='Myorep'||g.type==='Dropset'||g.type==='MyorepMatch');
+    const lines=[]; const used=new Array(work.length).fill(false);
+    for(let i=0;i<work.length;i++){ if(used[i])continue; let cnt=parseInt(work[i].count)||0;
+      for(let j=i+1;j<work.length;j++){ if(!used[j]&&work[j].reps===work[i].reps&&work[j].aType===work[i].aType&&work[j].aVal===work[i].aVal){ cnt+=parseInt(work[j].count)||0; used[j]=true; } }
+      lines.push({count:cnt, reps:work[i].reps, aType:work[i].aType, aVal:work[i].aVal, tag:''}); }
+    fin.forEach(f=>lines.push({count:parseInt(f.count)||0, reps:f.reps, aType:f.aType, aVal:f.aVal, tag:f.type==='Myorep'?'myo':(f.type==='MyorepMatch'?'match':'drop')}));
+    return lines;
+  }
+  cellTokens(cell){
+    const dash='–'; const blank=v=>(v===''||v==null)?dash:v; const srOf=l=>blank(l.count)+'×'+blank(l.reps);
+    const detailOf=l=>{ if(l.aType==='FAIL') return this.anchorStr(l); if(l.aVal===''||l.aVal==null){ return ({RIR:'RIR',RPE:'RPE',PCT:'%1RM',LOAD:'load',STEP:'step'}[l.aType]||l.aType)+' '+dash; } return this.anchorStr(l); };
+    const myLines=this.linesOf(cell);
+    const workLines=myLines.filter(x=>!x.tag); const lastWork=workLines[workLines.length-1];
+    return myLines.map(l=>{
+      if(l.tag){
+        if(l.tag==='match'){ const ir=lastWork?blank(lastWork.reps):dash; const iw=(lastWork&&lastWork.aType==='LOAD'&&lastWork.aVal!=='')?'×'+this.loadStr(lastWork):''; return {l, sr:blank(l.count)+'×', srInh:ir+iw, detail:'match'}; }
+        const ls=l.tag==='myo'?this.loadStr(l):''; const base=srOf(l); const sr=ls?base+'×'+ls:base; const det=l.tag==='myo'?'myo':'drop';
+        return {l, sr, srInh:'', detail:det};
+      }
+      const isLoad=(l.aType==='LOAD');
+      const sr= isLoad&&l.aVal!=='' ? srOf(l)+'×'+this.loadStr(l) : srOf(l);
+      const detail= isLoad ? '' : detailOf(l);
+      return {l, sr, srInh:'', detail};
+    });
+  }
+  cellMaxCh(cell){ return this.cellTokens(cell).reduce((m,t)=>Math.max(m, (t.sr||'').length+(t.srInh||'').length+(t.detail?1+t.detail.length:0)),0); }
+  workSets(cell){ return (cell.sets||[]).reduce((a,g)=>a+(parseInt(g.count)||0),0); }
+  specOf(cell){ const ls=this.linesOf(cell); if(!ls.length) return ''; const dash='\u2013'; const b=v=>(v===''||v==null)?dash:v; return ls.map(l=>{ const sr=b(l.count)+'\u00d7'+b(l.reps); if(l.tag==='myo'){ const ld=this.loadStr(l); return sr+(ld?'\u00d7'+ld:'')+' myorep'; } if(l.tag==='match') return b(l.count)+'\u00d7 match'; if(l.tag==='drop') return sr+' dropset'; if(l.aType==='PCT') return sr+' '+b(l.aVal)+'%'; if(l.aType==='LOAD') return sr+'\u00d7'+b(l.aVal)+'kg'; if(l.aType==='STEP') return sr+' '+(this.loadStr(l)||'step'); if(l.aType==='RIR') return sr+' RIR'+b(l.aVal); if(l.aType==='RPE') return sr+' RPE'+b(l.aVal); return sr; }).join(' \u00b7 '); }
+  openCellPop(m,wk,rect){ const cur=this.state.cellPop; if(cur&&cur.muscle===m&&cur.wk===wk){ this.setState({cellPop:null}); return; } const p=this.state.program; const days=[]; p.days.forEach(d=>{ const exs=[]; let dtot=0; let has=false; d.slots.forEach(s=>{ if(s.muscle===m && s.cells[wk]){ has=true; const ss=this.workSets(s.cells[wk]); exs.push({slotId:s.id, dayId:d.id, name:(s.cells[wk].exercise||s.name), spec:this.specOf(s.cells[wk]), sets:String(ss)}); dtot+=ss; } }); if(has) days.push({day:d.name, dayTotal:String(dtot), exs}); }); const vw=window.innerWidth, vh=window.innerHeight; const cx=Math.max(150,Math.min(vw-150, rect.left+rect.width/2)); const below = rect.top < 360; this.setState({ cellPop:{ muscle:m, wk, days, cx:Math.round(cx), anchorY:Math.round(below?rect.bottom+8:rect.top-8), below }, hlMuscle:m, heatTip:null }); }
+  heatOpenEditor(slotId,wk,dayId){ const c=Object.assign({},this.state.collapsed); if(dayId) c[dayId]=false; this.setState({collapsed:c, cellPop:null}); setTimeout(()=>{ try{ const el=document.querySelector('[data-cellslot="'+slotId+'"][data-cellwk="'+wk+'"]'); if(el){ const sc=document.querySelector('[data-gridscroll="1"]'); if(sc){ const sr=sc.getBoundingClientRect(), cr=el.getBoundingClientRect(); if(cr.right>sr.right-8) sc.scrollLeft += (cr.right-sr.right)+16; else if(cr.left<sr.left+158) sc.scrollLeft -= (sr.left+158-cr.left); } const rc=el.getBoundingClientRect(); this.setState({drill:{slot:slotId,wk}, drillRect:{top:rc.top,left:rc.left,right:rc.right,bottom:rc.bottom}, menu:null}); } else { this.setState({drill:{slot:slotId,wk}, drillRect:null, menu:null}); } }catch(_){ this.setState({drill:{slot:slotId,wk}, drillRect:null, menu:null}); } },40); }
+  volInfo(m,wk){ let sets=0; this.state.program.days.forEach(d=>d.slots.forEach(s=>{ if(s.muscle===m && s.cells[wk]) sets+=this.workSets(s.cells[wk]); })); const L=this.LAND[m]; let zone; if(!L){ zone=sets>0?'productive':'under'; } else if(sets<L.mev) zone='under'; else if(sets>L.mrv) zone='over'; else if(sets>L.mrv*0.9) zone='near'; else zone='productive'; const labels={under:'below MEV', productive:'productive', near:'near MRV', over:'over MRV'}; const colors={ under:{bg:'#efece6',bd:'#e0dccf',num:'#6b675f',pill:'#8b8378'}, productive:{bg:'#eef3f0',bd:'#d9e6df',num:'#2f6147',pill:'#3f7d57'}, near:{bg:'#f7f1e3',bd:'#ecdcb4',num:'#7a571a',pill:'#9a6a1f'}, over:{bg:'#f6e9e4',bd:'#ecccc2',num:'#a23f2c',pill:'#b2503f'} }; return { sets, zoneLabel:labels[zone], c:colors[zone] }; }
+  status(sets,m){ const L=this.LAND[m]; if(!L) return sets>0?'#6f8f5f':'#cfcabd'; if(sets===0) return '#dcd8cd'; if(sets<L.mev) return '#b8b2a4'; if(sets>L.mrv) return '#b2503f'; if(sets>L.mrv*0.9) return '#c69749'; return '#6f8f5f'; }
+  dayCeil(m){ const L=this.LAND[m]; return L? Math.max(4, Math.round(L.mrv*0.45)) : 0; }
+  fmtSets(n){ return (Math.round(n*10)/10).toString(); }
+
+  // ---- mutators ----
+  update(slotId,wk,gi,field,val){ const g=this.slot(slotId).cells[wk].sets[gi]; if(field==='count') g.count=Math.max(1,parseInt(val)||1); else g[field]=String(val).trim(); this.commit(); }
+  setAnchor(slotId,wk,gi,type){ const g=this.slot(slotId).cells[wk].sets[gi]; const def={RIR:'2',RPE:'8',PCT:'80',LOAD:'100',STEP:'+2.5',FAIL:''}; g.aType=type; g.aVal=def[type]; this.setState({menu:null}); this.save(); }
+  setType(slotId,wk,gi,type){ const g=this.slot(slotId).cells[wk].sets[gi]; g.type=type; if(type==='Dropset'||type==='MyorepMatch'){ g.aType='FAIL'; g.aVal=''; } else if(type==='Myorep'){ if(g.aType!=='PCT'&&g.aType!=='LOAD'&&g.aType!=='STEP'){ g.aType='FAIL'; g.aVal=''; } } else if(g.aType==='FAIL'){ g.aType='RIR'; g.aVal='2'; } this._focusGroup={slot:slotId,wk,gi}; this.setState({menu:null}); this.save(); }
+  loadStr(g){ if(!g) return ''; if(g.aType==='PCT'&&g.aVal!=='') return g.aVal+'%'; if(g.aType==='LOAD'&&g.aVal!=='') return g.aVal+'kg'; if(g.aType==='STEP'&&g.aVal!=='') return (/^[+\-]/.test(g.aVal)?g.aVal:'+'+g.aVal)+'kg'; return ''; }
+  setRepMode(slotId,wk,gi,mode){ const g=this.slot(slotId).cells[wk].sets[gi]; g.repMode=mode; if(mode==='range'&&!String(g.reps).includes('-')){ const n=this.num(g.reps)||8; g.reps=n+'-'+(n+2);} if(mode==='target'&&String(g.reps).includes('-')) g.reps=String(this.num(g.reps)||8); this.setState({menu:null}); this.save(); }
+  setRepPart(slotId,wk,gi,which,val){ const g=this.slot(slotId).cells[wk].sets[gi]; const parts=String(g.reps).split('-'); let mn=parts[0]||'', mx=parts[1]||''; const n=(String(val).match(/\d+/)||[''])[0]; if(which==='min') mn=n; else mx=n; g.reps=(mn===''&&mx==='')?'':(mn+'-'+mx); this.commit(); }
+  toggleMenu(gi,kind){ const m=this.state.menu; this.setState({menu:(m&&m.gi===gi&&m.kind===kind)?null:{gi,kind}}); }
+  incCount(slotId,wk,gi,d){ const g=this.slot(slotId).cells[wk].sets[gi]; g.count=Math.max(1,Math.min(20,(parseInt(g.count)||0)+d)); this.commit(); }
+  incAnchor(slotId,wk,gi,d){ const g=this.slot(slotId).cells[wk].sets[gi]; const step=g.aType==='RIR'?1:(g.aType==='RPE'?0.5:2.5); let v=this.num(g.aVal); if(v===null)v=0; v=v+d*step;
+    if(g.aType==='RIR')v=Math.max(0,Math.min(10,v)); else if(g.aType==='RPE')v=Math.max(5,Math.min(10,v)); else if(g.aType==='PCT')v=Math.max(30,Math.min(100,v)); else if(g.aType==='LOAD')v=Math.max(0,v);
+    v=Math.round(v*10)/10; g.aVal=(g.aType==='STEP'&&v>=0)?('+'+v):String(v); this.commit(); }
+  setAVal(slotId,wk,gi,val){ const g=this.slot(slotId).cells[wk].sets[gi]; let s=String(val).replace(/[^0-9.\-]/g,''); if(g.aType==='STEP'){ const n=parseFloat(s); g.aVal=(s===''||isNaN(n))?'':((n>=0?'+':'')+n); } else { g.aVal=s; } this.commit(); }
+  setCountType(slotId,wk,gi,val){ const g=this.slot(slotId).cells[wk].sets[gi]; const s=String(val).replace(/[^0-9]/g,''); g.count = s===''?'':Math.min(20,parseInt(s)); this.commit(); }
+  addGroup(slotId,wk){ const sets=this.slot(slotId).cells[wk].sets; sets.push({type:'Regular',count:'',reps:'',repMode:'range',aType:'RIR',aVal:''}); this._focusGroup={slot:slotId,wk,gi:sets.length-1}; this.commit(); }
+  delGroup(slotId,wk,gi){ const c=this.slot(slotId).cells[wk]; c.sets.splice(gi,1); this.commit(); }
+  dupGroup(slotId,wk,gi){ const c=this.slot(slotId).cells[wk]; c.sets.splice(gi+1,0,this.clone(c.sets[gi])); this.commit(); }
+  moveGroupBefore(slotId,wk,from,ins){ const a=this.slot(slotId).cells[wk].sets; if(ins<0||ins>a.length) return; const item=a.splice(from,1)[0]; const adj= ins>from? ins-1: ins; a.splice(adj,0,item); this.commit(); }
+  swapEx(slotId,wk){ this.setState({libOpen:true, libReplace:{slot:slotId,wk:wk}, libFilter:'', libSel:0}); }
+  replaceCellEx(name,muscle){ const r=this.state.libReplace; if(!r) return; const s=this.slot(r.slot); s.cells[r.wk].exercise=name; this.setState({libOpen:false, libReplace:null, libFilter:''}); this.save(); }
+  changeEx(slotId){ this.setState({libOpen:true, libSlot:{slot:slotId}, libFilter:'', libSel:0}); }
+  replaceSlotEx(name,muscle){ const r=this.state.libSlot; if(!r) return; const s=this.slot(r.slot); s.name=name; s.def=name; s.muscle=muscle; s.alts=[]; s.cells.forEach(c=>{ c.exercise=name; }); this.setState({libOpen:false, libSlot:null, libFilter:''}); this.save(); }
+  copyPrev(slotId,wk){ const s=this.slot(slotId); if(wk>0){ s.cells[wk]=this.clone(s.cells[wk-1]); this.commit(); } }
+
+  // slot mgmt
+  findSlotLoc(id){ for(const d of this.state.program.days){ const i=d.slots.findIndex(s=>s.id===id); if(i>=0) return {day:d,i}; } return null; }
+  moveSlotBefore(dragId,targetId){ if(dragId===targetId) return; const a=this.findSlotLoc(dragId); if(!a) return; const b0=this.findSlotLoc(targetId); if(!b0) return; const down=(a.day===b0.day && a.i<b0.i); const slot=a.day.slots.splice(a.i,1)[0]; const b=this.findSlotLoc(targetId); if(!b){ a.day.slots.splice(a.i,0,slot); return; } b.day.slots.splice(down?b.i+1:b.i,0,slot); this.commit(); }
+  moveSlotToDayEnd(dragId,dayId){ const a=this.findSlotLoc(dragId); if(!a) return; const d=this.state.program.days.find(x=>x.id===dayId); if(a.day===d && a.i===d.slots.length-1) return; const slot=a.day.slots.splice(a.i,1)[0]; d.slots.push(slot); this.commit(); }
+  moveDayBefore(dragId,targetId){ if(dragId===targetId) return; const days=this.state.program.days; const di=days.findIndex(d=>d.id===dragId); const ti=days.findIndex(d=>d.id===targetId); if(di<0||ti<0) return; const down=di<ti; const day=days.splice(di,1)[0]; const nt=days.findIndex(d=>d.id===targetId); days.splice(nt<0?days.length:(down?nt+1:nt),0,day); this.commit(); }
+  dupSlot(slotId){ const d=this.dayOfSlot(slotId); const i=d.slots.findIndex(x=>x.id===slotId); const c=this.clone(d.slots[i]); c.id=this.uid('slot'); d.slots.splice(i+1,0,c); this.commit(); }
+  moveDayToIndex(dragId,ins){ const days=this.state.program.days; const from=days.findIndex(d=>d.id===dragId); if(from<0||ins<0||ins>days.length) return; const day=days.splice(from,1)[0]; const adj= ins>from? ins-1: ins; days.splice(adj,0,day); this.commit(); }
+  dayInsAt(clientY){ const grid=document.querySelector('[data-gridscroll="1"]'); if(!grid) return {ins:0,lineTop:0}; const bands=[...grid.querySelectorAll('[data-dayband]')]; let ins=bands.length; for(let i=0;i<bands.length;i++){ const r=bands[i].getBoundingClientRect(); if(clientY < r.top+r.height/2){ ins=i; break; } } let lineTop=0; if(ins<bands.length){ lineTop=bands[ins].offsetTop-9; } else if(bands.length){ const lb=bands[bands.length-1]; lineTop=lb.offsetTop+lb.offsetHeight+9; } return {ins, lineTop}; }
+  startDayDrag(e,dayId){ if(e.button!=null&&e.button!==0) return; e.preventDefault(); this._dayPending={id:dayId, x:e.clientX, y:e.clientY, active:false}; if(!this._dayMove){ this._dayMove=(ev)=>this.onDayPointerMove(ev); this._dayUp=(ev)=>this.onDayPointerUp(ev); } document.addEventListener('pointermove', this._dayMove); document.addEventListener('pointerup', this._dayUp); }
+  onDayPointerMove(e){ const p=this._dayPending; if(!p) return; if(!p.active){ if(Math.abs(e.clientX-p.x)+Math.abs(e.clientY-p.y)<5) return; p.active=true; this.setState({dayDrag:p.id}); } const grid=document.querySelector('[data-gridscroll="1"]'); if(grid){ const gr=grid.getBoundingClientRect(); if(e.clientY<gr.top+44) grid.scrollTop-=14; else if(e.clientY>gr.bottom-44) grid.scrollTop+=14; } const r=this.dayInsAt(e.clientY); const di=this.state.program.days.findIndex(d=>d.id===p.id); const hide=(r.ins===di||r.ins===di+1); if(this.state.dayIns!==r.ins||this.state.dayLineTop!==r.lineTop||this.state.dayLineHide!==hide) this.setState({dayIns:r.ins, dayLineTop:r.lineTop, dayLineHide:hide}); }
+  onDayPointerUp(e){ if(this._dayMove){ document.removeEventListener('pointermove', this._dayMove); document.removeEventListener('pointerup', this._dayUp); } const p=this._dayPending; this._dayPending=null; if(p&&p.active){ const r=this.dayInsAt(e.clientY); this.moveDayToIndex(p.id, r.ins); } this.setState({dayDrag:null, dayIns:null, dayLineTop:null, dayLineHide:false}); }
+  startSlotDrag(e,slotId){ if(e.button!=null&&e.button!==0) return; e.preventDefault(); this._slotPending={id:slotId, x:e.clientX, y:e.clientY, active:false}; if(!this._slotMove){ this._slotMove=(ev)=>this.onSlotPointerMove(ev); this._slotUp=(ev)=>this.onSlotPointerUp(ev); } document.addEventListener('pointermove', this._slotMove); document.addEventListener('pointerup', this._slotUp); }
+  slotDropAt(clientY,dragId){ const grid=document.querySelector('[data-gridscroll="1"]'); if(!grid) return null; const wrap=document.querySelector('[data-daywrap]'); if(!wrap) return null; const wrapRect=wrap.getBoundingClientRect(); const bands=[...grid.querySelectorAll('[data-dayband][data-dayid]')]; if(!bands.length) return null; let band=null; for(const b of bands){ const r=b.getBoundingClientRect(); if(clientY>=r.top && clientY<=r.bottom){ band=b; break; } } if(!band){ for(const b of bands){ const r=b.getBoundingClientRect(); if(clientY<r.top){ band=b; break; } } if(!band) band=bands[bands.length-1]; } const dayId=band.getAttribute('data-dayid'); const rows=[...band.querySelectorAll('.ex-row[data-slotid]')]; let tgt=null, lineY=null; for(const row of rows){ const r=row.getBoundingClientRect(); if(clientY < r.top+r.height/2){ tgt={beforeId:row.getAttribute('data-slotid')}; lineY=r.top-3.5; break; } } if(!tgt){ tgt={dayEnd:dayId}; if(rows.length){ lineY=rows[rows.length-1].getBoundingClientRect().bottom+3.5; } else { lineY=band.getBoundingClientRect().bottom-10; } } tgt.lineTop=lineY-wrapRect.top; return tgt; }
+  onSlotPointerMove(e){ const p=this._slotPending; if(!p) return; if(!p.active){ if(Math.abs(e.clientX-p.x)+Math.abs(e.clientY-p.y)<5) return; p.active=true; this.setState({slotDrag:p.id}); } const grid=document.querySelector('[data-gridscroll="1"]'); if(grid){ const gr=grid.getBoundingClientRect(); if(e.clientY<gr.top+44) grid.scrollTop-=14; else if(e.clientY>gr.bottom-44) grid.scrollTop+=14; } const t=this.slotDropAt(e.clientY,p.id); if(!t){ if(this.state.slotLineHide!==true) this.setState({slotLineHide:true}); return; } const hide=(t.beforeId===p.id); if(this.state.slotLineTop!==t.lineTop||this.state.slotLineHide!==hide) this.setState({slotLineTop:t.lineTop, slotLineHide:hide}); }
+  onSlotPointerUp(e){ if(this._slotMove){ document.removeEventListener('pointermove', this._slotMove); document.removeEventListener('pointerup', this._slotUp); } const p=this._slotPending; this._slotPending=null; if(p&&p.active){ const t=this.slotDropAt(e.clientY,p.id); if(t){ if(t.dayEnd) this.moveSlotToDayEnd(p.id, t.dayEnd); else if(t.beforeId && t.beforeId!==p.id) this.moveSlotBefore(p.id, t.beforeId); } } this.setState({slotDrag:null, slotLineTop:null, slotLineHide:false}); }
+  startGroupDrag(e,slotId,wk,gi){ if(e.button!=null&&e.button!==0) return; e.preventDefault(); this._grpPending={slot:slotId, wk:wk, gi:gi, x:e.clientX, y:e.clientY, active:false}; if(!this._grpMove){ this._grpMove=(ev)=>this.onGroupPointerMove(ev); this._grpUp=(ev)=>this.onGroupPointerUp(ev); } document.addEventListener('pointermove', this._grpMove); document.addEventListener('pointerup', this._grpUp); }
+  groupInsAt(clientY){ const list=document.querySelector('[data-grouplist]'); if(!list) return {ins:0,lineTop:0}; const cards=[...list.querySelectorAll('[data-gcard]')]; let ins=cards.length; for(let i=0;i<cards.length;i++){ const r=cards[i].getBoundingClientRect(); if(clientY < r.top+r.height/2){ ins=i; break; } } let lineTop=0; if(ins<cards.length){ lineTop=cards[ins].offsetTop-5; } else if(cards.length){ const lc=cards[cards.length-1]; lineTop=lc.offsetTop+lc.offsetHeight+4; } return {ins, lineTop}; }
+  onGroupPointerMove(e){ const p=this._grpPending; if(!p) return; if(!p.active){ if(Math.abs(e.clientX-p.x)+Math.abs(e.clientY-p.y)<5) return; p.active=true; this.setState({gdrag:{slot:p.slot,wk:p.wk,gi:p.gi}}); } const r=this.groupInsAt(e.clientY); const hide=(r.ins===p.gi||r.ins===p.gi+1); if(this.state.gIns!==r.ins||this.state.gLineTop!==r.lineTop||this.state.gLineHide!==hide) this.setState({gIns:r.ins, gLineTop:r.lineTop, gLineHide:hide}); }
+  onGroupPointerUp(e){ if(this._grpMove){ document.removeEventListener('pointermove', this._grpMove); document.removeEventListener('pointerup', this._grpUp); } const p=this._grpPending; this._grpPending=null; if(p&&p.active){ const r=this.groupInsAt(e.clientY); this.moveGroupBefore(p.slot,p.wk,p.gi,r.ins); } this.setState({gdrag:null, gIns:null, gLineTop:null, gLineHide:false}); }
+  delSlot(slotId){ const d=this.dayOfSlot(slotId); const i=d.slots.findIndex(x=>x.id===slotId); d.slots.splice(i,1); if(this.state.drill&&this.state.drill.slot===slotId) this.setState({drill:null}); this.commit(); }
+  addExercise(dayId,name,muscle){ const d=this.state.program.days.find(x=>x.id===dayId); const NW=this.NW(); const cells=[]; for(let w=0;w<NW;w++) cells.push({exercise:name, sets:[]}); d.slots.push({id:this.uid('slot'), name, muscle, def:name, alts:[], cells}); this.setState({libOpen:false, libFilter:'', customName:''}); this.save(); }
+
+  // day mgmt
+  toggleDay(id){ const c=Object.assign({},this.state.collapsed); c[id]=!c[id]; this.setState({collapsed:c}); }
+  setAllCollapsed(v){ const c={}; if(v) this.state.program.days.forEach(d=>c[d.id]=true); this.setState({collapsed:c}); }
+  renameDay(id,name){ const d=this.state.program.days.find(x=>x.id===id); d.name=name.trim()||'Day'; this.commit(); }
+  addDay(){ const id=this.uid('day'); this.state.program.days.push({id, name:'New Day', slots:[]}); this.setState({editingDay:id}); this.commit(); }
+  dupDay(id){ const i=this.state.program.days.findIndex(x=>x.id===id); const c=this.clone(this.state.program.days[i]); c.id=this.uid('day'); c.name=c.name+' copy'; c.slots.forEach(s=>s.id=this.uid('slot')); this.state.program.days.splice(i+1,0,c); this.commit(); }
+  delDay(id){ if(this.state.program.days.length<=1) return; this.state.program.days=this.state.program.days.filter(x=>x.id!==id); this.commit(); }
+
+  // week mgmt
+  emptyCellFrom(c){ return { exercise: c.exercise, sets: [] }; }
+  addPref(){ try{ return localStorage.getItem('structure_addpref')||'copy'; }catch(e){ return 'copy'; } }
+  addWeek(copyLast){ const p=this.state.program; const n=p.weeks.length; const at=n; const src=Math.max(0,at-1); p.weeks.splice(at,0,{deload:false}); p.days.forEach(d=>d.slots.forEach(s=>s.cells.splice(at,0, copyLast?this.clone(s.cells[src]):this.emptyCellFrom(s.cells[src])))); try{localStorage.setItem('structure_addpref', copyLast?'copy':'empty');}catch(e){} this.setState({weekMenu:null, addMenu:false}); this.commit(); }
+  addWeekAfter(wk){ const p=this.state.program; const at=wk+1; p.weeks.splice(at,0,{deload:false}); p.days.forEach(d=>d.slots.forEach(s=>s.cells.splice(at,0,this.emptyCellFrom(s.cells[wk])))); this.setState({weekMenu:null}); this.commit(); }
+  addWeekBefore(wk){ const p=this.state.program; const at=wk; p.weeks.splice(at,0,{deload:false}); p.days.forEach(d=>d.slots.forEach(s=>s.cells.splice(at,0,this.emptyCellFrom(s.cells[wk])))); this.setState({weekMenu:null}); this.commit(); }
+  dupWeek(wk){ const p=this.state.program; p.weeks.splice(wk+1,0,this.clone(p.weeks[wk])); p.days.forEach(d=>d.slots.forEach(s=>s.cells.splice(wk+1,0,this.clone(s.cells[wk])))); this.setState({weekMenu:null}); this.commit(); }
+  delWeek(wk){ const p=this.state.program; if(p.weeks.length<=1) return; p.weeks.splice(wk,1); p.days.forEach(d=>d.slots.forEach(s=>s.cells.splice(wk,1))); this.setState({weekMenu:null, drill:null}); this.commit(); }
+  toggleDeload(wk){ const w=this.state.program.weeks[wk]; w.deload=!w.deload; this.setState({weekMenu:null}); this.commit(); }
+  setPhase(wk,phase){ const w=this.state.program.weeks[wk]; if(w.phase===phase){ delete w.phase; w.deload=false; } else { w.phase=phase; w.deload=(phase==='Deload'); } this.setState({weekMenu:null}); this.commit(); }
+
+
+
+  renderVals(){
+    const st=this.state, self=this, p=st.program, NW=this.NW();
+    let _maxCh=0; p.days.forEach(d=>d.slots.forEach(s=>s.cells.forEach((c,wk)=>{ if(wk<NW) _maxCh=Math.max(_maxCh, this.cellMaxCh(c)); })));
+    const weekColW=Math.max(150, Math.min(300, Math.round(_maxCh*7.35)+30));
+    const gridRowStyle='display:grid; grid-template-columns:158px repeat('+NW+', '+weekColW+'px); gap:5px;';
+    const heatGridStyle='display:grid; grid-template-columns:158px repeat('+NW+', '+weekColW+'px); gap:5px;';
+    const grpColor=(t)=>({Regular:'#1b1b1a',Myorep:'#5a6b8a',MyorepMatch:'#5a6b8a',Dropset:'#9a6a3a'}[t]||'#1b1b1a');
+    const menuStyle='position:absolute; top:calc(100% + 3px); left:0; z-index:30; background:#fff; border:1px solid #e4e2db; border-radius:8px; box-shadow:0 6px 20px rgba(0,0,0,0.12); padding:3px; min-width:120px; display:flex; flex-direction:column;';
+    const menuItemStyle='font-family:\'JetBrains Mono\',monospace; font-size:12px; padding:7px 9px; border-radius:5px; cursor:pointer;';
+
+    // week columns
+    const focusWk = st.drill ? st.drill.wk : null;
+    const PHASES=[['Accumulation','#4a7a5a','#e3ece5','ACCUM'],['Intensification','#8a6a2f','#efe7d5','INTENS'],['Deload','#4a5d80','#dfe3ec','DELOAD']];
+    const weekCols=p.weeks.map((wkObj,wk)=>({
+      label:'Week '+(wk+1), short:'W'+(wk+1), isDeload:wkObj.deload, deloadLabel: wkObj.deload?'Unmark deload':'Mark as deload',
+      hasPhase: !!wkObj.phase, phaseLabel: (function(){ const ph=PHASES.find(x=>x[0]===wkObj.phase); return ph?ph[3]:''; })(),
+      phaseBadgeStyle: (function(){ const ph=PHASES.find(x=>x[0]===wkObj.phase); if(!ph) return 'display:none;'; return "font-family:'JetBrains Mono',monospace; font-size:9px; letter-spacing:0.6px; text-transform:uppercase; color:"+ph[1]+"; background:"+ph[2]+"; padding:1px 5px; border-radius:4px;"; })(),
+      phaseOpts: PHASES.map(x=>({ name:x[0], onPick:()=>self.setPhase(wk,x[0]), style:'font-family:\'JetBrains Mono\',monospace; font-size:12px; padding:7px 10px; border-radius:6px; cursor:pointer; display:flex; align-items:center; gap:9px; '+(wkObj.phase===x[0]?'color:'+x[1]+'; font-weight:600;':'color:#2c2a26;'), dotStyle:'width:9px; height:9px; border-radius:50%; flex:none; background:'+x[1]+';', checkStyle:'margin-left:auto; font-size:11px; color:'+x[1]+'; '+(wkObj.phase===x[0]?'':'display:none;') })),
+      dimStyle: wkObj.deload?'color:#a8a499;':'',
+      chipStyle:'cursor:pointer; display:flex; align-items:center; justify-content:space-between; gap:4px; padding:3px 8px; border-radius:6px; white-space:nowrap; border-bottom:2px solid '+(wk===focusWk?'#1b1b1a':'transparent')+';',
+      menuOpen: st.weekMenu===wk,
+      onMenu:()=>self.setState({weekMenu: st.weekMenu===wk?null:wk}),
+      onAddAfter:()=>self.addWeekAfter(wk),
+      onAddBefore:()=>self.addWeekBefore(wk),
+      onDeload:()=>self.toggleDeload(wk), deloadShort: wkObj.deload?'Undeload':'Deload', onDup:()=>self.dupWeek(wk), onDel:()=>self.delWeek(wk),
+    }));
+
+    // volume heatmap — trained muscles only
+    const trained=this.MUSCLES.filter(m=>p.days.some(d=>d.slots.some(s=>s.muscle===m)));
+    const _active=(st.drill && this.slot(st.drill.slot))? this.slot(st.drill.slot).muscle : null;
+    const _refWk=(st.drill && st.drill.wk!=null && st.drill.wk<NW)? st.drill.wk : null;
+    const heat=trained.map((m,ri)=>{ const sel=st.hlMuscle===m; return {
+      muscle:m,
+      onClick:()=>self.setState({hlMuscle: st.hlMuscle===m?null:m}),
+      rowStyle:'font-size:12px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; cursor:pointer; padding:5px 8px; border-radius:6px; transition:background .12s; '+(sel?'color:#2f43d4; font-weight:700; background:#eef1fd; box-shadow:inset 3px 0 0 #2f43d4;':'color:#5c594f; font-weight:500;'),
+      cells:p.weeks.map((_,wk)=>{ let sets=0; const tipRows=[]; p.days.forEach(d=>{ const exs=[]; let dtot=0; d.slots.forEach(s=>{ if(s.muscle===m && s.cells[wk]){ const ss=self.workSets(s.cells[wk]); if(ss>0){ exs.push({ex:(s.cells[wk].exercise||s.name), sets:String(ss)}); dtot+=ss; } } }); if(dtot>0){ tipRows.push({isDay:true, isEx:false, label:d.name, val:String(dtot)}); exs.forEach(e=>tipRows.push({isDay:false, isEx:true, label:e.ex, val:e.sets})); sets+=dtot; } }); const col=self.status(sets,m); const popSel=(st.cellPop&&st.cellPop.muscle===m&&st.cellPop.wk===wk); return { num:String(sets), hasParts:tipRows.length>0, tipRows, onEnter:(e)=>{ if(!tipRows.length||self.state.cellPop) return; const r=e.currentTarget.getBoundingClientRect(); const vw=(typeof window!=='undefined'?window.innerWidth:1200); const cx=Math.max(104,Math.min(vw-104,r.left+r.width/2)); const above=r.top>200; self.setState({heatTip:{rows:tipRows, cx:Math.round(cx), y:Math.round(above?r.top-8:r.bottom+8), above}}); }, onLeave:()=>{ if(self.state.heatTip) self.setState({heatTip:null}); }, onClick:(e)=>{ self.setState({heatTip:null}); self.openCellPop(m,wk,e.currentTarget.getBoundingClientRect()); }, style:'position:relative; cursor:pointer; text-align:center; padding:5px 0; border-radius:5px; font-family:\'JetBrains Mono\',monospace; font-size:12px; color:#fff; background:'+col+'; '+(popSel?'box-shadow:inset 0 0 0 2px rgba(27,27,26,0.9);':'') }; })
+    }; });
+
+    // volume flags — muscles outside MEV–MRV across non-deload weeks
+    const volFlags=[];
+    trained.forEach(m=>{ const L=this.LAND[m]; if(!L) return; let peak=0, over=false; p.weeks.forEach((w,wk)=>{ if(w.deload) return; let sets=0; p.days.forEach(d=>d.slots.forEach(s=>{ if(s.muscle===m && s.cells[wk]) sets+=self.workSets(s.cells[wk]); })); if(sets>peak) peak=sets; if(sets>L.mrv) over=true; }); if(over) volFlags.push({ label:m+' over MRV', pillStyle:'display:inline-flex; align-items:center; gap:5px; font-family:ui-monospace,monospace; font-size:11px; padding:3px 9px; border-radius:20px; white-space:nowrap; background:#f6e4df; color:#b2503f; border:1px solid #ecccc2;' }); else if(peak<L.mev) volFlags.push({ label:m+' below MEV', pillStyle:'display:inline-flex; align-items:center; gap:5px; font-family:ui-monospace,monospace; font-size:11px; padding:3px 9px; border-radius:20px; white-space:nowrap; background:#efece5; color:#8b7a55; border:1px solid #e0dccf;' }); });
+
+    // live-reflow preview order during a slot drag
+    const previewMap={};
+    if(st.drag && st.drag.kind==='slot' && st.overSlot){
+      const dragId=st.drag.id; const ov=st.overSlot;
+      if(ov!==dragId){
+        const pv=p.days.map(d=>({id:d.id, ids:d.slots.map(s=>s.id)}));
+        pv.forEach(pd=>{ const k=pd.ids.indexOf(dragId); if(k>=0) pd.ids.splice(k,1); });
+        let srcDayId=null, srcI=-1;
+        for(const d of p.days){ const i=d.slots.findIndex(s=>s.id===dragId); if(i>=0){ srcDayId=d.id; srcI=i; break; } }
+        if(typeof ov==='string' && ov.indexOf('day:')===0){ const dayId=ov.slice(4); const pd=pv.find(x=>x.id===dayId); if(pd) pd.ids.push(dragId); }
+        else { for(const pd of pv){ const ti=pd.ids.indexOf(ov); if(ti>=0){ const origTi=p.days.find(d=>d.id===pd.id).slots.findIndex(s=>s.id===ov); const down=(srcDayId===pd.id && srcI<origTi); pd.ids.splice(down?ti+1:ti,0,dragId); break; } } }
+        pv.forEach(pd=>{ previewMap[pd.id]=pd.ids; });
+      }
+    }
+    const gapInfo={}; let dragNameG='';
+    if(st.drag && st.drag.kind==='slot' && st.overSlot && st.overSlot!==st.drag.id){
+      const dgId=st.drag.id; const ds=self.slot(dgId); dragNameG=ds?ds.name:'';
+      for(const dId in previewMap){ const ids=previewMap[dId]; const idx=ids.indexOf(dgId); if(idx>=0){ gapInfo[dId]={ beforeId: ids[idx+1]||null, atEnd: idx===ids.length-1 }; break; } }
+    }
+    // day reorder preview — static layout + insertion line (insertion index 0..n)
+    let dayIns=null, dayDragIdx=-1;
+    if(st.drag && st.drag.kind==='day'){
+      dayDragIdx=p.days.findIndex(d=>d.id===st.drag.id);
+      if(typeof st.overSlot==='string' && st.overSlot.indexOf('dayins:')===0) dayIns=parseInt(st.overSlot.slice(7));
+    }
+    // days
+    const days=p.days.map((day,dayIdx)=>{
+      const expanded=!st.collapsed[day.id];
+      const dragging=(st.dayDrag===day.id);
+      const bandStyle = (dayIdx===0 ? 'margin-top:18px;' : 'margin-top:18px; padding-top:18px; border-top:1px solid #e0ddd4;') + (dragging?' opacity:0.4;':'');
+      let totalSets=0; day.slots.forEach(s=>s.cells.forEach((c,wk)=>{ if(wk<NW) {} })); 
+      const wkTotal=day.slots.reduce((a,s)=> a + (s.cells[0]?self.workSets(s.cells[0]):0), 0);
+      const gi=gapInfo[day.id];
+      const slots=day.slots.map((slot)=>{
+        const cells=slot.cells.map((cell,wk)=>{
+          const deload=p.weeks[wk]&&p.weeks[wk].deload;
+          const isVar=cell.exercise!==slot.def;
+          const myLines=this.linesOf(cell);
+          const prevLines=(wk>0 && slot.cells[wk-1].exercise===cell.exercise)? this.linesOf(slot.cells[wk-1]) : null;
+          const dash='–';
+          const blank=v=>(v===''||v==null)?dash:v;
+          const srOf=l=>blank(l.count)+'×'+blank(l.reps);
+          const detailOf=l=>{ if(l.aType==='FAIL') return this.anchorStr(l); if(l.aVal===''||l.aVal==null){ return ({RIR:'RIR',RPE:'RPE',PCT:'%1RM',LOAD:'load',STEP:'step'}[l.aType]||l.aType)+' '+dash; } return this.anchorStr(l); };
+          const workLines=myLines.filter(x=>!x.tag); const lastWork=workLines[workLines.length-1];
+          const lines=this.cellTokens(cell).map((t,li)=>{
+            const l=t.l;
+            if(l.tag){ return { sr:t.sr, srInh:t.srInh, detail:t.detail, dim:(deload?'color:#9a958b;':'color:#3a3833;'), detailStyle:'font-weight:500; '+(deload?'color:#9a958b;':'color:#5a6b8a;') }; }
+            const ramp = prevLines&&prevLines[li]? this.moreIntense(l, prevLines[li]) : false;
+            const incomplete=(l.count===''||l.reps===''||l.aVal==='');
+            return { sr:t.sr, srInh:'', detail:t.detail, dim: deload?'color:#9a958b;':(incomplete?'color:#c2bdb2;':'color:#3a3833;'), detailStyle:'font-weight:500; '+(incomplete?'color:#c2bdb2;':(ramp?'color:#3f7d57;':(deload?'color:#9a958b;':'color:#1b1b1a;'))) };
+          });
+          const selected = st.drill && st.drill.slot===slot.id && st.drill.wk===wk;
+          let bg='#fff', bd='#e7e5df'; if(deload){ bg='#f3efe9'; bd='#e0dcd2'; } if(isVar){ bg='#f6f3fb'; bd='#d3c8e8'; }
+          const cellStyle='position:relative; border:1.5px solid '+bd+'; border-radius:9px; padding:7px 8px; background:'+bg+'; cursor:pointer; min-width:0; box-shadow:'+(selected?'inset 0 0 0 2px rgba(27,27,26,0.9)':'none')+';';
+          return { cellStyle, isVar, exName:cell.exercise, lines, empty:myLines.length===0, slotId:slot.id, wk:wk, onClick:(e)=>{ const el=e&&e.currentTarget; const rc=el?el.getBoundingClientRect():null; self.setState(s=>{ const closing=(s.drill&&s.drill.slot===slot.id&&s.drill.wk===wk); return { drill: closing?null:{slot:slot.id, wk}, drillRect: closing?null:(rc?{top:rc.top,left:rc.left,right:rc.right,bottom:rc.bottom}:null), menu:null }; }); } };
+        });
+        const dragging=(st.slotDrag===slot.id);
+        const hlOn=!!st.hlMuscle; const hlMatch=hlOn&&slot.muscle===st.hlMuscle;
+        return { name:slot.name, sub:(slot.def===slot.cells[0].exercise?slot.muscle:slot.muscle), cells, actBg:'#f4f3ef', slotId:slot.id, dayId:day.id,
+          rowStyle: gridRowStyle+' margin-bottom:7px; align-items:stretch; transition:opacity .12s; '+(dragging?'opacity:0.4;':(hlOn&&!hlMatch?'opacity:0.34;':'')),
+          labelStyle:'position:relative; display:flex; flex-direction:column; justify-content:center; gap:1px; padding-right:6px; min-width:0; border-radius:7px; transition:background .12s; '+(hlMatch?'background:#eef1fd; box-shadow:inset 3px 0 0 #2f43d4; padding-left:9px; margin-left:-9px;':''),
+          onGripDown:(e)=>self.startSlotDrag(e, slot.id),
+          onChangeEx:()=>self.changeEx(slot.id), onDup:()=>self.dupSlot(slot.id), onDel:()=>self.delSlot(slot.id),
+          };
+      });
+      const blocks=slots.map(r=>({rows:[r], isSS:false, boxStyle:'margin:0', label:''}));
+      const dayDragging=(st.drag&&st.drag.kind==='day'&&st.drag.id===day.id);
+      const dayDrop=(st.drag&&st.drag.id!==day.id);
+      return { name:day.name, dayId:day.id, caret: expanded?'▾':'▸', expanded, bandStyle, meta: day.slots.length+(day.slots.length===1?' exercise · ':' exercises · ')+wkTotal+' sets', slots, blocks,
+        onGripDown:(e)=>self.startDayDrag(e, day.id),
+        headerStyle:'display:flex; align-items:center; gap:10px; border-bottom:1.5px solid transparent; padding-bottom:5px; margin-bottom:7px;',
+        onHeaderDragOver:(e)=>{ if(self.state.drag&&self.state.drag.kind==='slot'){ e.preventDefault(); const k='day:'+day.id; if(self.state.overSlot!==k) self.setState({overSlot:k}); } },
+        onHeaderDrop:(e)=>{ if(self.state.drag&&self.state.drag.kind==='slot'){ e.preventDefault(); e.stopPropagation(); self.moveSlotToDayEnd(self.state.drag.id, day.id); self.setState({drag:null, overSlot:null}); } },
+        onToggle:()=>self.toggleDay(day.id), onRename:(e)=>{ self.renameDay(day.id,e.target.value); self.setState({editingDay:null}); },
+        editing: st.editingDay===day.id, notEditing: st.editingDay!==day.id,
+        onEdit:()=>self.setState({editingDay:day.id}),
+        nameRef:(el)=>{ if(el && st.editingDay===day.id && !el._f){ el._f=true; el.focus(); el.select(); } },
+        gapAtEnd: !!(gi && gi.atEnd), dragName:dragNameG,
+        onBodyDragOver:(e)=>{ if(self.state.drag&&self.state.drag.kind==='slot'){ e.preventDefault(); } },
+        onBodyDrop:(e)=>{ if(self.state.drag&&self.state.drag.kind==='slot'){ e.preventDefault(); const tgt=self.state.overSlot; if(tgt && tgt!==self.state.drag.id){ if(typeof tgt==='string'&&tgt.indexOf('day:')===0) self.moveSlotToDayEnd(self.state.drag.id, tgt.slice(4)); else self.moveSlotBefore(self.state.drag.id, tgt); } self.setState({drag:null, overSlot:null}); } },
+        nameWidth:'calc('+Math.max((day.name||'').length,4)+'ch + 2px)',
+        onNameInput:(e)=>{ e.currentTarget.style.width='calc('+Math.max(e.currentTarget.value.length,4)+'ch + 2px)'; },
+        onNameKey:(e)=>{ if(e.key==='Enter'){ e.preventDefault(); self.renameDay(day.id, e.currentTarget.value); self.setState({editingDay:null}); } else if(e.key==='Escape'){ e.preventDefault(); self.setState({editingDay:null}); } },
+        onAddEx:()=>self.setState({libOpen:true, libDayId:day.id, libFilter:'', libSel:0}), onDup:()=>self.dupDay(day.id), onDel:()=>self.delDay(day.id) };
+    });
+
+    // side panel
+    const panelOpen=!!st.drill && !!this.slot(st.drill.slot);
+    let panel={groups:[]};
+    if(panelOpen){
+      const slot=this.slot(st.drill.slot); const wk=st.drill.wk; const cell=slot.cells[wk]; const day=this.dayOfSlot(slot.id);
+      const prev= wk>0? slot.cells[wk-1]:null;
+      const fmtPrev=l=>{ const isLoad=(l.aType==='LOAD'); const ld=self.loadStr(l); const base=l.tag==='match'?((l.count||0)+'×'):((l.count||0)+'×'+(l.reps||'–')); const sr=(l.tag==='myo'&&ld)?base+'×'+ld:((!l.tag&&isLoad&&ld)?base+'×'+ld:base); let det; if(l.tag==='match') det='match'; else if(l.tag) det=(l.tag==='myo'?'myorep':'dropset'); else if(isLoad) det=''; else if(l.aVal===''||l.aVal==null) det=({RIR:'RIR',RPE:'RPE',PCT:'%1RM',LOAD:'load',STEP:'step'}[l.aType]||l.aType); else det=self.anchorStr(l); return {sr, det, sep: det?' · ':''}; };
+      let prevIsBaseline = !prev;
+      const prevTotal = prev ? prev.sets.reduce((a,g)=>a+(parseInt(g.count)||0),0) : 0;
+      let prevHeader = prev ? ('Last week · '+(prev.exercise!==cell.exercise?prev.exercise+' · ':'')+self.fmtSets(prevTotal)+(prevTotal===1?' set total':' sets total')) : 'Week 1 · baseline';
+      let prevLines = prev ? self.linesOf(prev).map(fmtPrev) : [];
+      if(prev && prevLines.length===0) prevLines=[{sr:'not planned', det:'', sep:''}];
+      { const maxSr=prevLines.reduce((a,p)=>Math.max(a,(p.sr||'').length),0); const srMin=Math.max(5.5,maxSr+0.5); prevLines.forEach(p=>{ p.srStyle='display:inline-block; min-width:'+srMin+'ch;'; }); }
+      const unitMap={LOAD:'kg',STEP:'kg vs last wk'};
+      const intLabelMap={RIR:'RIR',RPE:'RPE',PCT:'%1RM',LOAD:'Exact load',STEP:'Load step',FAIL:'To failure'};
+      const dropStyle='display:inline-block; font-family:\'JetBrains Mono\',monospace; font-size:11px; color:#6b675f; padding:6px 0; cursor:pointer; white-space:nowrap;';
+      const vi=self.volInfo(slot.muscle, wk);
+      const exWorkoutSets=self.workSets(cell);
+      let muscleWorkoutSets=0; if(day) day.slots.forEach(s=>{ if(s.muscle===slot.muscle && s.cells[wk]) muscleWorkoutSets+=self.workSets(s.cells[wk]); });
+      // weekly landmark bar (option B: fill color carries the zone)
+      const L=self.LAND[slot.muscle]; const mrv=L?L.mrv:20, mev=L?L.mev:8;
+      const wkSets=vi.sets;
+      let zKey, zLabel, fillCol, pillBg, pillFg='#fff', numCol;
+      if(wkSets===0){ zKey='empty'; zLabel='EMPTY'; fillCol='transparent'; pillBg='#dcd8cd'; pillFg='#8b8378'; numCol='#bdb9af'; }
+      else if(wkSets<mev){ zKey='under'; zLabel='BELOW MEV'; fillCol='#a89f8d'; pillBg='#b8b2a4'; numCol='#6f6b62'; }
+      else if(wkSets>mrv){ zKey='over'; zLabel='OVER MRV'; fillCol='#bc5743'; pillBg='#b2503f'; numCol='#a23f2c'; }
+      else if(wkSets>mrv*0.9){ zKey='near'; zLabel='NEAR MRV'; fillCol='#ca9a4a'; pillBg='#c69749'; numCol='#7a571a'; }
+      else { zKey='prod'; zLabel='PRODUCTIVE'; fillCol='#5b9a73'; pillBg='#3f7d57'; numCol='#2f6147'; }
+      const fillPct=Math.min(wkSets/mrv,1)*100;
+      const mevPct=Math.min(mev/mrv,1)*100;
+      const hatchLeft=Math.max(0,(wkSets-muscleWorkoutSets)/mrv)*100;
+      const hatchW=Math.min(muscleWorkoutSets/mrv, 1-hatchLeft/100)*100;
+      const dayCeil=self.dayCeil(slot.muscle);
+      const sessionHeavy = dayCeil>0 && muscleWorkoutSets>dayCeil;
+      const volBar={
+        name:slot.muscle, num:self.fmtSets(wkSets), zoneLabel:zLabel,
+        numStyle:'font-size:21px; font-weight:700; color:'+numCol+';',
+        pillStyle:'display:inline-flex; align-items:center; font-family:\'JetBrains Mono\',monospace; font-size:9px; font-weight:600; padding:2px 7px; border-radius:4px; background:'+pillBg+'; color:'+pillFg+';',
+        fillStyle:'position:absolute; left:0; top:0; bottom:0; width:'+fillPct+'%; background:'+fillCol+'; border-radius:5px 0 0 5px;',
+        hatchStyle:'position:absolute; top:0; bottom:0; left:'+hatchLeft+'%; width:'+hatchW+'%; background-image:repeating-linear-gradient(45deg,rgba(255,255,255,.5) 0 3px,transparent 3px 6px);',
+        mevStyle:'position:absolute; top:-2px; bottom:-2px; left:'+mevPct+'%; width:1.5px; background:#b0aca1;',
+        mevLabelStyle:'position:absolute; left:'+mevPct+'%; transform:translateX(-50%); font-family:\'JetBrains Mono\',monospace; font-size:8px; color:#a8a499;',
+        mevText:'MEV '+mev, mrvText:'MRV '+mrv,
+        sessionHeavy, sessionText:self.fmtSets(muscleWorkoutSets)+' sets in one session', sessionSub:'heavy — most plans cap ~'+dayCeil+' / session'
+      };
+      const dr=st.drillRect; const popLeft = dr? dr.left : 420; const popTop = dr? (dr.bottom+8) : 120;
+      let gOrder=cell.sets.map((_,i)=>i);
+      const gDragActive=(st.gdrag && st.gdrag.slot===slot.id && st.gdrag.wk===wk);
+      panel={
+        exName:cell.exercise, weekLabel:'Week '+(wk+1), dayName:day?day.name:'', prevHeader, prevLines, prevIsBaseline, volBar,
+        exTotalLabel:self.fmtSets(exWorkoutSets)+' total',
+        groupGapAtEnd: false,
+        gLineShow: (st.gdrag && st.gdrag.slot===slot.id && st.gdrag.wk===wk && typeof st.gLineTop==='number' && !st.gLineHide),
+        gLineStyle: 'position:absolute; left:0; right:0; top:'+(st.gLineTop||0)+'px; height:0; border-top:2.5px solid #2f43d4; border-radius:2px; z-index:6; pointer-events:none;',
+        popStyle:'position:fixed; z-index:50; left:'+popLeft+'px; top:'+popTop+'px; width:340px; max-height:82vh; overflow-y:auto; background:#fbfaf7; border:1px solid #cfcabd; border-radius:11px; box-shadow:0 14px 38px rgba(0,0,0,0.20);',
+        popRef:(el)=>{ if(el) self.positionPop(el); },
+        note: cell.exercise!==slot.def? 'variation week — progression comparison restarts on this lift.' : 'swap cycles this slot\u2019s alternatives for this week only.',
+        onClose:()=>self.setState({drill:null,menu:null}), onAddReg:()=>self.addGroup(slot.id,wk), onSwap:()=>self.swapEx(slot.id,wk), onCopyPrev:()=>self.copyPrev(slot.id,wk), canCopyPrev: wk>0, groupDropEnd: (st.gdrag && st.gdrag.slot===slot.id && st.gdrag.wk===wk && st.gover===cell.sets.length && st.gdrag.gi!==cell.sets.length-1), canSwap:(slot.alts&&slot.alts.length>0),
+        groups:gOrder.map((gi)=>{ const g=cell.sets[gi];
+          const isRange=g.repMode==='range'; const parts=String(g.reps).split('-'); const mo=st.menu&&st.menu.gi===gi;
+          let aDisplay=g.aVal; if(g.aType==='PCT')aDisplay=g.aVal+'%'; else if(g.aType==='STEP')aDisplay=(/^[+\-]/.test(g.aVal)?g.aVal:'+'+g.aVal);
+          const unit2={LOAD:'kg',STEP:'kg',PCT:'%'};
+          const showHard=(g.type==='Regular'||g.type==='Myorep');
+          const loadOnly=(g.type==='Myorep');
+          const hasAVal=(g.aType!=='FAIL');
+          const isMatch=(g.type==='MyorepMatch');
+          const tLabel={Regular:'Regular',Myorep:'Myorep',MyorepMatch:'Myorep match',Dropset:'Dropset'}[g.type]||g.type;
+          return {
+            typeLabel:tLabel, color:grpColor(g.type), showHard, noHard:!showHard, loadOnly, notLoadOnly:!loadOnly, hasAVal, showReps:!isMatch, isMatch, matchHint:'Matches reps & load of the set above', canDel:true,
+            count:String(g.count), reps:g.reps, repMin:parts[0]||'', repMax:parts[1]||'',
+            repModeLabel:isRange?'Rep range':'Rep target', repIsRange:isRange, repIsTarget:!isRange,
+            repDropStyle:dropStyle, intDropStyle:dropStyle,
+            typeMenuOpen:mo&&st.menu.kind==='type', repMenuOpen:mo&&st.menu.kind==='reps', intMenuOpen:mo&&st.menu.kind==='int',
+            onTypeMenu:()=>self.toggleMenu(gi,'type'), onRepMenu:()=>self.toggleMenu(gi,'reps'), onIntMenu:()=>self.toggleMenu(gi,'int'),
+            onTypeRegular:()=>self.setType(slot.id,wk,gi,'Regular'), onTypeMyorep:()=>self.setType(slot.id,wk,gi,'Myorep'), onTypeMyorepMatch:()=>self.setType(slot.id,wk,gi,'MyorepMatch'), onTypeDropset:()=>self.setType(slot.id,wk,gi,'Dropset'),
+            onRepTarget:()=>self.setRepMode(slot.id,wk,gi,'target'), onRepRange:()=>self.setRepMode(slot.id,wk,gi,'range'),
+            intModeLabel:(g.aType==='FAIL'?'No load':(intLabelMap[g.aType]||g.aType)), aDisplay, aValRaw:g.aVal, intUnit:unit2[g.aType]||'', hasUnit:!!unit2[g.aType],
+            onAVal:(e)=>self.setAVal(slot.id,wk,gi,e.target.value),
+            onRIR:()=>self.setAnchor(slot.id,wk,gi,'RIR'), onRPE:()=>self.setAnchor(slot.id,wk,gi,'RPE'), onPCT:()=>self.setAnchor(slot.id,wk,gi,'PCT'), onLOAD:()=>self.setAnchor(slot.id,wk,gi,'LOAD'), onFAIL:()=>self.setAnchor(slot.id,wk,gi,'FAIL'), onSTEP:()=>self.setAnchor(slot.id,wk,gi,'STEP'),
+            onCountInc:()=>self.incCount(slot.id,wk,gi,1), onCountDec:()=>self.incCount(slot.id,wk,gi,-1), onCountType:(e)=>self.setCountType(slot.id,wk,gi,e.target.value),
+            setsRef:(self._focusGroup&&self._focusGroup.slot===slot.id&&self._focusGroup.wk===wk&&self._focusGroup.gi===gi)?((el)=>{ if(el){ el.focus(); try{el.select();}catch(_){} self._focusGroup=null; } }):null, onAValInc:()=>self.incAnchor(slot.id,wk,gi,1), onAValDec:()=>self.incAnchor(slot.id,wk,gi,-1),
+            onReps:(e)=>self.update(slot.id,wk,gi,'reps',e.target.value), onRepMin:(e)=>self.setRepPart(slot.id,wk,gi,'min',e.target.value), onRepMax:(e)=>self.setRepPart(slot.id,wk,gi,'max',e.target.value),
+            onKey:(e)=>{ if(e.key==='Enter'){ e.preventDefault(); e.target.blur(); } }, onDel:()=>self.delGroup(slot.id,wk,gi),
+            onDup:()=>self.dupGroup(slot.id,wk,gi),
+            draggable:true,
+            cardStyle:'border:1px solid #e4e2db; border-radius:10px; padding:11px; margin-bottom:9px; background:#fff; '+((st.gdrag&&st.gdrag.slot===slot.id&&st.gdrag.wk===wk&&st.gdrag.gi===gi)?'opacity:0.4;':''),
+            gi:gi,
+            onGripDown:(e)=>self.startGroupDrag(e, slot.id, wk, gi)
+          };
+        })
+      };
+    }
+
+    // library
+    const f=st.libFilter.toLowerCase();
+    const swapMuscle = st.libReplace ? this.slot(st.libReplace.slot).muscle : null;
+    const libItems=this.LIB.filter(x=>x[0].toLowerCase().includes(f) && (!swapMuscle || x[1]===swapMuscle)).map((x,i)=>({name:x[0], muscle:x[1], ref:(el)=>{ if(el && st.libSel===i){ try{ el.scrollIntoView({block:'nearest'}); }catch(_){} } }, rowStyle:'display:flex; align-items:center; justify-content:space-between; padding:9px 6px; border-bottom:1px solid #f0eee7; cursor:pointer; border-radius:5px; '+(st.libSel===i?'background:#eef1fd; box-shadow:inset 2px 0 0 #2f43d4;':''), onPick: st.libReplace? (()=>self.replaceCellEx(x[0],x[1])) : (st.libSlot? (()=>self.replaceSlotEx(x[0],x[1])) : (()=>self.addExercise(st.libDayId,x[0],x[1])))}));
+    const libDay=p.days.find(d=>d.id===st.libDayId);
+    const muscleOpts=this.MUSCLES.map(m=>({name:m, onPick:()=>self.setState({customMuscle:m, customMuscleMenu:false})}));
+
+    // mini-strip: peak accumulation week (non-deload week with most sets), per-muscle bars
+    const SHORT={Chest:'Ch',Back:'Bk',Shoulders:'Sh',Quads:'Qd',Hamstrings:'Ha',Glutes:'Gl',Biceps:'Bi',Triceps:'Tr',Calves:'Ca'};
+    const weekTotals=p.weeks.map((w,wk)=> w.deload?-1: trained.reduce((a,m)=>{ let s=0; p.days.forEach(d=>d.slots.forEach(sl=>{ if(sl.muscle===m&&sl.cells[wk]) s+=self.workSets(sl.cells[wk]); })); return a+s; },0));
+    let peak=0,best=-1; weekTotals.forEach((t,i)=>{ if(t>best){ best=t; peak=i; } });
+    const cat=(sets,m)=>{ const L=this.LAND[m]; if(!L) return sets>0?'productive':'under'; if(sets<L.mev) return 'under'; if(sets>L.mrv) return 'over'; if(sets>L.mrv*0.9) return 'near'; return 'productive'; };
+    const hasWk=(st.drill && st.drill.wk!=null && st.drill.wk<NW);
+    const refWk=hasWk? st.drill.wk : null;
+    const activeMuscle=(st.drill && this.slot(st.drill.slot))? this.slot(st.drill.slot).muscle : null;
+    const volStrip= hasWk ? trained.map(m=>{ let sets=0; p.days.forEach(d=>d.slots.forEach(sl=>{ if(sl.muscle===m&&sl.cells[refWk]) sets+=self.workSets(sl.cells[refWk]); })); const col=self.status(sets,m); const on=(m===activeMuscle); const dim=(activeMuscle&&!on); return { name:m, num:String(sets), cellStyle:'flex:1; min-width:0; text-align:center; padding:6px 2px; border-radius:6px; background:'+col+'; color:#fff; font-family:\'JetBrains Mono\',monospace; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; '+(dim?'opacity:0.42;':'')+(on?'box-shadow:0 0 0 2px #1b1b1a; position:relative; z-index:1;':'') }; }) : [];
+    const volStripEmpty=!hasWk;
+    const volStripBadge= hasWk ? ('W'+(refWk+1)) : '';
+    const volStripSub= hasWk ? (activeMuscle? ('· '+activeMuscle):'volume') : '';
+
+    return {
+      programName:p.name, onName:(e)=>{ p.name=e.target.textContent.trim()||'Untitled'; self.commit(); },
+      meta: NW+' weeks · '+p.days.length+' days',
+      allTitle: (p.days.length&&p.days.every(d=>st.collapsed[d.id])?'Expand all workouts':'Collapse all workouts'),
+      anyCollapsed: (p.days.length>0 && p.days.every(d=>st.collapsed[d.id])),
+      allExpanded: !(p.days.length>0 && p.days.every(d=>st.collapsed[d.id])),
+      onToggleAll: ()=>self.setAllCollapsed(!(p.days.length>0 && p.days.every(d=>st.collapsed[d.id]))),
+      onAddWeekPrimary:()=>self.addWeek(self.addPref()!=='empty'),
+      nextWeekLabel: 'Week '+(p.weeks.length+1),
+      addPrimaryLabel: self.addPref()==='empty' ? '+ new week' : '+ copy last week',
+      copySrcLabel: 'Copy last week',
+      onAddWeekCaret:()=>self.setState({addMenu:!st.addMenu, weekMenu:null}),
+      addCaretBg: st.addMenu?'background:#eef1fd;':'',
+      addMenuOpen: st.addMenu,
+      onAddWeekEmpty:()=>self.addWeek(false),
+      onAddWeekCopy:()=>self.addWeek(true),
+      onAddDay:()=>self.addDay(),
+      onGridDragOver:(e)=>{ const dr=self.state.drag; if(!dr||dr.kind!=='day') return; e.preventDefault(); const r=self.dayInsAt(e.clientY); const di=self.state.program.days.findIndex(d=>d.id===dr.id); const hide=(r.ins===di||r.ins===di+1); if(self.state.dayIns!==r.ins||self.state.dayLineTop!==r.lineTop||self.state.dayLineHide!==hide) self.setState({dayIns:r.ins, dayLineTop:r.lineTop, dayLineHide:hide}); },
+      onGridDrop:(e)=>{ const dr=self.state.drag; if(!dr||dr.kind!=='day') return; e.preventDefault(); self.dropDay(dr.id, e.clientY); },
+      dayLineShow: (st.dayDrag && typeof st.dayIns==='number' && !st.dayLineHide),
+      dayLineStyle: 'position:absolute; left:0; right:0; top:'+(st.dayLineTop||0)+'px; height:0; border-top:2.5px solid #2f43d4; border-radius:2px; z-index:6; pointer-events:none;',
+      slotLineShow: (!!st.slotDrag && typeof st.slotLineTop==='number' && !st.slotLineHide),
+      slotLineStyle: 'position:absolute; left:0; right:0; top:'+(st.slotLineTop||0)+'px; height:0; border-top:2.5px solid #2f43d4; border-radius:2px; z-index:6; pointer-events:none;',
+      onDayListDragOver:(e)=>{ if(self.state.drag&&self.state.drag.kind==='day'){ e.preventDefault(); } },
+      onDayListDrop:(e)=>{ if(self.state.drag&&self.state.drag.kind==='day'){ e.preventDefault(); e.stopPropagation(); self.dropDay(self.state.drag.id, e.clientY); } },
+      volOpen:st.volOpen, onToggleVol:()=>self.setState({volOpen:!st.volOpen, hlMuscle: st.volOpen?null:st.hlMuscle, heatTip:null}),
+      volCaret: st.volOpen?'▾':'▴', volStrip, volStripEmpty, volStripBadge, activeWkBadge:hasWk,
+      volExpandLabel: 'Volume overview',
+      heatTipOpen: !!st.heatTip,
+      heatTipRows: st.heatTip? st.heatTip.rows : [],
+      heatTipStyle: st.heatTip? ('position:fixed; z-index:80; left:'+st.heatTip.cx+'px; top:'+st.heatTip.y+'px; transform:translateX(-50%)'+(st.heatTip.above?' translateY(-100%)':'')) : '',
+      cellPopOpen: !!st.cellPop,
+      cellPopStyle: st.cellPop? ('position:fixed; z-index:85; left:'+st.cellPop.cx+'px; top:'+st.cellPop.anchorY+'px; transform:translateX(-50%)'+(st.cellPop.below?'':' translateY(-100%)')) : '',
+      cellPopMuscle: st.cellPop? st.cellPop.muscle : '',
+      cellPopSub: st.cellPop? ('Week '+(st.cellPop.wk+1)+' \u00b7 '+st.cellPop.days.length+(st.cellPop.days.length===1?' workout':' workouts')) : '',
+      cellPopTotal: st.cellPop? (st.cellPop.days.reduce((a,d)=>a+d.exs.reduce((b,e)=>b+(parseInt(e.sets)||0),0),0)+' sets') : '',
+      cellPopTotalStyle: st.cellPop? ('font-family:\'JetBrains Mono\',monospace; font-size:11px; font-weight:700; color:#fff; border-radius:6px; padding:4px 9px; white-space:nowrap; background:'+self.volInfo(st.cellPop.muscle, st.cellPop.wk).c.pill+';') : '',
+      cellPopDays: st.cellPop? st.cellPop.days.map(d=>({ day:d.day, dayTotal:d.dayTotal+' sets', exs:d.exs.map(e=>({ name:e.name, spec:e.spec, sets:e.sets, onOpen:()=>self.heatOpenEditor(e.slotId, st.cellPop.wk, e.dayId) })) })) : [],
+      volExpandStyle:'font-family:\'JetBrains Mono\',monospace; font-size:11px; font-weight:600; letter-spacing:0.3px; white-space:nowrap; flex:none; cursor:pointer; padding:6px 12px; border-radius:7px; '+(st.volOpen?'background:#1b1b1a; color:#fbfaf7; border:1px solid #1b1b1a;':'background:#fff; color:#3a3833; border:1px solid #cfcabd;'),
+      gridRowStyle, heatGridStyle, weekCols, heat,
+      volFlags, volFlagsEmpty: volFlags.length===0, hasVolFlags: volFlags.length>0,
+      days, panelOpen, panel, menuStyle, menuItemStyle,
+      libOpen:st.libOpen, libDayName: libDay?libDay.name:'', libTitle: st.libReplace? 'Swap exercise (this week)' : (st.libSlot? 'Change exercise' : ('Add exercise to '+(libDay?libDay.name:''))), onCloseLib:()=>self.setState({libOpen:false, libReplace:null, libSlot:null}), stop:(e)=>e.stopPropagation(),
+      libItems, libFilter:st.libFilter, libSearchRef:(el)=>{ if(el && !el._lf){ el._lf=true; setTimeout(()=>{ try{ el.focus(); }catch(_){} },0); } }, onFilter:(e)=>self.setState({libFilter:e.target.value, libSel:0}),
+      onLibKey:(e)=>{ const n=libItems.length; if(e.key==='ArrowDown'){ e.preventDefault(); self.setState({libSel: Math.min(n-1,(st.libSel||0)+1)}); } else if(e.key==='ArrowUp'){ e.preventDefault(); self.setState({libSel: Math.max(0,(st.libSel||0)-1)}); } else if(e.key==='Enter'){ e.preventDefault(); const it=libItems[st.libSel||0]; if(it) it.onPick(); } },
+      customName:st.customName, onCustomName:(e)=>self.setState({customName:e.target.value}),
+      customMuscle:st.customMuscle, customMuscleMenuOpen:st.customMuscleMenu, onCustomMuscleMenu:()=>self.setState({customMuscleMenu:!st.customMuscleMenu}), muscleOpts,
+      onAddCustom:()=>{ if(st.customName.trim()) self.addExercise(st.libDayId, st.customName.trim(), st.customMuscle); }
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+node_modules
+dist
+dist-ssr
+
+# Test + tooling artifacts
+playwright-report
+test-results
+e2e/screenshots
+*.local
+
+# Editor
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store

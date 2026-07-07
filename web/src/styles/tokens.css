@@ -1,0 +1,26 @@
+/*
+ * Provisional design tokens. The palette is inherited from the Claude-Design
+ * prototype and is NOT final — a deliberate design pass (typography, palette,
+ * signature) comes in a later PR. Kept in one place so that redesign is a
+ * single-file change and no component hardcodes a raw hex value.
+ */
+:root {
+  --bg: #f4f3ef;
+  --surface: #fbfaf7;
+  --surface-raised: #ffffff;
+  --border: #e4e2db;
+  --text: #1b1b1a;
+  --text-muted: #8b8780;
+  --accent: #2f43d4;
+  --danger: #b2503f;
+
+  --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", monospace;
+
+  --radius: 9px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+}

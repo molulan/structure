@@ -180,6 +180,7 @@ impl From<WeightInput> for Weight {
 pub enum RepTargetInput {
     Exact(u32),
     Range { min: u32, max: u32 },
+    AtLeast(u32),
 }
 
 impl TryFrom<RepTargetInput> for RepTarget {
@@ -189,6 +190,7 @@ impl TryFrom<RepTargetInput> for RepTarget {
         match value {
             RepTargetInput::Exact(reps) => RepTarget::exact(reps),
             RepTargetInput::Range { min, max } => RepTarget::range(min, max),
+            RepTargetInput::AtLeast(reps) => RepTarget::at_least(reps),
         }
     }
 }

@@ -36,9 +36,11 @@ pub(super) fn create_set_groups_table(conn: &Connection) -> rusqlite::Result<()>
             ),
             number_of_sets INTEGER NOT NULL CHECK(number_of_sets > 0),
             rep_min INTEGER CHECK(rep_min IS NULL OR rep_min > 0),
-            -- A non-NULL rep_max requires a non-NULL rep_min (and must ascend), so
-            -- a MyorepMatch row (rep_min NULL) cannot carry a stray rep_max.
-            rep_max INTEGER CHECK(rep_max IS NULL OR (rep_min IS NOT NULL AND rep_max > rep_min)),
+            -- rep_min/rep_max are the inclusive lower/upper bounds of the rep
+            -- target: equal is Exact, ascending is a Range, and a NULL rep_max on
+            -- a prescribed row (rep_min NOT NULL) is an open-ended AMRAP target.
+            -- A MyorepMatch row (rep_min NULL) carries no rep_max.
+            rep_max INTEGER CHECK(rep_max IS NULL OR (rep_min IS NOT NULL AND rep_max >= rep_min)),
             intensity_type TEXT CHECK(
                 intensity_type IN ('Rir', 'Rpe', 'PercentOneRepMax', 'TargetWeight', 'WeightIncrement')
             ),
@@ -369,7 +371,10 @@ fn decode_int_from_real<T: TryFrom<i64>>(value: f64, kind: &str) -> Result<T, Se
 
 fn encode_reps(reps: RepTarget) -> (i64, Option<i64>) {
     match reps {
-        RepTarget::Exact(count) => (count.value() as i64, None),
+        // A NULL upper bound marks the open-ended AMRAP target; Exact is the
+        // degenerate [n, n] range.
+        RepTarget::AtLeast(count) => (count.value() as i64, None),
+        RepTarget::Exact(count) => (count.value() as i64, Some(count.value() as i64)),
         RepTarget::Range(range) => (range.min() as i64, Some(range.max() as i64)),
     }
 }
@@ -377,10 +382,14 @@ fn encode_reps(reps: RepTarget) -> (i64, Option<i64>) {
 fn decode_reps(rep_min: i64, rep_max: Option<i64>) -> Result<RepTarget, SetGroupError> {
     let min = decode_u32(rep_min, "rep_min")?;
     match rep_max {
-        None => RepTarget::exact(min).map_err(corrupt),
+        None => RepTarget::at_least(min).map_err(corrupt),
         Some(max) => {
             let max = decode_u32(max, "rep_max")?;
-            RepTarget::range(min, max).map_err(corrupt)
+            if max == min {
+                RepTarget::exact(min).map_err(corrupt)
+            } else {
+                RepTarget::range(min, max).map_err(corrupt)
+            }
         }
     }
 }
@@ -702,27 +711,33 @@ mod tests {
         let mut conn = setup_test_db();
         let planned = weighted_planned_exercise(&conn);
 
+        let valid_reps = "the rep target is valid";
+        let valid_intensity = "the intensity value is in range";
         let created: Vec<SetGroup> = [
             regular(
-                RepTarget::exact(5).unwrap(),
-                Intensity::Rir(Rir::new(0).unwrap()),
+                RepTarget::exact(5).expect(valid_reps),
+                Intensity::Rir(Rir::new(0).expect(valid_intensity)),
             ),
             regular(
-                RepTarget::range(8, 12).unwrap(),
-                Intensity::Rpe(Rpe::new(9).unwrap()),
+                RepTarget::range(8, 12).expect(valid_reps),
+                Intensity::Rpe(Rpe::new(9).expect(valid_intensity)),
             ),
             regular(
-                RepTarget::exact(3).unwrap(),
-                Intensity::PercentOneRepMax(PercentOneRepMax::new(85).unwrap()),
+                RepTarget::exact(3).expect(valid_reps),
+                Intensity::PercentOneRepMax(PercentOneRepMax::new(85).expect(valid_intensity)),
+            ),
+            regular(
+                RepTarget::at_least(12).expect(valid_reps),
+                Intensity::Rir(Rir::new(0).expect(valid_intensity)),
             ),
             SetGroupType::Prescribed {
                 set_type: PrescribedSetType::Myorep,
-                reps: RepTarget::range(6, 10).unwrap(),
+                reps: RepTarget::range(6, 10).expect(valid_reps),
                 intensity: Intensity::TargetWeight(Weight::new(100.0, WeightUnit::Kg)),
             },
             SetGroupType::Prescribed {
                 set_type: PrescribedSetType::Drop,
-                reps: RepTarget::exact(8).unwrap(),
+                reps: RepTarget::exact(8).expect(valid_reps),
                 intensity: Intensity::WeightIncrement(Weight::new(-2.5, WeightUnit::Lbs)),
             },
             SetGroupType::MyorepMatch,
@@ -737,6 +752,26 @@ mod tests {
         let listed = list(&conn, planned.id()).expect("listing should succeed");
 
         assert_eq!(listed, created);
+    }
+
+    #[test]
+    fn reps_encode_and_decode_distinguish_exact_range_and_at_least() {
+        let valid = "the rep target is valid";
+        let cases = [
+            (RepTarget::exact(5).expect(valid), (5_i64, Some(5_i64))),
+            (RepTarget::range(8, 12).expect(valid), (8, Some(12))),
+            (RepTarget::at_least(12).expect(valid), (12, None)),
+        ];
+
+        for (reps, columns) in cases {
+            assert_eq!(encode_reps(reps), columns, "encode {reps:?}");
+            let (rep_min, rep_max) = columns;
+            assert_eq!(
+                decode_reps(rep_min, rep_max).expect("decoding valid columns should succeed"),
+                reps,
+                "decode {columns:?}"
+            );
+        }
     }
 
     #[test]

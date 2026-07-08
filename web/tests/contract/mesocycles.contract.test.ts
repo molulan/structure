@@ -15,10 +15,6 @@ beforeAll(() => {
 });
 
 describe("mesocycles contract", () => {
-  it("starts empty", async () => {
-    expect(await api.listMesocycles()).toEqual([]);
-  });
-
   it("returns the created mesocycle with the requested fields", async () => {
     const created = await api.createMesocycle({ name: "Contract Block", mode: "Manual" });
     expect(created.id).toBeGreaterThan(0);

@@ -61,10 +61,19 @@
   display: flex;
   align-items: baseline;
   justify-content: space-between;
+  width: 100%;
   padding: var(--space-3) var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface-raised);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.item:hover {
+  border-color: var(--text-muted);
 }
 
 .name {

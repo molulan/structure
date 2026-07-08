@@ -1,4 +1,4 @@
-import type { CreateMesocycle, Mesocycle, MesocycleRow } from "./types";
+import type { CreateMesocycle, FullMesocycle, Mesocycle, MesocycleRow } from "./types";
 
 /** A non-2xx response from the API, carrying the status and the server's body. */
 export class ApiError extends Error {
@@ -41,6 +41,8 @@ export function createApiClient(baseUrl: string) {
         method: "POST",
         body: JSON.stringify(body),
       }),
+    getFullMesocycle: (id: number) =>
+      request<FullMesocycle>(baseUrl, `/mesocycles/${id}/full`),
   };
 }
 

@@ -7,7 +7,9 @@ import { defineConfig } from "@playwright/test";
 // server.
 export default defineConfig({
   testDir: "./e2e",
-  fullyParallel: true,
+  // Serial: all specs share one backend instance (a single in-memory DB), so a
+  // test must not assume global emptiness and specs must not run concurrently.
+  workers: 1,
   reporter: "list",
   use: {
     baseURL: "http://127.0.0.1:5174",

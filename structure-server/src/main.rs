@@ -13,8 +13,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = structure_server::router(store);
 
     let port: u16 = match env::var("PORT") {
-        Ok(value) => value.parse()?,
-        Err(_) => 3000,
+        Ok(value) if !value.is_empty() => value.parse()?,
+        _ => 3000,
     };
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;

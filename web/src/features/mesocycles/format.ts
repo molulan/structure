@@ -1,9 +1,15 @@
 import type { Intensity, RepTarget, SetGroup, Weight } from "../../api/types";
 
+// Shown in place of a value whose variant isn't one we recognize (e.g. the
+// backend grew a new enum variant the client doesn't know yet). Degrading to
+// this beats throwing, which would blank the whole detail render.
+const UNKNOWN = "?";
+
 export function formatReps(reps: RepTarget): string {
   if ("Exact" in reps) return String(reps.Exact);
   if ("AtLeast" in reps) return `${reps.AtLeast}+`;
-  return `${reps.Range.min}–${reps.Range.max}`;
+  if ("Range" in reps) return `${reps.Range.min}–${reps.Range.max}`;
+  return UNKNOWN;
 }
 
 function formatWeight(weight: Weight): string {
@@ -15,7 +21,8 @@ export function formatIntensity(intensity: Intensity): string {
   if ("Rpe" in intensity) return `RPE ${intensity.Rpe}`;
   if ("PercentOneRepMax" in intensity) return `${intensity.PercentOneRepMax}% 1RM`;
   if ("TargetWeight" in intensity) return formatWeight(intensity.TargetWeight);
-  return `+${formatWeight(intensity.WeightIncrement)}`;
+  if ("WeightIncrement" in intensity) return `+${formatWeight(intensity.WeightIncrement)}`;
+  return UNKNOWN;
 }
 
 /** A one-line human summary of a set group, e.g. `3 × 8–12 @ 2 RIR`. */
@@ -25,7 +32,10 @@ export function describeSetGroup(group: SetGroup): string {
   if (type === "MyorepMatch") {
     return `${sets} × myorep match`;
   }
-  const { set_type, reps, intensity } = type.Prescribed;
-  const kind = set_type === "Regular" ? "" : ` ${set_type.toLowerCase()}`;
-  return `${sets} ×${kind} ${formatReps(reps)} @ ${formatIntensity(intensity)}`;
+  if (typeof type === "object" && "Prescribed" in type) {
+    const { set_type, reps, intensity } = type.Prescribed;
+    const kind = set_type === "Regular" ? "" : ` ${set_type.toLowerCase()}`;
+    return `${sets} ×${kind} ${formatReps(reps)} @ ${formatIntensity(intensity)}`;
+  }
+  return `${sets} × ${UNKNOWN}`;
 }

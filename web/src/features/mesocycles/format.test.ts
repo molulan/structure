@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { SetGroup } from "../../api/types";
+import type { Intensity, RepTarget, SetGroup } from "../../api/types";
 import { describeSetGroup, formatIntensity, formatReps } from "./format";
 
 describe("formatReps", () => {
@@ -11,6 +11,9 @@ describe("formatReps", () => {
   });
   it("renders an AMRAP target with a trailing plus", () => {
     expect(formatReps({ AtLeast: 12 })).toBe("12+");
+  });
+  it("degrades an unrecognized variant to a placeholder instead of throwing", () => {
+    expect(formatReps({ Unknown: 1 } as unknown as RepTarget)).toBe("?");
   });
 });
 
@@ -29,6 +32,9 @@ describe("formatIntensity", () => {
   });
   it("renders a weight increment with a leading plus", () => {
     expect(formatIntensity({ WeightIncrement: { value: 2.5, unit: "Lbs" } })).toBe("+2.5 lb");
+  });
+  it("degrades an unrecognized variant to a placeholder instead of throwing", () => {
+    expect(formatIntensity({ Unknown: 1 } as unknown as Intensity)).toBe("?");
   });
 });
 
@@ -58,5 +64,11 @@ describe("describeSetGroup", () => {
 
   it("summarizes a myorep-match group", () => {
     expect(describeSetGroup(group(3, "MyorepMatch", 2))).toBe("2 × myorep match");
+  });
+
+  it("degrades an unrecognized set-group type to a placeholder instead of throwing", () => {
+    expect(
+      describeSetGroup(group(4, "SomethingNew" as unknown as SetGroup["set_group_type"], 3)),
+    ).toBe("3 × ?");
   });
 });

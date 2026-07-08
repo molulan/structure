@@ -45,26 +45,27 @@ function freePort(): Promise<number> {
 
 async function waitForHealth(url: string, server: ChildProcess): Promise<void> {
   const deadline = Date.now() + 180_000;
-  let serverExited = false;
-  server.on("exit", (code) => {
-    serverExited = true;
-    if (code !== 0 && code !== null) {
-      throw new Error(`structure-server exited with code ${code} before becoming healthy`);
+  let exitCode: number | null | undefined; // undefined while the process is still running
+  const onExit = (code: number | null) => {
+    exitCode = code ?? null;
+  };
+  server.on("exit", onExit);
+  try {
+    while (Date.now() < deadline) {
+      if (exitCode !== undefined) {
+        throw new Error(`structure-server exited (code ${exitCode}) before becoming healthy`);
+      }
+      try {
+        const response = await fetch(url);
+        if (response.ok) return;
+      } catch {
+        // not up yet
+      }
+      await new Promise((r) => setTimeout(r, 250));
     }
-  });
-
-  while (Date.now() < deadline) {
-    if (serverExited) {
-      throw new Error("structure-server exited before becoming healthy");
-    }
-    try {
-      const response = await fetch(url);
-      if (response.ok) return;
-    } catch {
-      // not up yet
-    }
-    await new Promise((r) => setTimeout(r, 250));
+    server.kill("SIGKILL");
+    throw new Error(`structure-server did not become healthy within the timeout at ${url}`);
+  } finally {
+    server.off("exit", onExit);
   }
-  server.kill("SIGKILL");
-  throw new Error(`structure-server did not become healthy within the timeout at ${url}`);
 }

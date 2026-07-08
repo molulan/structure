@@ -7,7 +7,7 @@ export default defineConfig({
   fullyParallel: true,
   reporter: "list",
   use: {
-    baseURL: "http://127.0.0.1:5173",
+    baseURL: "http://127.0.0.1:5174",
     screenshot: "only-on-failure",
     trace: "on-first-retry",
   },
@@ -21,10 +21,10 @@ export default defineConfig({
       timeout: 200_000,
     },
     {
-      command: "npm run dev -- --port 5173 --strictPort",
+      command: "npm run dev -- --port 5174 --strictPort",
       env: { VITE_PROXY_TARGET: "http://127.0.0.1:3001" },
-      url: "http://127.0.0.1:5173",
-      reuseExistingServer: !process.env.CI,
+      url: "http://127.0.0.1:5174",
+      reuseExistingServer: false,
       timeout: 120_000,
     },
   ],

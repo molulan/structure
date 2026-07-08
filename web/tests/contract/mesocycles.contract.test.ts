@@ -19,14 +19,14 @@ describe("mesocycles contract", () => {
     expect(await api.listMesocycles()).toEqual([]);
   });
 
-  it("create returns the bare mesocycle with the requested fields", async () => {
+  it("returns the created mesocycle with the requested fields", async () => {
     const created = await api.createMesocycle({ name: "Contract Block", mode: "Manual" });
     expect(created.id).toBeGreaterThan(0);
     expect(created.name).toBe("Contract Block");
     expect(created.mode).toBe("Manual");
   });
 
-  it("a created mesocycle appears in the list with a computed week count", async () => {
+  it("lists a created mesocycle with its computed week count", async () => {
     const created = await api.createMesocycle({ name: "Listed Block", mode: "Algorithmic" });
     const list = await api.listMesocycles();
 

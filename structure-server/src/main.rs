@@ -5,9 +5,9 @@ use structure_core::persistence::store::Store;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Both are overridable so a test harness can boot a throwaway instance:
-    // `STRUCTURE_DB=:memory:` for a fresh in-memory DB, `PORT=0`-style for a
-    // free port. Absent the vars, production defaults are unchanged.
+    // Both are overridable so a test harness can boot a throwaway instance: a
+    // fresh in-memory DB via `STRUCTURE_DB=:memory:` and a chosen free port via
+    // `PORT`. Absent the vars, production defaults are unchanged.
     let db_path = env::var("STRUCTURE_DB").unwrap_or_else(|_| "structure.db".into());
     let store = Store::open(&db_path)?;
     let app = structure_server::router(store);

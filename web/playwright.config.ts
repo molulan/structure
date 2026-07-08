@@ -1,7 +1,10 @@
 import { defineConfig } from "@playwright/test";
 
-// e2e boots its own backend (fresh in-memory DB on 3001) and a Vite dev server
-// proxying `/api` to it, then drives the real browser end-to-end.
+// e2e runs on dedicated fixed ports — backend 3001 (fresh in-memory DB) and
+// Vite 5174 proxying `/api` to it — kept separate from the dev ports so it
+// never touches the real DB. Both start fresh (reuseExistingServer:false); if a
+// port is already taken, the run fails loudly rather than reusing a foreign
+// server.
 export default defineConfig({
   testDir: "./e2e",
   fullyParallel: true,

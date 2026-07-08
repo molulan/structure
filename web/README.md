@@ -26,6 +26,10 @@ Run the backend separately (from the repo root):
 cargo run -p structure-server   # listens on :3000
 ```
 
+If you run the backend on a non-default port (`PORT=…`), point the dev proxy at
+it too, e.g. `VITE_PROXY_TARGET=http://127.0.0.1:4000 npm run dev` — otherwise
+the proxy still targets `:3000` and every `/api` request fails.
+
 ## Verify
 
 One gate runs the whole verification stack:

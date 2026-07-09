@@ -1,5 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createApiClient, type ApiClient } from "../../src/api/client";
+import { buildFullMesocycle } from "../support/seed";
 
 // Builds a full mesocycle tree via the API, then asserts GET /mesocycles/{id}/full
 // deserializes into our hand-written TS types with every leaf correctly encoded
@@ -41,37 +42,10 @@ async function setPhase(microcycleId: number, phase: string): Promise<void> {
 
 describe("full mesocycle contract", () => {
   it("returns the whole nested tree with correctly-encoded leaves", async () => {
-    const mesocycle = await post("/mesocycles", { name: "Full Tree", mode: "Manual" });
-    const microcycle = await post(`/mesocycles/${mesocycle.id}/microcycles`);
-    await setPhase(microcycle.id, "Accumulation");
-    const workout = await post(`/microcycles/${microcycle.id}/workouts`, { name: "Push" });
-    const exercise = await post("/library-exercises", {
-      name: "Bench Press",
-      exercise_type: "Weighted",
-      primary_muscle_group: "Chest",
-      secondary_muscle_groups: ["Triceps", "Shoulders"],
-    });
-    const planned = await post(`/workouts/${workout.id}/planned-exercises`, {
-      library_exercise_id: exercise.id,
-    });
-    await post(`/planned-exercises/${planned.id}/set-groups`, {
-      number_of_sets: 3,
-      set_group_type: {
-        Prescribed: { set_type: "Regular", reps: { Range: { min: 8, max: 12 } }, intensity: { Rir: 2 } },
-      },
-    });
-    await post(`/planned-exercises/${planned.id}/set-groups`, {
-      number_of_sets: 1,
-      set_group_type: {
-        Prescribed: { set_type: "Regular", reps: { AtLeast: 12 }, intensity: { Rir: 0 } },
-      },
-    });
-    await post(`/planned-exercises/${planned.id}/set-groups`, {
-      number_of_sets: 2,
-      set_group_type: "MyorepMatch",
-    });
+    const tree = await buildFullMesocycle(post, "Full Tree");
+    await setPhase(tree.microcycleId, "Accumulation");
 
-    const full = await api.getFullMesocycle(mesocycle.id);
+    const full = await api.getFullMesocycle(tree.mesocycleId);
 
     expect(full.name).toBe("Full Tree");
     expect(full.mode).toBe("Manual");

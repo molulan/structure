@@ -26,6 +26,7 @@ describe("mesocycles contract", () => {
     const created = await api.createMesocycle({ name: "Listed Block", mode: "Algorithmic" });
     const list = await api.listMesocycles();
 
+    expect(Array.isArray(list)).toBe(true);
     const found = list.find((m) => m.id === created.id);
     expect(found).toBeDefined();
     expect(found?.mode).toBe("Algorithmic");

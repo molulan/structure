@@ -4,7 +4,11 @@ import { ApiError } from "../../api/client";
 import { useCreateMesocycle, useMesocycles } from "./useMesocycles";
 import styles from "./MesocycleList.module.css";
 
-export function MesocycleList() {
+interface Props {
+  onSelect: (id: number) => void;
+}
+
+export function MesocycleList({ onSelect }: Props) {
   const mesocycles = useMesocycles();
   const create = useCreateMesocycle();
   const [name, setName] = useState("");
@@ -54,11 +58,13 @@ export function MesocycleList() {
       ) : (
         <ul className={styles.list}>
           {mesocycles.data.map((m) => (
-            <li key={m.id} className={styles.item}>
-              <span className={styles.name}>{m.name}</span>
-              <span className={styles.meta}>
-                {m.mode} · {m.microcycle_count} weeks
-              </span>
+            <li key={m.id}>
+              <button className={styles.item} onClick={() => onSelect(m.id)}>
+                <span className={styles.name}>{m.name}</span>
+                <span className={styles.meta}>
+                  {m.mode} · {m.microcycle_count} weeks
+                </span>
+              </button>
             </li>
           ))}
         </ul>

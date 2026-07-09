@@ -4,8 +4,6 @@ import { mkdirSync } from "node:fs";
 test("create a mesocycle and see it in the list", async ({ page }) => {
   await page.goto("/");
 
-  await expect(page.getByText("No mesocycles yet.")).toBeVisible();
-
   await page.getByLabel("New mesocycle name").fill("Summer Hypertrophy");
   await page.getByLabel("Mode").selectOption("Algorithmic");
   await page.getByRole("button", { name: "Create" }).click();

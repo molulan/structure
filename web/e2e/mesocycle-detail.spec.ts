@@ -49,3 +49,15 @@ test("opens a mesocycle and renders its full tree", async ({ page, request }) =>
   await page.getByRole("button", { name: /All mesocycles/ }).click();
   await expect(page.getByLabel("New mesocycle name")).toBeVisible();
 });
+
+test("shows the empty state for a mesocycle with no weeks", async ({ page, request }) => {
+  const response = await request.post(`${BACKEND}/mesocycles`, {
+    data: { name: "Empty Block", mode: "Manual" },
+  });
+  expect(response.ok(), `POST /mesocycles → ${response.status()}`).toBeTruthy();
+
+  await page.goto("/");
+  await page.getByRole("button", { name: /Empty Block/ }).click();
+
+  await expect(page.getByText("No weeks yet.")).toBeVisible();
+});

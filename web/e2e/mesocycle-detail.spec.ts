@@ -24,7 +24,7 @@ test("opens a mesocycle and renders its full tree", async ({ page, request }) =>
   await expect(page.getByRole("heading", { name: "Push" })).toBeVisible();
   await expect(page.getByText("Week 1")).toBeVisible();
   await expect(page.getByText("Bench Press")).toBeVisible();
-  await expect(page.getByText("3 × 8–12 @ 2 RIR")).toBeVisible();
+  await expect(page.getByText("3×8–12 RIR2")).toBeVisible();
 
   mkdirSync("e2e/screenshots", { recursive: true });
   await page.screenshot({ path: "e2e/screenshots/mesocycle-detail.png", fullPage: true });

@@ -56,11 +56,11 @@ describe("full mesocycle contract", () => {
     expect(week.phase).toBe("Accumulation");
     expect(week.workouts).toHaveLength(1);
 
-    const w = week.workouts[0];
-    expect(w.name).toBe("Push");
-    expect(w.planned_exercises).toHaveLength(1);
+    const workout = week.workouts[0];
+    expect(workout.name).toBe("Push");
+    expect(workout.planned_exercises).toHaveLength(1);
 
-    const pe = w.planned_exercises[0];
+    const pe = workout.planned_exercises[0];
     expect(pe.exercise.name).toBe("Bench Press");
     expect(pe.exercise.exercise_type).toBe("Weighted");
     expect(pe.exercise.primary_muscle_group).toBe("Chest");

@@ -18,20 +18,20 @@ describe("formatReps", () => {
 });
 
 describe("formatIntensity", () => {
-  it("renders RIR", () => {
-    expect(formatIntensity({ Rir: 2 })).toBe("2 RIR");
+  it("renders RIR label-attached", () => {
+    expect(formatIntensity({ Rir: 2 })).toBe("RIR2");
   });
-  it("renders RPE", () => {
-    expect(formatIntensity({ Rpe: 8 })).toBe("RPE 8");
+  it("renders RPE label-attached", () => {
+    expect(formatIntensity({ Rpe: 8 })).toBe("RPE8");
   });
   it("renders a percent of 1RM", () => {
-    expect(formatIntensity({ PercentOneRepMax: 75 })).toBe("75% 1RM");
+    expect(formatIntensity({ PercentOneRepMax: 80 })).toBe("80%");
   });
-  it("renders a target weight with its unit", () => {
-    expect(formatIntensity({ TargetWeight: { value: 60, unit: "Kg" } })).toBe("60 kg");
+  it("renders a target weight with its unit and no space", () => {
+    expect(formatIntensity({ TargetWeight: { value: 60, unit: "Kg" } })).toBe("60kg");
   });
   it("renders a weight increment with a leading plus", () => {
-    expect(formatIntensity({ WeightIncrement: { value: 2.5, unit: "Lbs" } })).toBe("+2.5 lb");
+    expect(formatIntensity({ WeightIncrement: { value: 2.5, unit: "Lbs" } })).toBe("+2.5lb");
   });
   it("degrades an unrecognized variant to a placeholder instead of throwing", () => {
     expect(formatIntensity({ Unknown: 1 } as unknown as Intensity)).toBe("?");
@@ -46,29 +46,53 @@ describe("describeSetGroup", () => {
     set_group_type,
   });
 
-  it("summarizes a regular prescribed group without naming the type", () => {
+  it("joins reps and RIR with a space", () => {
     expect(
       describeSetGroup(
         group(1, { Prescribed: { set_type: "Regular", reps: { Range: { min: 8, max: 12 } }, intensity: { Rir: 2 } } }),
       ),
-    ).toBe("3 × 8–12 @ 2 RIR");
+    ).toBe("3×8–12 RIR2");
   });
 
-  it("names a non-regular set type", () => {
+  it("joins reps and an absolute target weight with ×", () => {
     expect(
       describeSetGroup(
-        group(2, { Prescribed: { set_type: "Myorep", reps: { Exact: 10 }, intensity: { Rpe: 9 } } }, 1),
+        group(2, { Prescribed: { set_type: "Regular", reps: { Exact: 8 }, intensity: { TargetWeight: { value: 60, unit: "Kg" } } } }),
       ),
-    ).toBe("1 × myorep 10 @ RPE 9");
+    ).toBe("3×8×60kg");
+  });
+
+  it("renders an AMRAP target", () => {
+    expect(
+      describeSetGroup(
+        group(3, { Prescribed: { set_type: "Regular", reps: { AtLeast: 12 }, intensity: { Rir: 0 } } }, 1),
+      ),
+    ).toBe("1×12+ RIR0");
+  });
+
+  it("appends the set-type name and the load for a myorep group", () => {
+    expect(
+      describeSetGroup(
+        group(4, { Prescribed: { set_type: "Myorep", reps: { Exact: 10 }, intensity: { PercentOneRepMax: 80 } } }, 1),
+      ),
+    ).toBe("1×10×80% myorep");
+  });
+
+  it("appends the set-type name and the load for a dropset", () => {
+    expect(
+      describeSetGroup(
+        group(5, { Prescribed: { set_type: "Drop", reps: { Exact: 8 }, intensity: { TargetWeight: { value: 40, unit: "Kg" } } } }, 2),
+      ),
+    ).toBe("2×8×40kg dropset");
   });
 
   it("summarizes a myorep-match group", () => {
-    expect(describeSetGroup(group(3, "MyorepMatch", 2))).toBe("2 × myorep match");
+    expect(describeSetGroup(group(6, "MyorepMatch", 2))).toBe("2× match");
   });
 
   it("degrades an unrecognized set-group type to a placeholder instead of throwing", () => {
     expect(
-      describeSetGroup(group(4, "SomethingNew" as unknown as SetGroup["set_group_type"], 3)),
-    ).toBe("3 × ?");
+      describeSetGroup(group(7, "SomethingNew" as unknown as SetGroup["set_group_type"], 3)),
+    ).toBe("3× ?");
   });
 });

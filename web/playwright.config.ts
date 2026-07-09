@@ -10,6 +10,10 @@ export default defineConfig({
   // Serial: all specs share one backend instance (a single in-memory DB), so a
   // test must not assume global emptiness and specs must not run concurrently.
   workers: 1,
+  // Off deliberately: the shared backend is never reset between attempts, so a
+  // retried test re-seeds and accumulates duplicate rows, breaking name-based
+  // locators under strict mode. Add per-test DB isolation before enabling this.
+  retries: 0,
   reporter: "list",
   use: {
     baseURL: "http://127.0.0.1:5174",

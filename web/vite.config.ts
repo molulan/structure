@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 
 // The SPA calls the API under `/api`, which the dev server proxies to the Axum
 // backend (routes live at the root, so `/api` is stripped). The target is
@@ -7,7 +8,9 @@ import react from "@vitejs/plugin-react";
 const proxyTarget = process.env.VITE_PROXY_TARGET ?? "http://127.0.0.1:3000";
 
 export default defineConfig({
-  plugins: [react()],
+  // The router plugin generates src/routeTree.gen.ts from src/routes/ and must
+  // run before the React plugin.
+  plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react()],
   server: {
     host: "127.0.0.1",
     proxy: {

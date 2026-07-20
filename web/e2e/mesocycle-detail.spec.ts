@@ -16,11 +16,12 @@ function apiPost(request: APIRequestContext): Post {
 }
 
 test("opens a mesocycle and renders its full tree", async ({ page, request }) => {
-  await buildFullMesocycle(apiPost(request), "Detail Block");
+  const { mesocycleId } = await buildFullMesocycle(apiPost(request), "Detail Block");
 
   await page.goto("/");
   await page.getByRole("button", { name: /Detail Block/ }).click();
 
+  await expect(page).toHaveURL(new RegExp(`/mesocycles/${mesocycleId}$`));
   await expect(page.getByRole("heading", { name: "Push" })).toBeVisible();
   await expect(page.getByText("Week 1")).toBeVisible();
   await expect(page.getByText("Bench Press")).toBeVisible();
@@ -30,7 +31,24 @@ test("opens a mesocycle and renders its full tree", async ({ page, request }) =>
   await page.screenshot({ path: "e2e/screenshots/mesocycle-detail.png", fullPage: true });
 
   await page.getByRole("button", { name: /All mesocycles/ }).click();
+  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByLabel("New mesocycle name")).toBeVisible();
+});
+
+test("deep-links to a mesocycle and survives a reload", async ({ page, request }) => {
+  // A minimal tree (no library exercise) is enough to prove the URL renders the
+  // right detail view — and it sidesteps the shared backend's globally-unique
+  // library-exercise names that a second full-tree seed would collide on.
+  const post = apiPost(request);
+  const mesocycle = await post("/mesocycles", { name: "Deep Link Block", mode: "Manual" });
+  const microcycle = await post(`/mesocycles/${mesocycle.id}/microcycles`);
+  await post(`/microcycles/${microcycle.id}/workouts`, { name: "Deep Squat Day" });
+
+  await page.goto(`/mesocycles/${mesocycle.id}`);
+  await expect(page.getByRole("heading", { name: "Deep Squat Day" })).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Deep Squat Day" })).toBeVisible();
 });
 
 test("shows the empty state for a mesocycle with no weeks", async ({ page, request }) => {

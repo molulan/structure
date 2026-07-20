@@ -24,7 +24,7 @@ async fn created_set_group_appears_in_list() {
     let (status, created) = send(
         &app,
         "POST",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
         Some(json!({
             "number_of_sets": 3,
             "set_group_type": {
@@ -49,7 +49,7 @@ async fn created_set_group_appears_in_list() {
     let (status, list) = send(
         &app,
         "GET",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
         None,
     )
     .await;
@@ -65,7 +65,7 @@ async fn created_set_group_round_trips_an_amrap_rep_target() {
     let (status, created) = send(
         &app,
         "POST",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
         Some(json!({
             "number_of_sets": 1,
             "set_group_type": {
@@ -88,7 +88,7 @@ async fn created_set_group_round_trips_an_amrap_rep_target() {
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
         None,
     )
     .await;
@@ -106,7 +106,7 @@ async fn created_myorep_match_set_group_serializes_as_the_bare_variant() {
     let (status, created) = send(
         &app,
         "POST",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
         Some(json!({ "number_of_sets": 2, "set_group_type": "MyorepMatch" })),
     )
     .await;
@@ -124,7 +124,7 @@ async fn create_set_group_with_zero_sets_returns_422() {
     let (status, _) = send(
         &app,
         "POST",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
         Some(json!({ "number_of_sets": 0, "set_group_type": "MyorepMatch" })),
     )
     .await;
@@ -140,7 +140,7 @@ async fn create_set_group_with_out_of_range_rir_returns_422() {
     let (status, _) = send(
         &app,
         "POST",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
         Some(json!({
             "number_of_sets": 3,
             "set_group_type": {
@@ -165,7 +165,7 @@ async fn create_set_group_with_non_ascending_reps_returns_422() {
     let (status, _) = send(
         &app,
         "POST",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
         Some(json!({
             "number_of_sets": 3,
             "set_group_type": {
@@ -191,7 +191,7 @@ async fn create_prescribed_myorep_with_proximity_intensity_returns_422() {
     let (status, _) = send(
         &app,
         "POST",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
         Some(json!({
             "number_of_sets": 3,
             "set_group_type": {
@@ -215,7 +215,7 @@ async fn create_set_group_in_missing_planned_exercise_returns_404() {
     let (status, _) = send(
         &app,
         "POST",
-        "/planned-exercises/999/set-groups",
+        "/api/planned-exercises/999/set-groups",
         Some(json!({ "number_of_sets": 3, "set_group_type": "MyorepMatch" })),
     )
     .await;
@@ -232,7 +232,7 @@ async fn update_changes_the_set_group() {
     let (status, updated) = send(
         &app,
         "PUT",
-        &format!("/set-groups/{id}"),
+        &format!("/api/set-groups/{id}"),
         Some(json!({ "number_of_sets": 2, "set_group_type": "MyorepMatch" })),
     )
     .await;
@@ -253,7 +253,7 @@ async fn reorder_set_groups_changes_their_order() {
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups/order"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups/order"),
         Some(json!({ "ordered_ids": [c, a, b] })),
     )
     .await;
@@ -262,7 +262,7 @@ async fn reorder_set_groups_changes_their_order() {
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
         None,
     )
     .await;
@@ -285,7 +285,7 @@ async fn reorder_with_mismatching_ids_returns_422() {
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups/order"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups/order"),
         Some(json!({ "ordered_ids": [a] })),
     )
     .await;
@@ -300,13 +300,13 @@ async fn delete_set_group_removes_it() {
     let a = create_set_group(&app, planned_exercise_id).await;
     let _b = create_set_group(&app, planned_exercise_id).await;
 
-    let (status, _) = send(&app, "DELETE", &format!("/set-groups/{a}"), None).await;
+    let (status, _) = send(&app, "DELETE", &format!("/api/set-groups/{a}"), None).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
 
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
         None,
     )
     .await;
@@ -317,7 +317,7 @@ async fn delete_set_group_removes_it() {
 async fn delete_missing_set_group_returns_404() {
     let app = test_app();
 
-    let (status, _) = send(&app, "DELETE", "/set-groups/999", None).await;
+    let (status, _) = send(&app, "DELETE", "/api/set-groups/999", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
 }

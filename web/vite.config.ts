@@ -3,8 +3,9 @@ import react from "@vitejs/plugin-react";
 import { tanstackRouter } from "@tanstack/router-plugin/vite";
 
 // The SPA calls the API under `/api`, which the dev server proxies to the Axum
-// backend (routes live at the root, so `/api` is stripped). The target is
-// overridable so the e2e harness can point it at its own backend instance.
+// backend — where the API is also mounted under `/api`, so the prefix is
+// forwarded as-is. The target is overridable so the e2e harness can point it at
+// its own backend instance.
 const proxyTarget = process.env.VITE_PROXY_TARGET ?? "http://127.0.0.1:3000";
 
 export default defineConfig({
@@ -17,7 +18,6 @@ export default defineConfig({
       "/api": {
         target: proxyTarget,
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api/, ""),
       },
     },
   },

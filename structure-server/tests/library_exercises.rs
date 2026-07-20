@@ -14,7 +14,7 @@ async fn created_library_exercise_appears_in_list() {
     let (status, created) = send(
         &app,
         "POST",
-        "/library-exercises",
+        "/api/library-exercises",
         Some(
             json!({ "name": "Bench Press", "exercise_type": "Weighted", "primary_muscle_group": "Chest" }),
         ),
@@ -25,7 +25,7 @@ async fn created_library_exercise_appears_in_list() {
     assert_eq!(created["exercise_type"], "Weighted");
     assert_eq!(created["primary_muscle_group"], "Chest");
 
-    let (status, list) = send(&app, "GET", "/library-exercises", None).await;
+    let (status, list) = send(&app, "GET", "/api/library-exercises", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(list.as_array().expect("list should be an array").len(), 1);
     assert_eq!(list[0]["primary_muscle_group"], "Chest");
@@ -38,7 +38,7 @@ async fn created_exercise_carries_its_secondary_muscle_groups() {
     let (status, created) = send(
         &app,
         "POST",
-        "/library-exercises",
+        "/api/library-exercises",
         Some(json!({
             "name": "Bench Press",
             "exercise_type": "Weighted",
@@ -63,7 +63,7 @@ async fn create_defaults_secondary_muscle_groups_to_empty_when_omitted() {
     let (status, created) = send(
         &app,
         "POST",
-        "/library-exercises",
+        "/api/library-exercises",
         Some(json!({ "name": "Squat", "exercise_type": "Weighted", "primary_muscle_group": "Quads" })),
     )
     .await;
@@ -78,7 +78,7 @@ async fn update_replaces_secondary_muscle_groups() {
     let (_, created) = send(
         &app,
         "POST",
-        "/library-exercises",
+        "/api/library-exercises",
         Some(json!({
             "name": "Row",
             "exercise_type": "Weighted",
@@ -92,7 +92,7 @@ async fn update_replaces_secondary_muscle_groups() {
     let (status, updated) = send(
         &app,
         "PUT",
-        &format!("/library-exercises/{id}"),
+        &format!("/api/library-exercises/{id}"),
         Some(json!({
             "name": "Row",
             "exercise_type": "Weighted",
@@ -112,7 +112,7 @@ async fn update_can_clear_secondary_muscle_groups() {
     let (_, created) = send(
         &app,
         "POST",
-        "/library-exercises",
+        "/api/library-exercises",
         Some(json!({
             "name": "Row",
             "exercise_type": "Weighted",
@@ -126,7 +126,7 @@ async fn update_can_clear_secondary_muscle_groups() {
     let (status, updated) = send(
         &app,
         "PUT",
-        &format!("/library-exercises/{id}"),
+        &format!("/api/library-exercises/{id}"),
         Some(json!({
             "name": "Row",
             "exercise_type": "Weighted",
@@ -147,7 +147,7 @@ async fn create_with_secondary_matching_primary_returns_422() {
     let (status, body) = send(
         &app,
         "POST",
-        "/library-exercises",
+        "/api/library-exercises",
         Some(json!({
             "name": "Curl",
             "exercise_type": "Weighted",
@@ -173,7 +173,7 @@ async fn create_with_duplicate_name_returns_409() {
     send(
         &app,
         "POST",
-        "/library-exercises",
+        "/api/library-exercises",
         Some(json!({ "name": "Squat", "exercise_type": "Weighted", "primary_muscle_group": "Chest" })),
     )
     .await;
@@ -181,7 +181,7 @@ async fn create_with_duplicate_name_returns_409() {
     let (status, body) = send(
         &app,
         "POST",
-        "/library-exercises",
+        "/api/library-exercises",
         Some(json!({ "name": "Squat", "exercise_type": "Bodyweight", "primary_muscle_group": "Chest" })),
     )
     .await;
@@ -197,7 +197,7 @@ async fn create_with_empty_name_returns_422() {
     let (status, _) = send(
         &app,
         "POST",
-        "/library-exercises",
+        "/api/library-exercises",
         Some(json!({ "name": "", "exercise_type": "Weighted", "primary_muscle_group": "Chest" })),
     )
     .await;
@@ -213,7 +213,7 @@ async fn update_changes_name_and_type() {
     let (status, updated) = send(
         &app,
         "PUT",
-        &format!("/library-exercises/{id}"),
+        &format!("/api/library-exercises/{id}"),
         Some(json!({ "name": "Incline Press", "exercise_type": "Bodyweight", "primary_muscle_group": "Chest" })),
     )
     .await;
@@ -232,7 +232,7 @@ async fn update_to_a_name_taken_by_another_returns_409() {
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/library-exercises/{id}"),
+        &format!("/api/library-exercises/{id}"),
         Some(json!({ "name": "Squat", "exercise_type": "Weighted", "primary_muscle_group": "Chest" })),
     )
     .await;
@@ -247,7 +247,7 @@ async fn update_missing_library_exercise_returns_404() {
     let (status, _) = send(
         &app,
         "PUT",
-        "/library-exercises/999",
+        "/api/library-exercises/999",
         Some(json!({ "name": "X", "exercise_type": "Weighted", "primary_muscle_group": "Chest" })),
     )
     .await;
@@ -260,10 +260,16 @@ async fn delete_library_exercise_removes_it() {
     let app = test_app();
     let id = create_library_exercise(&app, "Squat", "Weighted").await;
 
-    let (status, _) = send(&app, "DELETE", &format!("/library-exercises/{id}"), None).await;
+    let (status, _) = send(
+        &app,
+        "DELETE",
+        &format!("/api/library-exercises/{id}"),
+        None,
+    )
+    .await;
     assert_eq!(status, StatusCode::NO_CONTENT);
 
-    let (_, list) = send(&app, "GET", "/library-exercises", None).await;
+    let (_, list) = send(&app, "GET", "/api/library-exercises", None).await;
     assert_eq!(list.as_array().expect("list should be an array").len(), 0);
 }
 
@@ -271,7 +277,7 @@ async fn delete_library_exercise_removes_it() {
 async fn delete_missing_library_exercise_returns_404() {
     let app = test_app();
 
-    let (status, _) = send(&app, "DELETE", "/library-exercises/999", None).await;
+    let (status, _) = send(&app, "DELETE", "/api/library-exercises/999", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
@@ -288,7 +294,7 @@ async fn delete_library_exercise_in_use_returns_409() {
     let (status, _) = send(
         &app,
         "DELETE",
-        &format!("/library-exercises/{exercise_id}"),
+        &format!("/api/library-exercises/{exercise_id}"),
         None,
     )
     .await;

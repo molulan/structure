@@ -1,5 +1,6 @@
 use std::env;
 use std::net::SocketAddr;
+use std::path::PathBuf;
 
 use structure_core::persistence::store::Store;
 
@@ -10,7 +11,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // `PORT`. Absent the vars, production defaults are unchanged.
     let db_path = env::var("STRUCTURE_DB").unwrap_or_else(|_| "structure.db".into());
     let store = Store::open(&db_path)?;
-    let app = structure_server::router(store);
+
+    // An explicit `STRUCTURE_WEB_DIR` without an `index.html` is a
+    // misconfiguration — fail fast; an unset var serves the default build if
+    // present, else runs API-only (as the test harnesses do).
+    let web_dir = match env::var("STRUCTURE_WEB_DIR") {
+        Ok(dir) if !dir.is_empty() => {
+            let dir = PathBuf::from(dir);
+            if !dir.join("index.html").is_file() {
+                return Err(
+                    format!("STRUCTURE_WEB_DIR has no index.html: {}", dir.display()).into(),
+                );
+            }
+            Some(dir)
+        }
+        _ => {
+            let default = PathBuf::from("web/dist");
+            default.join("index.html").is_file().then_some(default)
+        }
+    };
+    if let Some(dir) = &web_dir {
+        println!("serving web app from {}", dir.display());
+    }
+    let app = structure_server::app(store, web_dir);
 
     let port: u16 = match env::var("PORT") {
         Ok(value) if !value.is_empty() => value.parse()?,

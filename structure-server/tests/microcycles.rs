@@ -12,7 +12,7 @@ async fn created_microcycle_appears_in_list() {
     let (status, created) = send(
         &app,
         "POST",
-        &format!("/mesocycles/{mesocycle_id}/microcycles"),
+        &format!("/api/mesocycles/{mesocycle_id}/microcycles"),
         None,
     )
     .await;
@@ -22,7 +22,7 @@ async fn created_microcycle_appears_in_list() {
     let (status, list) = send(
         &app,
         "GET",
-        &format!("/mesocycles/{mesocycle_id}/microcycles"),
+        &format!("/api/mesocycles/{mesocycle_id}/microcycles"),
         None,
     )
     .await;
@@ -34,7 +34,7 @@ async fn created_microcycle_appears_in_list() {
 async fn list_microcycles_for_missing_program_returns_404() {
     let app = test_app();
 
-    let (status, body) = send(&app, "GET", "/mesocycles/999/microcycles", None).await;
+    let (status, body) = send(&app, "GET", "/api/mesocycles/999/microcycles", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert!(body["error"].is_string());
@@ -51,7 +51,7 @@ async fn reorder_microcycles_changes_their_order() {
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/mesocycles/{mesocycle_id}/microcycles/order"),
+        &format!("/api/mesocycles/{mesocycle_id}/microcycles/order"),
         Some(json!({ "ordered_ids": [c, a, b] })),
     )
     .await;
@@ -60,7 +60,7 @@ async fn reorder_microcycles_changes_their_order() {
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/mesocycles/{mesocycle_id}/microcycles"),
+        &format!("/api/mesocycles/{mesocycle_id}/microcycles"),
         None,
     )
     .await;
@@ -83,7 +83,7 @@ async fn reorder_with_mismatching_ids_returns_422() {
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/mesocycles/{mesocycle_id}/microcycles/order"),
+        &format!("/api/mesocycles/{mesocycle_id}/microcycles/order"),
         Some(json!({ "ordered_ids": [a] })),
     )
     .await;
@@ -98,13 +98,13 @@ async fn delete_microcycle_removes_it() {
     let a = create_microcycle(&app, mesocycle_id).await;
     let _b = create_microcycle(&app, mesocycle_id).await;
 
-    let (status, _) = send(&app, "DELETE", &format!("/microcycles/{a}"), None).await;
+    let (status, _) = send(&app, "DELETE", &format!("/api/microcycles/{a}"), None).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
 
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/mesocycles/{mesocycle_id}/microcycles"),
+        &format!("/api/mesocycles/{mesocycle_id}/microcycles"),
         None,
     )
     .await;
@@ -115,7 +115,7 @@ async fn delete_microcycle_removes_it() {
 async fn delete_missing_microcycle_returns_404() {
     let app = test_app();
 
-    let (status, _) = send(&app, "DELETE", "/microcycles/999", None).await;
+    let (status, _) = send(&app, "DELETE", "/api/microcycles/999", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
@@ -129,7 +129,7 @@ async fn update_phase_assigns_a_phase_that_appears_in_the_list() {
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/microcycles/{a}/phase"),
+        &format!("/api/microcycles/{a}/phase"),
         Some(json!({ "phase": "Intensification" })),
     )
     .await;
@@ -138,7 +138,7 @@ async fn update_phase_assigns_a_phase_that_appears_in_the_list() {
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/mesocycles/{mesocycle_id}/microcycles"),
+        &format!("/api/mesocycles/{mesocycle_id}/microcycles"),
         None,
     )
     .await;
@@ -153,7 +153,7 @@ async fn update_phase_to_null_clears_it() {
     send(
         &app,
         "PUT",
-        &format!("/microcycles/{a}/phase"),
+        &format!("/api/microcycles/{a}/phase"),
         Some(json!({ "phase": "Deload" })),
     )
     .await;
@@ -161,7 +161,7 @@ async fn update_phase_to_null_clears_it() {
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/microcycles/{a}/phase"),
+        &format!("/api/microcycles/{a}/phase"),
         Some(json!({ "phase": null })),
     )
     .await;
@@ -170,7 +170,7 @@ async fn update_phase_to_null_clears_it() {
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/mesocycles/{mesocycle_id}/microcycles"),
+        &format!("/api/mesocycles/{mesocycle_id}/microcycles"),
         None,
     )
     .await;
@@ -184,7 +184,7 @@ async fn update_phase_for_missing_microcycle_returns_404() {
     let (status, _) = send(
         &app,
         "PUT",
-        "/microcycles/999/phase",
+        "/api/microcycles/999/phase",
         Some(json!({ "phase": "Accumulation" })),
     )
     .await;

@@ -20,7 +20,8 @@ export default async function setup() {
   );
 
   await waitForHealth(`${baseUrl}/health`, server);
-  process.env.STRUCTURE_API_BASE = baseUrl;
+  // The API is served under `/api`; `/health` stays at the root.
+  process.env.STRUCTURE_API_BASE = `${baseUrl}/api`;
 
   return async () => {
     server.kill("SIGTERM");

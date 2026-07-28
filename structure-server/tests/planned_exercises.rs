@@ -23,7 +23,7 @@ async fn created_planned_exercise_appears_in_list() {
     let (status, created) = send(
         &app,
         "POST",
-        &format!("/workouts/{workout_id}/planned-exercises"),
+        &format!("/api/workouts/{workout_id}/planned-exercises"),
         Some(json!({ "library_exercise_id": exercise_id })),
     )
     .await;
@@ -34,7 +34,7 @@ async fn created_planned_exercise_appears_in_list() {
     let (status, list) = send(
         &app,
         "GET",
-        &format!("/workouts/{workout_id}/planned-exercises"),
+        &format!("/api/workouts/{workout_id}/planned-exercises"),
         None,
     )
     .await;
@@ -50,7 +50,7 @@ async fn create_in_missing_workout_returns_404() {
     let (status, _) = send(
         &app,
         "POST",
-        "/workouts/999/planned-exercises",
+        "/api/workouts/999/planned-exercises",
         Some(json!({ "library_exercise_id": exercise_id })),
     )
     .await;
@@ -66,7 +66,7 @@ async fn create_with_missing_library_exercise_returns_422() {
     let (status, _) = send(
         &app,
         "POST",
-        &format!("/workouts/{workout_id}/planned-exercises"),
+        &format!("/api/workouts/{workout_id}/planned-exercises"),
         Some(json!({ "library_exercise_id": 999 })),
     )
     .await;
@@ -86,7 +86,7 @@ async fn reorder_planned_exercises_changes_their_order() {
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/workouts/{workout_id}/planned-exercises/order"),
+        &format!("/api/workouts/{workout_id}/planned-exercises/order"),
         Some(json!({ "ordered_ids": [c, a, b] })),
     )
     .await;
@@ -95,7 +95,7 @@ async fn reorder_planned_exercises_changes_their_order() {
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/workouts/{workout_id}/planned-exercises"),
+        &format!("/api/workouts/{workout_id}/planned-exercises"),
         None,
     )
     .await;
@@ -119,7 +119,7 @@ async fn reorder_with_mismatching_ids_returns_422() {
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/workouts/{workout_id}/planned-exercises/order"),
+        &format!("/api/workouts/{workout_id}/planned-exercises/order"),
         Some(json!({ "ordered_ids": [a] })),
     )
     .await;
@@ -135,13 +135,13 @@ async fn delete_planned_exercise_removes_it() {
     let a = create_planned_exercise(&app, workout_id, exercise_id).await;
     let _b = create_planned_exercise(&app, workout_id, exercise_id).await;
 
-    let (status, _) = send(&app, "DELETE", &format!("/planned-exercises/{a}"), None).await;
+    let (status, _) = send(&app, "DELETE", &format!("/api/planned-exercises/{a}"), None).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
 
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/workouts/{workout_id}/planned-exercises"),
+        &format!("/api/workouts/{workout_id}/planned-exercises"),
         None,
     )
     .await;
@@ -152,7 +152,7 @@ async fn delete_planned_exercise_removes_it() {
 async fn delete_missing_planned_exercise_returns_404() {
     let app = test_app();
 
-    let (status, _) = send(&app, "DELETE", "/planned-exercises/999", None).await;
+    let (status, _) = send(&app, "DELETE", "/api/planned-exercises/999", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
 }

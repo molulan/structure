@@ -17,7 +17,7 @@ async fn created_workout_appears_in_list() {
     let (status, created) = send(
         &app,
         "POST",
-        &format!("/microcycles/{microcycle_id}/workouts"),
+        &format!("/api/microcycles/{microcycle_id}/workouts"),
         Some(json!({ "name": "Push" })),
     )
     .await;
@@ -28,7 +28,7 @@ async fn created_workout_appears_in_list() {
     let (status, list) = send(
         &app,
         "GET",
-        &format!("/microcycles/{microcycle_id}/workouts"),
+        &format!("/api/microcycles/{microcycle_id}/workouts"),
         None,
     )
     .await;
@@ -40,7 +40,7 @@ async fn created_workout_appears_in_list() {
 async fn list_workouts_for_missing_microcycle_returns_404() {
     let app = test_app();
 
-    let (status, body) = send(&app, "GET", "/microcycles/999/workouts", None).await;
+    let (status, body) = send(&app, "GET", "/api/microcycles/999/workouts", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert!(body["error"].is_string());
@@ -55,7 +55,7 @@ async fn rename_workout_changes_its_name() {
     let (status, updated) = send(
         &app,
         "PUT",
-        &format!("/workouts/{id}"),
+        &format!("/api/workouts/{id}"),
         Some(json!({ "name": "Upper" })),
     )
     .await;
@@ -72,7 +72,7 @@ async fn rename_missing_workout_returns_404() {
     let (status, _) = send(
         &app,
         "PUT",
-        "/workouts/999",
+        "/api/workouts/999",
         Some(json!({ "name": "Upper" })),
     )
     .await;
@@ -91,7 +91,7 @@ async fn reorder_workouts_changes_their_order() {
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/microcycles/{microcycle_id}/workouts/order"),
+        &format!("/api/microcycles/{microcycle_id}/workouts/order"),
         Some(json!({ "ordered_ids": [c, a, b] })),
     )
     .await;
@@ -100,7 +100,7 @@ async fn reorder_workouts_changes_their_order() {
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/microcycles/{microcycle_id}/workouts"),
+        &format!("/api/microcycles/{microcycle_id}/workouts"),
         None,
     )
     .await;
@@ -123,7 +123,7 @@ async fn reorder_with_mismatching_ids_returns_422() {
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/microcycles/{microcycle_id}/workouts/order"),
+        &format!("/api/microcycles/{microcycle_id}/workouts/order"),
         Some(json!({ "ordered_ids": [a] })),
     )
     .await;
@@ -138,13 +138,13 @@ async fn delete_workout_removes_it() {
     let a = create_workout(&app, microcycle_id, "Push").await;
     let _b = create_workout(&app, microcycle_id, "Pull").await;
 
-    let (status, _) = send(&app, "DELETE", &format!("/workouts/{a}"), None).await;
+    let (status, _) = send(&app, "DELETE", &format!("/api/workouts/{a}"), None).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
 
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/microcycles/{microcycle_id}/workouts"),
+        &format!("/api/microcycles/{microcycle_id}/workouts"),
         None,
     )
     .await;
@@ -155,7 +155,7 @@ async fn delete_workout_removes_it() {
 async fn delete_missing_workout_returns_404() {
     let app = test_app();
 
-    let (status, _) = send(&app, "DELETE", "/workouts/999", None).await;
+    let (status, _) = send(&app, "DELETE", "/api/workouts/999", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
 }

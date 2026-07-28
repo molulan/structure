@@ -54,7 +54,7 @@ pub async fn create_program(app: &Router) -> i64 {
     let (_, created) = send(
         app,
         "POST",
-        "/mesocycles",
+        "/api/mesocycles",
         Some(json!({ "name": "Program", "mode": "Manual" })),
     )
     .await;
@@ -65,7 +65,7 @@ pub async fn create_microcycle(app: &Router, mesocycle_id: i64) -> i64 {
     let (_, created) = send(
         app,
         "POST",
-        &format!("/mesocycles/{mesocycle_id}/microcycles"),
+        &format!("/api/mesocycles/{mesocycle_id}/microcycles"),
         None,
     )
     .await;
@@ -76,7 +76,7 @@ pub async fn create_workout(app: &Router, microcycle_id: i64, name: &str) -> i64
     let (_, created) = send(
         app,
         "POST",
-        &format!("/microcycles/{microcycle_id}/workouts"),
+        &format!("/api/microcycles/{microcycle_id}/workouts"),
         Some(json!({ "name": name })),
     )
     .await;
@@ -87,7 +87,7 @@ pub async fn create_library_exercise(app: &Router, name: &str, exercise_type: &s
     let (_, created) = send(
         app,
         "POST",
-        "/library-exercises",
+        "/api/library-exercises",
         Some(json!({ "name": name, "exercise_type": exercise_type, "primary_muscle_group": "Chest" })),
     )
     .await;
@@ -102,7 +102,7 @@ pub async fn create_planned_exercise(
     let (_, created) = send(
         app,
         "POST",
-        &format!("/workouts/{workout_id}/planned-exercises"),
+        &format!("/api/workouts/{workout_id}/planned-exercises"),
         Some(json!({ "library_exercise_id": library_exercise_id })),
     )
     .await;
@@ -115,7 +115,7 @@ pub async fn create_set_group(app: &Router, planned_exercise_id: i64) -> i64 {
     let (_, created) = send(
         app,
         "POST",
-        &format!("/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
         Some(json!({
             "number_of_sets": 3,
             "set_group_type": {

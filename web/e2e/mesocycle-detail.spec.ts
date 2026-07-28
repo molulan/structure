@@ -5,7 +5,7 @@ import { buildFullMesocycle, type Post } from "../tests/support/seed";
 // The e2e backend has no editing UI yet, so seed through its API (the same
 // in-memory instance the app reads via the proxy), then verify the browser
 // renders it.
-const BACKEND = "http://127.0.0.1:3001";
+const BACKEND = "http://127.0.0.1:3001/api";
 
 function apiPost(request: APIRequestContext): Post {
   return async (path, body) => {

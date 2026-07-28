@@ -14,7 +14,7 @@ async fn create_then_get_returns_the_mesocycle() {
     let (status, created) = send(
         &app,
         "POST",
-        "/mesocycles",
+        "/api/mesocycles",
         Some(json!({ "name": "Hypertrophy", "mode": "Manual" })),
     )
     .await;
@@ -23,7 +23,7 @@ async fn create_then_get_returns_the_mesocycle() {
     assert_eq!(created["mode"], "Manual");
     let id = created["id"].as_i64().expect("id should be a number");
 
-    let (status, fetched) = send(&app, "GET", &format!("/mesocycles/{id}"), None).await;
+    let (status, fetched) = send(&app, "GET", &format!("/api/mesocycles/{id}"), None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(fetched["id"].as_i64(), Some(id));
     assert_eq!(fetched["name"], "Hypertrophy");
@@ -36,19 +36,19 @@ async fn list_returns_created_mesocycles() {
     send(
         &app,
         "POST",
-        "/mesocycles",
+        "/api/mesocycles",
         Some(json!({ "name": "A", "mode": "Manual" })),
     )
     .await;
     send(
         &app,
         "POST",
-        "/mesocycles",
+        "/api/mesocycles",
         Some(json!({ "name": "B", "mode": "Algorithmic" })),
     )
     .await;
 
-    let (status, list) = send(&app, "GET", "/mesocycles", None).await;
+    let (status, list) = send(&app, "GET", "/api/mesocycles", None).await;
     assert_eq!(status, StatusCode::OK);
     assert_eq!(list.as_array().expect("list should be an array").len(), 2);
 }
@@ -57,7 +57,7 @@ async fn list_returns_created_mesocycles() {
 async fn get_missing_mesocycle_returns_404() {
     let app = test_app();
 
-    let (status, body) = send(&app, "GET", "/mesocycles/999", None).await;
+    let (status, body) = send(&app, "GET", "/api/mesocycles/999", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert!(body["error"].is_string());
@@ -69,7 +69,7 @@ async fn update_changes_name_and_mode() {
     let (_, created) = send(
         &app,
         "POST",
-        "/mesocycles",
+        "/api/mesocycles",
         Some(json!({ "name": "Old", "mode": "Manual" })),
     )
     .await;
@@ -78,7 +78,7 @@ async fn update_changes_name_and_mode() {
     let (status, updated) = send(
         &app,
         "PUT",
-        &format!("/mesocycles/{id}"),
+        &format!("/api/mesocycles/{id}"),
         Some(json!({ "name": "New", "mode": "Algorithmic" })),
     )
     .await;
@@ -94,16 +94,16 @@ async fn delete_then_get_returns_404() {
     let (_, created) = send(
         &app,
         "POST",
-        "/mesocycles",
+        "/api/mesocycles",
         Some(json!({ "name": "Temp", "mode": "Manual" })),
     )
     .await;
     let id = created["id"].as_i64().expect("id should be a number");
 
-    let (status, _) = send(&app, "DELETE", &format!("/mesocycles/{id}"), None).await;
+    let (status, _) = send(&app, "DELETE", &format!("/api/mesocycles/{id}"), None).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
 
-    let (status, _) = send(&app, "GET", &format!("/mesocycles/{id}"), None).await;
+    let (status, _) = send(&app, "GET", &format!("/api/mesocycles/{id}"), None).await;
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
@@ -114,7 +114,7 @@ async fn update_missing_mesocycle_returns_404() {
     let (status, _) = send(
         &app,
         "PUT",
-        "/mesocycles/999",
+        "/api/mesocycles/999",
         Some(json!({ "name": "X", "mode": "Manual" })),
     )
     .await;
@@ -135,7 +135,7 @@ async fn get_full_mesocycle_returns_the_whole_tree() {
     let (status, full) = send(
         &app,
         "GET",
-        &format!("/mesocycles/{mesocycle_id}/full"),
+        &format!("/api/mesocycles/{mesocycle_id}/full"),
         None,
     )
     .await;
@@ -157,7 +157,7 @@ async fn get_full_mesocycle_returns_the_whole_tree() {
 async fn get_full_missing_mesocycle_returns_404() {
     let app = test_app();
 
-    let (status, _) = send(&app, "GET", "/mesocycles/999/full", None).await;
+    let (status, _) = send(&app, "GET", "/api/mesocycles/999/full", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
 }

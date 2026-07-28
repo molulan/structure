@@ -127,10 +127,10 @@ async fn get_full_mesocycle_returns_the_whole_tree() {
     let app = test_app();
     let mesocycle_id = create_program(&app).await;
     let microcycle_id = create_microcycle(&app, mesocycle_id).await;
-    let workout_id = create_workout(&app, microcycle_id, "Push").await;
+    let workout_id = create_workout(&app, mesocycle_id, "Push").await;
     let exercise_id = create_library_exercise(&app, "Bench Press", "Weighted").await;
     let planned_id = create_planned_exercise(&app, workout_id, exercise_id).await;
-    let set_group_id = create_set_group(&app, planned_id).await;
+    let set_group_id = create_set_group(&app, planned_id, microcycle_id).await;
 
     let (status, full) = send(
         &app,
@@ -144,13 +144,18 @@ async fn get_full_mesocycle_returns_the_whole_tree() {
     assert_eq!(full["id"].as_i64(), Some(mesocycle_id));
     let microcycle = &full["microcycles"][0];
     assert_eq!(microcycle["id"].as_i64(), Some(microcycle_id));
-    let workout = &microcycle["workouts"][0];
+    let workout = &full["workouts"][0];
     assert_eq!(workout["id"].as_i64(), Some(workout_id));
     assert_eq!(workout["name"], "Push");
     let planned = &workout["planned_exercises"][0];
     assert_eq!(planned["id"].as_i64(), Some(planned_id));
     assert_eq!(planned["exercise"]["name"], "Bench Press");
-    assert_eq!(planned["set_groups"][0]["id"].as_i64(), Some(set_group_id));
+    let prescription = &planned["prescriptions"][0];
+    assert_eq!(prescription["microcycle_id"].as_i64(), Some(microcycle_id));
+    assert_eq!(
+        prescription["set_groups"][0]["id"].as_i64(),
+        Some(set_group_id)
+    );
 }
 
 #[tokio::test]

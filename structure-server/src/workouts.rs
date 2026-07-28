@@ -13,27 +13,27 @@ use crate::error::ApiError;
 pub fn routes() -> Router<Store> {
     Router::new()
         .route(
-            "/microcycles/{microcycle_id}/workouts",
+            "/mesocycles/{mesocycle_id}/workouts",
             get(list).post(create),
         )
-        .route("/microcycles/{microcycle_id}/workouts/order", put(reorder))
+        .route("/mesocycles/{mesocycle_id}/workouts/order", put(reorder))
         .route("/workouts/{id}", put(rename).delete(delete_one))
 }
 
 async fn list(
     State(store): State<Store>,
-    Path(microcycle_id): Path<i64>,
+    Path(mesocycle_id): Path<i64>,
 ) -> Result<Json<Vec<Workout>>, ApiError> {
-    let workouts = store.with_conn(|conn| db::list(conn, microcycle_id))?;
+    let workouts = store.with_conn(|conn| db::list(conn, mesocycle_id))?;
     Ok(Json(workouts))
 }
 
 async fn create(
     State(store): State<Store>,
-    Path(microcycle_id): Path<i64>,
+    Path(mesocycle_id): Path<i64>,
     Json(body): Json<WorkoutNameRequest>,
 ) -> Result<(StatusCode, Json<Workout>), ApiError> {
-    let workout = store.with_conn(|conn| db::create(conn, microcycle_id, &body.name))?;
+    let workout = store.with_conn(|conn| db::create(conn, mesocycle_id, &body.name))?;
     Ok((StatusCode::CREATED, Json(workout)))
 }
 
@@ -48,10 +48,10 @@ async fn rename(
 
 async fn reorder(
     State(store): State<Store>,
-    Path(microcycle_id): Path<i64>,
+    Path(mesocycle_id): Path<i64>,
     Json(body): Json<ReorderRequest>,
 ) -> Result<StatusCode, ApiError> {
-    store.with_conn(|conn| db::reorder(conn, microcycle_id, &body.ordered_ids))?;
+    store.with_conn(|conn| db::reorder(conn, mesocycle_id, &body.ordered_ids))?;
     Ok(StatusCode::NO_CONTENT)
 }
 

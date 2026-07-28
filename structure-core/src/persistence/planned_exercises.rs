@@ -151,8 +151,7 @@ pub fn reorder(
     let matched = super::positions::reorder(
         conn,
         "planned_exercises",
-        "workout_id",
-        workout_id,
+        &[("workout_id", workout_id)],
         ordered_ids,
     )?;
 
@@ -168,7 +167,7 @@ mod tests {
     use super::*;
     use crate::{
         domain::planning::{ExerciseType, LibraryExercise, MesocycleMode, MuscleGroup, Workout},
-        persistence::{connection, library_exercises, mesocycles, microcycles, workouts},
+        persistence::{connection, library_exercises, mesocycles, workouts},
     };
 
     fn setup_test_db() -> Connection {
@@ -179,9 +178,7 @@ mod tests {
         let mesocycle = mesocycles::create(conn, "Test Mesocycle", MesocycleMode::Algorithmic)
             .expect("mesocycle creation should succeed");
 
-        let microcycle =
-            microcycles::create(conn, mesocycle.id()).expect("microcycle creation should succeed");
-        workouts::create(conn, microcycle.id(), "Test Workout")
+        workouts::create(conn, mesocycle.id(), "Test Workout")
             .expect("workout creation should succeed")
     }
 
@@ -363,13 +360,10 @@ mod tests {
         let mesocycle = mesocycles::create(&conn, "Arms, Arms, Arms", MesocycleMode::Algorithmic)
             .expect("mesocycle creation should succeed");
 
-        let microcycle =
-            microcycles::create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-
-        let target_workout = workouts::create(&conn, microcycle.id(), "Arms & Arms")
+        let target_workout = workouts::create(&conn, mesocycle.id(), "Arms & Arms")
             .expect("workout creation should succeed");
 
-        let workout_2 = workouts::create(&conn, microcycle.id(), "legs..")
+        let workout_2 = workouts::create(&conn, mesocycle.id(), "legs..")
             .expect("workout creation should succeed");
 
         let exercise_1 = library_exercises::create(

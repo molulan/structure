@@ -267,7 +267,7 @@ mod tests {
             .expect("mesocycle creation should succeed");
         let microcycle =
             microcycles::create(conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let workout = workouts::create(conn, microcycle.id(), "Push")
+        let workout = workouts::create(conn, mesocycle.id(), "Push")
             .expect("workout creation should succeed");
         let exercise = library_exercises::create(
             conn,
@@ -279,9 +279,15 @@ mod tests {
         .expect("exercise creation should succeed");
         let planned = planned_exercises::create(conn, workout.id(), exercise.id())
             .expect("planned exercise creation should succeed");
-        set_groups::create(conn, planned.id(), 3, SetGroupType::MyorepMatch)
-            .expect("set group creation should succeed")
-            .id()
+        set_groups::create(
+            conn,
+            planned.id(),
+            microcycle.id(),
+            3,
+            SetGroupType::MyorepMatch,
+        )
+        .expect("set group creation should succeed")
+        .id()
     }
 
     #[test]

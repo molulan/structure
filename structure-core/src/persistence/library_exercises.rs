@@ -385,8 +385,7 @@ mod tests {
     use crate::{
         domain::planning::MesocycleMode,
         persistence::{
-            connection, logged_exercises, logged_sessions, mesocycles, microcycles,
-            planned_exercises, workouts,
+            connection, logged_exercises, logged_sessions, mesocycles, planned_exercises, workouts,
         },
     };
 
@@ -758,9 +757,7 @@ mod tests {
         let conn = setup_test_db();
         let mesocycle = mesocycles::create(&conn, "Test Mesocycle", MesocycleMode::Algorithmic)
             .expect("mesocycle creation should succeed");
-        let microcycle =
-            microcycles::create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let workout = workouts::create(&conn, microcycle.id(), "Test Workout")
+        let workout = workouts::create(&conn, mesocycle.id(), "Test Workout")
             .expect("workout creation should succeed");
         let exercise = create(
             &conn,

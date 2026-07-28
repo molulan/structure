@@ -28,7 +28,7 @@ pub enum FullMesocycleError {
 
 /// The transposed plan grid: structure is defined once per mesocycle
 /// (`microcycles` are the columns, `workouts` and their `planned_exercises` the
-/// rows) and prescription varies per week via each planned exercise's `cells`.
+/// rows) and prescription varies per week via each planned exercise's `prescriptions`.
 #[derive(Serialize)]
 pub struct FullMesocycle {
     pub id: i64,

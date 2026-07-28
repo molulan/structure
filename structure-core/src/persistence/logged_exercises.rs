@@ -199,8 +199,7 @@ mod tests {
         ExerciseType, LibraryExercise, MesocycleMode, MuscleGroup, Workout,
     };
     use crate::persistence::{
-        connection, library_exercises, logged_sessions, mesocycles, microcycles, planned_exercises,
-        workouts,
+        connection, library_exercises, logged_sessions, mesocycles, planned_exercises, workouts,
     };
 
     const STARTED: &str = "2026-06-26T10:00:00Z";
@@ -212,9 +211,7 @@ mod tests {
     fn create_test_workout(conn: &Connection) -> Workout {
         let mesocycle = mesocycles::create(conn, "Test Mesocycle", MesocycleMode::Manual)
             .expect("mesocycle creation should succeed");
-        let microcycle =
-            microcycles::create(conn, mesocycle.id()).expect("microcycle creation should succeed");
-        workouts::create(conn, microcycle.id(), "Push").expect("workout creation should succeed")
+        workouts::create(conn, mesocycle.id(), "Push").expect("workout creation should succeed")
     }
 
     fn create_test_exercise(conn: &Connection) -> LibraryExercise {

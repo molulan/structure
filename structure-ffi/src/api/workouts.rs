@@ -6,19 +6,19 @@ use structure_core::persistence::{
 };
 
 #[frb(sync)]
-pub fn list_workouts(microcycle_id: i64) -> Result<Vec<WorkoutDTO>, WorkoutError> {
+pub fn list_workouts(mesocycle_id: i64) -> Result<Vec<WorkoutDTO>, WorkoutError> {
     let conn = connection::init_db("structure.db")?;
 
-    let workouts = db::list(&conn, microcycle_id)?;
+    let workouts = db::list(&conn, mesocycle_id)?;
 
     Ok(workouts.iter().map(WorkoutDTO::from).collect())
 }
 
 #[frb(sync)]
-pub fn create_workout(microcycle_id: i64, name: String) -> Result<WorkoutDTO, WorkoutError> {
+pub fn create_workout(mesocycle_id: i64, name: String) -> Result<WorkoutDTO, WorkoutError> {
     let conn = connection::init_db("structure.db")?;
 
-    let workout = db::create(&conn, microcycle_id, &name)?;
+    let workout = db::create(&conn, mesocycle_id, &name)?;
 
     Ok(WorkoutDTO::from(&workout))
 }

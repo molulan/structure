@@ -82,12 +82,12 @@ impl From<WorkoutError> for ApiError {
     fn from(error: WorkoutError) -> Self {
         match error {
             WorkoutError::Database(error) => ApiError::internal(error),
-            WorkoutError::AssociatedMicrocycleNotFound { id } => {
-                ApiError::not_found(format!("microcycle {id} not found"))
+            WorkoutError::AssociatedMesocycleNotFound { id } => {
+                ApiError::not_found(format!("mesocycle {id} not found"))
             }
             WorkoutError::NotFound { id } => ApiError::not_found(format!("workout {id} not found")),
-            WorkoutError::ReorderMismatch { microcycle_id } => ApiError::unprocessable(format!(
-                "reorder list does not match the workouts of microcycle {microcycle_id}"
+            WorkoutError::ReorderMismatch { mesocycle_id } => ApiError::unprocessable(format!(
+                "reorder list does not match the workouts of mesocycle {mesocycle_id}"
             )),
             WorkoutError::InvalidName(error) => ApiError::unprocessable(error.to_string()),
         }
@@ -148,6 +148,15 @@ impl From<SetGroupError> for ApiError {
             SetGroupError::AssociatedPlannedExerciseNotFound { id } => {
                 ApiError::not_found(format!("planned exercise {id} not found"))
             }
+            SetGroupError::AssociatedMicrocycleNotFound { id } => {
+                ApiError::not_found(format!("microcycle {id} not found"))
+            }
+            SetGroupError::MesocycleMismatch {
+                planned_exercise_id,
+                microcycle_id,
+            } => ApiError::unprocessable(format!(
+                "microcycle {microcycle_id} is not in the same mesocycle as planned exercise {planned_exercise_id}"
+            )),
             SetGroupError::NotFound { id } => {
                 ApiError::not_found(format!("set group {id} not found"))
             }

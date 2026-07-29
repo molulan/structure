@@ -3,15 +3,14 @@ mod common;
 use axum::Router;
 use axum::http::StatusCode;
 use common::{
-    create_library_exercise, create_microcycle, create_planned_exercise, create_program,
-    create_workout, send, test_app,
+    create_library_exercise, create_planned_exercise, create_program, create_workout, send,
+    test_app,
 };
 use serde_json::json;
 
 async fn workout(app: &Router) -> i64 {
     let mesocycle_id = create_program(app).await;
-    let microcycle_id = create_microcycle(app, mesocycle_id).await;
-    create_workout(app, microcycle_id, "Push").await
+    create_workout(app, mesocycle_id, "Push").await
 }
 
 #[tokio::test]

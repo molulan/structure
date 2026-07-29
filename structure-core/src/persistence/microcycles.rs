@@ -136,8 +136,7 @@ pub fn reorder(
     let matched = super::positions::reorder(
         conn,
         "microcycles",
-        "mesocycle_id",
-        mesocycle_id,
+        &[("mesocycle_id", mesocycle_id)],
         ordered_ids,
     )?;
 

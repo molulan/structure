@@ -26,12 +26,16 @@ pub enum FullMesocycleError {
     SetGroup(#[from] SetGroupError),
 }
 
+/// The transposed plan grid: structure is defined once per mesocycle
+/// (`microcycles` are the columns, `workouts` and their `planned_exercises` the
+/// rows) and prescription varies per week via each planned exercise's `prescriptions`.
 #[derive(Serialize)]
 pub struct FullMesocycle {
     pub id: i64,
     pub name: String,
     pub mode: MesocycleMode,
     pub microcycles: Vec<FullMicrocycle>,
+    pub workouts: Vec<FullWorkout>,
 }
 
 #[derive(Serialize)]
@@ -39,7 +43,6 @@ pub struct FullMicrocycle {
     pub id: i64,
     pub position: u32,
     pub phase: Option<Phase>,
-    pub workouts: Vec<FullWorkout>,
 }
 
 #[derive(Serialize)]
@@ -55,6 +58,14 @@ pub struct FullPlannedExercise {
     pub id: i64,
     pub exercise: LibraryExercise,
     pub position: u32,
+    pub prescriptions: Vec<Prescription>,
+}
+
+/// The set groups prescribed for one planned exercise in one microcycle — one
+/// cell of the plan grid.
+#[derive(Serialize)]
+pub struct Prescription {
+    pub microcycle_id: i64,
     pub set_groups: Vec<SetGroup>,
 }
 
@@ -66,32 +77,40 @@ pub fn get_full_mesocycle(
         return Ok(None);
     };
 
-    let mut microcycles = Vec::new();
-    for microcycle in microcycles::list(conn, id)? {
-        let mut workouts = Vec::new();
-        for workout in workouts::list(conn, microcycle.id())? {
-            let mut planned_exercises = Vec::new();
-            for planned in planned_exercises::list(conn, workout.id())? {
-                let set_groups = set_groups::list(conn, planned.id())?;
-                planned_exercises.push(FullPlannedExercise {
-                    id: planned.id(),
-                    exercise: planned.exercise().clone(),
-                    position: planned.position(),
-                    set_groups,
-                });
-            }
-            workouts.push(FullWorkout {
-                id: workout.id(),
-                name: workout.name().to_string(),
-                position: workout.position(),
-                planned_exercises,
-            });
-        }
-        microcycles.push(FullMicrocycle {
+    let microcycles = microcycles::list(conn, id)?;
+    let full_microcycles = microcycles
+        .iter()
+        .map(|microcycle| FullMicrocycle {
             id: microcycle.id(),
             position: microcycle.position(),
             phase: microcycle.phase(),
-            workouts,
+        })
+        .collect();
+
+    let mut workouts = Vec::new();
+    for workout in workouts::list(conn, id)? {
+        let mut planned_exercises = Vec::new();
+        for planned in planned_exercises::list(conn, workout.id())? {
+            let mut prescriptions = Vec::new();
+            for microcycle in &microcycles {
+                let set_groups = set_groups::list(conn, planned.id(), microcycle.id())?;
+                prescriptions.push(Prescription {
+                    microcycle_id: microcycle.id(),
+                    set_groups,
+                });
+            }
+            planned_exercises.push(FullPlannedExercise {
+                id: planned.id(),
+                exercise: planned.exercise().clone(),
+                position: planned.position(),
+                prescriptions,
+            });
+        }
+        workouts.push(FullWorkout {
+            id: workout.id(),
+            name: workout.name().to_string(),
+            position: workout.position(),
+            planned_exercises,
         });
     }
 
@@ -99,7 +118,8 @@ pub fn get_full_mesocycle(
         id: mesocycle.id,
         name: mesocycle.name,
         mode: mesocycle.mode,
-        microcycles,
+        microcycles: full_microcycles,
+        workouts,
     }))
 }
 
@@ -197,7 +217,7 @@ mod tests {
             .expect("mesocycle creation should succeed");
         let microcycle =
             microcycles::create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let workout = workouts::create(&conn, microcycle.id(), "Push")
+        let workout = workouts::create(&conn, mesocycle.id(), "Push")
             .expect("workout creation should succeed");
         let bench = library_exercises::create(
             &conn,
@@ -215,22 +235,86 @@ mod tests {
             reps: RepTarget::exact(5).unwrap(),
             intensity: Intensity::Rir(Rir::new(2).unwrap()),
         };
-        set_groups::create(&mut conn, planned.id(), 3, top_set)
+        set_groups::create(&mut conn, planned.id(), microcycle.id(), 3, top_set)
             .expect("set group creation should succeed");
-        set_groups::create(&mut conn, planned.id(), 1, SetGroupType::MyorepMatch)
+        set_groups::create(
+            &mut conn,
+            planned.id(),
+            microcycle.id(),
+            1,
+            SetGroupType::MyorepMatch,
+        )
+        .expect("set group creation should succeed");
+
+        let full = get_full_mesocycle(&conn, mesocycle.id())
+            .expect("query should succeed")
+            .expect("mesocycle should exist");
+
+        let prescription = &full.workouts[0].planned_exercises[0].prescriptions[0];
+        assert_eq!(prescription.microcycle_id, microcycle.id());
+        assert_eq!(prescription.set_groups.len(), 2);
+        assert_eq!(prescription.set_groups[0].number_of_sets(), 3);
+        assert_eq!(
+            prescription.set_groups[1].set_group_type(),
+            SetGroupType::MyorepMatch
+        );
+    }
+
+    #[test]
+    fn get_full_mesocycle_gives_each_microcycle_its_own_cell_for_a_shared_exercise() {
+        let mut conn = setup_test_db();
+        let mesocycle = mesocycles::create(&conn, "Test Mesocycle", MesocycleMode::Algorithmic)
+            .expect("mesocycle creation should succeed");
+        let week1 =
+            microcycles::create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let week2 =
+            microcycles::create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let workout = workouts::create(&conn, mesocycle.id(), "Push")
+            .expect("workout creation should succeed");
+        let bench = library_exercises::create(
+            &conn,
+            "Bench Press",
+            ExerciseType::Weighted,
+            MuscleGroup::Chest,
+            &[],
+        )
+        .expect("exercise creation should succeed");
+        let planned = planned_exercises::create(&conn, workout.id(), bench.id())
+            .expect("planned exercise creation should succeed");
+
+        let regular = || SetGroupType::Prescribed {
+            set_type: PrescribedSetType::Regular,
+            reps: RepTarget::exact(5).expect("5 is a valid rep count"),
+            intensity: Intensity::Rir(Rir::new(2).expect("2 is a valid RIR")),
+        };
+        // Two set groups in week 1, one in week 2 — distinct counts so we can tell
+        // the cells apart and confirm a group never bleeds into the wrong column.
+        set_groups::create(&mut conn, planned.id(), week1.id(), 3, regular())
+            .expect("set group creation should succeed");
+        set_groups::create(&mut conn, planned.id(), week1.id(), 4, regular())
+            .expect("set group creation should succeed");
+        set_groups::create(&mut conn, planned.id(), week2.id(), 5, regular())
             .expect("set group creation should succeed");
 
         let full = get_full_mesocycle(&conn, mesocycle.id())
             .expect("query should succeed")
             .expect("mesocycle should exist");
 
-        let planned_view = &full.microcycles[0].workouts[0].planned_exercises[0];
-        assert_eq!(planned_view.set_groups.len(), 2);
-        assert_eq!(planned_view.set_groups[0].number_of_sets(), 3);
-        assert_eq!(
-            planned_view.set_groups[1].set_group_type(),
-            SetGroupType::MyorepMatch
-        );
+        let prescriptions = &full.workouts[0].planned_exercises[0].prescriptions;
+        assert_eq!(prescriptions.len(), 2, "one prescription per microcycle");
+
+        let week1_prescription = prescriptions
+            .iter()
+            .find(|p| p.microcycle_id == week1.id())
+            .expect("week 1 should have a prescription cell");
+        assert_eq!(week1_prescription.set_groups.len(), 2);
+
+        let week2_prescription = prescriptions
+            .iter()
+            .find(|p| p.microcycle_id == week2.id())
+            .expect("week 2 should have a prescription cell");
+        assert_eq!(week2_prescription.set_groups.len(), 1);
+        assert_eq!(week2_prescription.set_groups[0].number_of_sets(), 5);
     }
 
     #[test]
@@ -238,9 +322,8 @@ mod tests {
         let conn = setup_test_db();
         let mesocycle = mesocycles::create(&conn, "Test Mesocycle", MesocycleMode::Algorithmic)
             .expect("mesocycle creation should succeed");
-        let microcycle =
-            microcycles::create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let workout = workouts::create(&conn, microcycle.id(), "Push")
+        microcycles::create(&conn, mesocycle.id()).expect("microcycle creation should succeed");
+        let workout = workouts::create(&conn, mesocycle.id(), "Push")
             .expect("workout creation should succeed");
         let bench = library_exercises::create(
             &conn,
@@ -257,7 +340,7 @@ mod tests {
             .expect("query should succeed")
             .expect("mesocycle should exist");
 
-        let exercise = &full.microcycles[0].workouts[0].planned_exercises[0].exercise;
+        let exercise = &full.workouts[0].planned_exercises[0].exercise;
         assert_eq!(exercise.primary_muscle_group(), MuscleGroup::Chest);
         assert_eq!(
             exercise.secondary_muscle_groups(),

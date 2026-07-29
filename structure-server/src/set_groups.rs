@@ -16,11 +16,11 @@ use structure_core::{
 pub fn routes() -> Router<Store> {
     Router::new()
         .route(
-            "/planned-exercises/{planned_exercise_id}/set-groups",
+            "/planned-exercises/{planned_exercise_id}/microcycles/{microcycle_id}/set-groups",
             get(list).post(create),
         )
         .route(
-            "/planned-exercises/{planned_exercise_id}/set-groups/order",
+            "/planned-exercises/{planned_exercise_id}/microcycles/{microcycle_id}/set-groups/order",
             put(reorder),
         )
         .route("/set-groups/{id}", put(update).delete(delete_one))
@@ -28,15 +28,16 @@ pub fn routes() -> Router<Store> {
 
 async fn list(
     State(store): State<Store>,
-    Path(planned_exercise_id): Path<i64>,
+    Path((planned_exercise_id, microcycle_id)): Path<(i64, i64)>,
 ) -> Result<Json<Vec<SetGroup>>, ApiError> {
-    let set_groups = store.with_conn(|conn| set_groups::list(conn, planned_exercise_id))?;
+    let set_groups =
+        store.with_conn(|conn| set_groups::list(conn, planned_exercise_id, microcycle_id))?;
     Ok(Json(set_groups))
 }
 
 async fn create(
     State(store): State<Store>,
-    Path(planned_exercise_id): Path<i64>,
+    Path((planned_exercise_id, microcycle_id)): Path<(i64, i64)>,
     Json(body): Json<SetGroupRequest>,
 ) -> Result<(StatusCode, Json<SetGroup>), ApiError> {
     let set_group_type = SetGroupType::try_from(body.set_group_type)?;
@@ -44,6 +45,7 @@ async fn create(
         set_groups::create(
             conn,
             planned_exercise_id,
+            microcycle_id,
             body.number_of_sets,
             set_group_type,
         )
@@ -64,10 +66,12 @@ async fn update(
 
 async fn reorder(
     State(store): State<Store>,
-    Path(planned_exercise_id): Path<i64>,
+    Path((planned_exercise_id, microcycle_id)): Path<(i64, i64)>,
     Json(body): Json<ReorderRequest>,
 ) -> Result<StatusCode, ApiError> {
-    store.with_conn(|conn| set_groups::reorder(conn, planned_exercise_id, &body.ordered_ids))?;
+    store.with_conn(|conn| {
+        set_groups::reorder(conn, planned_exercise_id, microcycle_id, &body.ordered_ids)
+    })?;
     Ok(StatusCode::NO_CONTENT)
 }
 

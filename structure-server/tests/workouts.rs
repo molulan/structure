@@ -1,23 +1,18 @@
 mod common;
 
 use axum::http::StatusCode;
-use common::{create_microcycle, create_program, create_workout, send, test_app};
+use common::{create_program, create_workout, send, test_app};
 use serde_json::json;
-
-async fn microcycle(app: &axum::Router) -> i64 {
-    let mesocycle_id = create_program(app).await;
-    create_microcycle(app, mesocycle_id).await
-}
 
 #[tokio::test]
 async fn created_workout_appears_in_list() {
     let app = test_app();
-    let microcycle_id = microcycle(&app).await;
+    let mesocycle_id = create_program(&app).await;
 
     let (status, created) = send(
         &app,
         "POST",
-        &format!("/api/microcycles/{microcycle_id}/workouts"),
+        &format!("/api/mesocycles/{mesocycle_id}/workouts"),
         Some(json!({ "name": "Push" })),
     )
     .await;
@@ -28,7 +23,7 @@ async fn created_workout_appears_in_list() {
     let (status, list) = send(
         &app,
         "GET",
-        &format!("/api/microcycles/{microcycle_id}/workouts"),
+        &format!("/api/mesocycles/{mesocycle_id}/workouts"),
         None,
     )
     .await;
@@ -37,10 +32,10 @@ async fn created_workout_appears_in_list() {
 }
 
 #[tokio::test]
-async fn list_workouts_for_missing_microcycle_returns_404() {
+async fn list_workouts_for_missing_mesocycle_returns_404() {
     let app = test_app();
 
-    let (status, body) = send(&app, "GET", "/api/microcycles/999/workouts", None).await;
+    let (status, body) = send(&app, "GET", "/api/mesocycles/999/workouts", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert!(body["error"].is_string());
@@ -49,8 +44,8 @@ async fn list_workouts_for_missing_microcycle_returns_404() {
 #[tokio::test]
 async fn rename_workout_changes_its_name() {
     let app = test_app();
-    let microcycle_id = microcycle(&app).await;
-    let id = create_workout(&app, microcycle_id, "Push").await;
+    let mesocycle_id = create_program(&app).await;
+    let id = create_workout(&app, mesocycle_id, "Push").await;
 
     let (status, updated) = send(
         &app,
@@ -83,15 +78,15 @@ async fn rename_missing_workout_returns_404() {
 #[tokio::test]
 async fn reorder_workouts_changes_their_order() {
     let app = test_app();
-    let microcycle_id = microcycle(&app).await;
-    let a = create_workout(&app, microcycle_id, "Push").await;
-    let b = create_workout(&app, microcycle_id, "Pull").await;
-    let c = create_workout(&app, microcycle_id, "Legs").await;
+    let mesocycle_id = create_program(&app).await;
+    let a = create_workout(&app, mesocycle_id, "Push").await;
+    let b = create_workout(&app, mesocycle_id, "Pull").await;
+    let c = create_workout(&app, mesocycle_id, "Legs").await;
 
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/api/microcycles/{microcycle_id}/workouts/order"),
+        &format!("/api/mesocycles/{mesocycle_id}/workouts/order"),
         Some(json!({ "ordered_ids": [c, a, b] })),
     )
     .await;
@@ -100,7 +95,7 @@ async fn reorder_workouts_changes_their_order() {
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/api/microcycles/{microcycle_id}/workouts"),
+        &format!("/api/mesocycles/{mesocycle_id}/workouts"),
         None,
     )
     .await;
@@ -116,14 +111,14 @@ async fn reorder_workouts_changes_their_order() {
 #[tokio::test]
 async fn reorder_with_mismatching_ids_returns_422() {
     let app = test_app();
-    let microcycle_id = microcycle(&app).await;
-    let a = create_workout(&app, microcycle_id, "Push").await;
-    let _b = create_workout(&app, microcycle_id, "Pull").await;
+    let mesocycle_id = create_program(&app).await;
+    let a = create_workout(&app, mesocycle_id, "Push").await;
+    let _b = create_workout(&app, mesocycle_id, "Pull").await;
 
     let (status, _) = send(
         &app,
         "PUT",
-        &format!("/api/microcycles/{microcycle_id}/workouts/order"),
+        &format!("/api/mesocycles/{mesocycle_id}/workouts/order"),
         Some(json!({ "ordered_ids": [a] })),
     )
     .await;
@@ -134,9 +129,9 @@ async fn reorder_with_mismatching_ids_returns_422() {
 #[tokio::test]
 async fn delete_workout_removes_it() {
     let app = test_app();
-    let microcycle_id = microcycle(&app).await;
-    let a = create_workout(&app, microcycle_id, "Push").await;
-    let _b = create_workout(&app, microcycle_id, "Pull").await;
+    let mesocycle_id = create_program(&app).await;
+    let a = create_workout(&app, mesocycle_id, "Push").await;
+    let _b = create_workout(&app, mesocycle_id, "Pull").await;
 
     let (status, _) = send(&app, "DELETE", &format!("/api/workouts/{a}"), None).await;
     assert_eq!(status, StatusCode::NO_CONTENT);
@@ -144,7 +139,7 @@ async fn delete_workout_removes_it() {
     let (_, list) = send(
         &app,
         "GET",
-        &format!("/api/microcycles/{microcycle_id}/workouts"),
+        &format!("/api/mesocycles/{mesocycle_id}/workouts"),
         None,
     )
     .await;

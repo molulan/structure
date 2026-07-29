@@ -179,7 +179,7 @@ fn weight_unit_from_str(s: &str) -> WeightUnit {
 mod tests {
     use super::*;
     use crate::domain::planning::{MesocycleMode, Workout};
-    use crate::persistence::{connection, mesocycles, microcycles, workouts};
+    use crate::persistence::{connection, mesocycles, workouts};
 
     const STARTED: &str = "2026-06-26T10:00:00Z";
     const COMPLETED: &str = "2026-06-26T11:30:00Z";
@@ -191,9 +191,7 @@ mod tests {
     fn create_test_workout(conn: &Connection) -> Workout {
         let mesocycle = mesocycles::create(conn, "Test Mesocycle", MesocycleMode::Manual)
             .expect("mesocycle creation should succeed");
-        let microcycle =
-            microcycles::create(conn, mesocycle.id()).expect("microcycle creation should succeed");
-        workouts::create(conn, microcycle.id(), "Push").expect("workout creation should succeed")
+        workouts::create(conn, mesocycle.id(), "Push").expect("workout creation should succeed")
     }
 
     #[test]

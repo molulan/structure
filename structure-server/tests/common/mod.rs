@@ -72,11 +72,11 @@ pub async fn create_microcycle(app: &Router, mesocycle_id: i64) -> i64 {
     created["id"].as_i64().expect("id should be a number")
 }
 
-pub async fn create_workout(app: &Router, microcycle_id: i64, name: &str) -> i64 {
+pub async fn create_workout(app: &Router, mesocycle_id: i64, name: &str) -> i64 {
     let (_, created) = send(
         app,
         "POST",
-        &format!("/api/microcycles/{microcycle_id}/workouts"),
+        &format!("/api/mesocycles/{mesocycle_id}/workouts"),
         Some(json!({ "name": name })),
     )
     .await;
@@ -109,13 +109,15 @@ pub async fn create_planned_exercise(
     created["id"].as_i64().expect("id should be a number")
 }
 
-/// Creates a plain prescribed set group (3 sets, regular, 5 reps @ RIR 2) and
-/// returns its id.
-pub async fn create_set_group(app: &Router, planned_exercise_id: i64) -> i64 {
+/// Creates a plain prescribed set group (3 sets, regular, 5 reps @ RIR 2) in the
+/// (planned exercise, microcycle) cell and returns its id.
+pub async fn create_set_group(app: &Router, planned_exercise_id: i64, microcycle_id: i64) -> i64 {
     let (_, created) = send(
         app,
         "POST",
-        &format!("/api/planned-exercises/{planned_exercise_id}/set-groups"),
+        &format!(
+            "/api/planned-exercises/{planned_exercise_id}/microcycles/{microcycle_id}/set-groups"
+        ),
         Some(json!({
             "number_of_sets": 3,
             "set_group_type": {

@@ -11,6 +11,15 @@ pub enum SetGroupError {
     Database(#[from] rusqlite::Error),
     #[error("associated planned exercise {id} not found")]
     AssociatedPlannedExerciseNotFound { id: i64 },
+    #[error("associated microcycle {id} not found")]
+    AssociatedMicrocycleNotFound { id: i64 },
+    #[error(
+        "microcycle {microcycle_id} is not in the same mesocycle as planned exercise {planned_exercise_id}"
+    )]
+    MesocycleMismatch {
+        planned_exercise_id: i64,
+        microcycle_id: i64,
+    },
     #[error("set group {id} not found")]
     NotFound { id: i64 },
     #[error("reorder list does not match the set groups of planned exercise {planned_exercise_id}")]
@@ -30,6 +39,7 @@ pub(super) fn create_set_groups_table(conn: &Connection) -> rusqlite::Result<()>
         "CREATE TABLE IF NOT EXISTS set_groups (
             id INTEGER PRIMARY KEY,
             planned_exercise_id INTEGER NOT NULL REFERENCES planned_exercises(id) ON DELETE CASCADE,
+            microcycle_id INTEGER NOT NULL REFERENCES microcycles(id) ON DELETE CASCADE,
             position INTEGER NOT NULL,
             set_type TEXT NOT NULL CHECK(
                 set_type IN ('Regular', 'Myorep', 'MyorepMatch', 'Drop')
@@ -46,7 +56,7 @@ pub(super) fn create_set_groups_table(conn: &Connection) -> rusqlite::Result<()>
             ),
             intensity_value REAL,
             intensity_weight_unit TEXT CHECK(intensity_weight_unit IN ('Kg', 'Lbs')),
-            UNIQUE(planned_exercise_id, position),
+            UNIQUE(planned_exercise_id, microcycle_id, position),
             -- A MyorepMatch group carries no prescription; every other set type must.
             CHECK((set_type = 'MyorepMatch') = (rep_min IS NULL)),
             CHECK((set_type = 'MyorepMatch') = (intensity_type IS NULL)),
@@ -95,9 +105,41 @@ fn set_group_exercise_type(
     .map(|name| name.map(|name| exercise_type_from_str(&name)))
 }
 
+fn microcycle_exists(conn: &Connection, id: i64) -> rusqlite::Result<bool> {
+    let count: i64 = conn.query_row(
+        "SELECT COUNT(*) FROM microcycles WHERE id = ?1",
+        [id],
+        |row| row.get(0),
+    )?;
+    Ok(count > 0)
+}
+
+// A set group sits in a (planned_exercise, microcycle) grid cell, which is only
+// valid when both sides belong to the same mesocycle — otherwise the row is
+// orphaned from every aggregate. The schema can't express this (a `CHECK` can't
+// join), so `create` guards it. Assumes both ids already exist.
+fn same_mesocycle(
+    conn: &Connection,
+    planned_exercise_id: i64,
+    microcycle_id: i64,
+) -> rusqlite::Result<bool> {
+    conn.query_row(
+        "SELECT w.mesocycle_id = m.mesocycle_id
+         FROM planned_exercises pe
+         JOIN workouts w ON w.id = pe.workout_id
+         JOIN microcycles m ON m.id = ?2
+         WHERE pe.id = ?1",
+        params![planned_exercise_id, microcycle_id],
+        |row| row.get::<_, bool>(0),
+    )
+    .optional()
+    .map(|matched| matched.unwrap_or(false))
+}
+
 pub fn create(
     conn: &mut Connection,
     planned_exercise_id: i64,
+    microcycle_id: i64,
     number_of_sets: u32,
     set_group_type: SetGroupType,
 ) -> Result<SetGroup, SetGroupError> {
@@ -116,23 +158,36 @@ pub fn create(
         });
     };
 
+    if !microcycle_exists(&tx, microcycle_id)? {
+        return Err(SetGroupError::AssociatedMicrocycleNotFound { id: microcycle_id });
+    }
+
+    if !same_mesocycle(&tx, planned_exercise_id, microcycle_id)? {
+        return Err(SetGroupError::MesocycleMismatch {
+            planned_exercise_id,
+            microcycle_id,
+        });
+    }
+
     let next_position: i64 = tx.query_row(
-        "SELECT COALESCE(MAX(position), -1) + 1 FROM set_groups WHERE planned_exercise_id = ?1",
-        [planned_exercise_id],
+        "SELECT COALESCE(MAX(position), -1) + 1 FROM set_groups
+         WHERE planned_exercise_id = ?1 AND microcycle_id = ?2",
+        params![planned_exercise_id, microcycle_id],
         |row| row.get(0),
     )?;
     let position = u32::try_from(next_position)
-        .expect("positions are non-negative and no exercise will have 4 billion set groups");
+        .expect("positions are non-negative and no cell will have 4 billion set groups");
 
     let columns = encode_set_group_type(set_group_type);
 
     tx.execute(
         "INSERT INTO set_groups
-            (planned_exercise_id, position, set_type, number_of_sets,
+            (planned_exercise_id, microcycle_id, position, set_type, number_of_sets,
              rep_min, rep_max, intensity_type, intensity_value, intensity_weight_unit)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
         params![
             planned_exercise_id,
+            microcycle_id,
             position,
             columns.set_type,
             number_of_sets,
@@ -212,13 +267,16 @@ pub fn delete(conn: &Connection, id: i64) -> Result<(), SetGroupError> {
 pub fn reorder(
     conn: &mut Connection,
     planned_exercise_id: i64,
+    microcycle_id: i64,
     ordered_ids: &[i64],
 ) -> Result<(), SetGroupError> {
     let matched = super::positions::reorder(
         conn,
         "set_groups",
-        "planned_exercise_id",
-        planned_exercise_id,
+        &[
+            ("planned_exercise_id", planned_exercise_id),
+            ("microcycle_id", microcycle_id),
+        ],
         ordered_ids,
     )?;
 
@@ -259,24 +317,32 @@ fn decode_row(row: &rusqlite::Row<'_>) -> Result<SetGroup, SetGroupError> {
     ))
 }
 
-pub fn list(conn: &Connection, planned_exercise_id: i64) -> Result<Vec<SetGroup>, SetGroupError> {
+pub fn list(
+    conn: &Connection,
+    planned_exercise_id: i64,
+    microcycle_id: i64,
+) -> Result<Vec<SetGroup>, SetGroupError> {
     if planned_exercise_type(conn, planned_exercise_id)?.is_none() {
         return Err(SetGroupError::AssociatedPlannedExerciseNotFound {
             id: planned_exercise_id,
         });
     }
 
+    if !microcycle_exists(conn, microcycle_id)? {
+        return Err(SetGroupError::AssociatedMicrocycleNotFound { id: microcycle_id });
+    }
+
     let mut stmt = conn.prepare(
         "SELECT id, position, set_type, number_of_sets, rep_min, rep_max,
                 intensity_type, intensity_value, intensity_weight_unit
          FROM set_groups
-         WHERE planned_exercise_id = ?1
+         WHERE planned_exercise_id = ?1 AND microcycle_id = ?2
          ORDER BY position ASC",
     )?;
 
     // `query_map`'s closure can only yield `rusqlite::Result`, so we iterate
     // manually to let a decode error surface as a typed `SetGroupError`.
-    let mut rows = stmt.query([planned_exercise_id])?;
+    let mut rows = stmt.query(params![planned_exercise_id, microcycle_id])?;
     let mut groups = Vec::new();
     while let Some(row) = rows.next()? {
         groups.push(decode_row(row)?);
@@ -465,21 +531,28 @@ mod tests {
         connection::init_db(":memory:").expect("failed to create test database")
     }
 
-    fn planned_exercise_of_type(conn: &Connection, exercise_type: ExerciseType) -> PlannedExercise {
+    /// A planned exercise of the given type together with a microcycle to hang
+    /// its set groups under: every set group lives in a
+    /// (planned_exercise, microcycle) cell.
+    fn planned_exercise_of_type(
+        conn: &Connection,
+        exercise_type: ExerciseType,
+    ) -> (PlannedExercise, i64) {
         let mesocycle = mesocycles::create(conn, "Test Mesocycle", MesocycleMode::Algorithmic)
             .expect("mesocycle creation should succeed");
         let microcycle =
             microcycles::create(conn, mesocycle.id()).expect("microcycle creation should succeed");
-        let workout = workouts::create(conn, microcycle.id(), "Test Workout")
+        let workout = workouts::create(conn, mesocycle.id(), "Test Workout")
             .expect("workout creation should succeed");
         let exercise =
             library_exercises::create(conn, "Bench Press", exercise_type, MuscleGroup::Chest, &[])
                 .expect("exercise creation should succeed");
-        planned_exercises::create(conn, workout.id(), exercise.id())
-            .expect("planned exercise creation should succeed")
+        let planned = planned_exercises::create(conn, workout.id(), exercise.id())
+            .expect("planned exercise creation should succeed");
+        (planned, microcycle.id())
     }
 
-    fn weighted_planned_exercise(conn: &Connection) -> PlannedExercise {
+    fn weighted_planned_exercise(conn: &Connection) -> (PlannedExercise, i64) {
         planned_exercise_of_type(conn, ExerciseType::Weighted)
     }
 
@@ -501,11 +574,12 @@ mod tests {
     #[test]
     fn create_set_group_on_existing_planned_exercise_succeeds() {
         let mut conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
 
         let result = create(
             &mut conn,
             planned.id(),
+            microcycle_id,
             3,
             regular(
                 RepTarget::range(8, 12).unwrap(),
@@ -520,7 +594,7 @@ mod tests {
     fn create_set_group_for_nonexistent_planned_exercise_returns_error() {
         let mut conn = setup_test_db();
 
-        let result = create(&mut conn, 9999, 3, regular_rir());
+        let result = create(&mut conn, 9999, 1, 3, regular_rir());
 
         assert!(matches!(
             result,
@@ -529,11 +603,48 @@ mod tests {
     }
 
     #[test]
+    fn create_set_group_for_nonexistent_microcycle_returns_error() {
+        let mut conn = setup_test_db();
+        let (planned, _microcycle_id) = weighted_planned_exercise(&conn);
+
+        let result = create(&mut conn, planned.id(), 9999, 3, regular_rir());
+
+        assert!(matches!(
+            result,
+            Err(SetGroupError::AssociatedMicrocycleNotFound { .. })
+        ));
+    }
+
+    #[test]
+    fn create_set_group_in_a_microcycle_from_another_mesocycle_is_rejected() {
+        let mut conn = setup_test_db();
+        let (planned, _microcycle_id) = weighted_planned_exercise(&conn);
+
+        let other = mesocycles::create(&conn, "Other Mesocycle", MesocycleMode::Manual)
+            .expect("mesocycle creation should succeed");
+        let foreign_microcycle =
+            microcycles::create(&conn, other.id()).expect("microcycle creation should succeed");
+
+        let result = create(
+            &mut conn,
+            planned.id(),
+            foreign_microcycle.id(),
+            3,
+            regular_rir(),
+        );
+
+        assert!(matches!(
+            result,
+            Err(SetGroupError::MesocycleMismatch { .. })
+        ));
+    }
+
+    #[test]
     fn create_set_group_with_zero_sets_returns_invalid_not_an_opaque_db_error() {
         let mut conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
 
-        let result = create(&mut conn, planned.id(), 0, regular_rir());
+        let result = create(&mut conn, planned.id(), microcycle_id, 0, regular_rir());
 
         assert!(matches!(
             result,
@@ -544,8 +655,8 @@ mod tests {
     #[test]
     fn update_set_group_with_zero_sets_returns_invalid() {
         let mut conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
-        let group = create(&mut conn, planned.id(), 3, regular_rir())
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
+        let group = create(&mut conn, planned.id(), microcycle_id, 3, regular_rir())
             .expect("set group creation should succeed");
 
         let result = update(&mut conn, group.id(), 0, regular_rir());
@@ -559,13 +670,13 @@ mod tests {
     #[test]
     fn schema_rejects_a_myorep_match_row_with_a_stray_rep_max() {
         let conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
 
         let result = conn.execute(
             "INSERT INTO set_groups
-                (planned_exercise_id, position, set_type, number_of_sets, rep_max)
-             VALUES (?1, 0, 'MyorepMatch', 3, 5)",
-            [planned.id()],
+                (planned_exercise_id, microcycle_id, position, set_type, number_of_sets, rep_max)
+             VALUES (?1, ?2, 0, 'MyorepMatch', 3, 5)",
+            params![planned.id(), microcycle_id],
         );
 
         assert!(
@@ -577,13 +688,14 @@ mod tests {
     #[test]
     fn schema_rejects_a_myorep_match_row_with_a_stray_weight_unit() {
         let conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
 
         let result = conn.execute(
             "INSERT INTO set_groups
-                (planned_exercise_id, position, set_type, number_of_sets, intensity_weight_unit)
-             VALUES (?1, 0, 'MyorepMatch', 3, 'Kg')",
-            [planned.id()],
+                (planned_exercise_id, microcycle_id, position, set_type, number_of_sets,
+                 intensity_weight_unit)
+             VALUES (?1, ?2, 0, 'MyorepMatch', 3, 'Kg')",
+            params![planned.id(), microcycle_id],
         );
 
         assert!(
@@ -595,19 +707,19 @@ mod tests {
     #[test]
     fn list_surfaces_a_corrupt_row_as_a_typed_error_rather_than_panicking() {
         let conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
         // A fractional Rir value passes every CHECK (intensity_value is REAL) but
         // is not a whole number, so decoding it must fail rather than truncate.
         conn.execute(
             "INSERT INTO set_groups
-                (planned_exercise_id, position, set_type, number_of_sets,
+                (planned_exercise_id, microcycle_id, position, set_type, number_of_sets,
                  rep_min, intensity_type, intensity_value)
-             VALUES (?1, 0, 'Regular', 3, 5, 'Rir', 2.5)",
-            [planned.id()],
+             VALUES (?1, ?2, 0, 'Regular', 3, 5, 'Rir', 2.5)",
+            params![planned.id(), microcycle_id],
         )
         .expect("the raw row itself satisfies the CHECK constraints");
 
-        let result = list(&conn, planned.id());
+        let result = list(&conn, planned.id(), microcycle_id);
 
         assert!(matches!(result, Err(SetGroupError::Corrupt(_))));
     }
@@ -615,11 +727,12 @@ mod tests {
     #[test]
     fn create_set_group_with_proximity_intensity_on_failure_set_type_returns_invalid() {
         let mut conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
 
         let result = create(
             &mut conn,
             planned.id(),
+            microcycle_id,
             3,
             SetGroupType::Prescribed {
                 set_type: PrescribedSetType::Myorep,
@@ -639,11 +752,12 @@ mod tests {
     #[test]
     fn create_set_group_with_weight_intensity_on_bodyweight_returns_invalid() {
         let mut conn = setup_test_db();
-        let planned = planned_exercise_of_type(&conn, ExerciseType::Bodyweight);
+        let (planned, microcycle_id) = planned_exercise_of_type(&conn, ExerciseType::Bodyweight);
 
         let result = create(
             &mut conn,
             planned.id(),
+            microcycle_id,
             3,
             regular(
                 RepTarget::exact(10).unwrap(),
@@ -662,10 +776,16 @@ mod tests {
     #[test]
     fn create_myorep_match_set_group_without_a_prescription_succeeds() {
         let mut conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
 
-        let group = create(&mut conn, planned.id(), 3, SetGroupType::MyorepMatch)
-            .expect("a myorep-match group needs no prescription");
+        let group = create(
+            &mut conn,
+            planned.id(),
+            microcycle_id,
+            3,
+            SetGroupType::MyorepMatch,
+        )
+        .expect("a myorep-match group needs no prescription");
 
         assert_eq!(group.set_group_type(), SetGroupType::MyorepMatch);
     }
@@ -673,9 +793,10 @@ mod tests {
     #[test]
     fn set_groups_get_sequential_positions() {
         let mut conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
         let new_group = |conn: &mut Connection| {
-            create(conn, planned.id(), 3, regular_rir()).expect("set group creation should succeed")
+            create(conn, planned.id(), microcycle_id, 3, regular_rir())
+                .expect("set group creation should succeed")
         };
 
         assert_eq!(new_group(&mut conn).position(), 0);
@@ -684,12 +805,34 @@ mod tests {
     }
 
     #[test]
+    fn set_groups_positions_are_independent_per_microcycle() {
+        let mut conn = setup_test_db();
+        let (planned, microcycle_1) = weighted_planned_exercise(&conn);
+        let mesocycle_id = mesocycles::list(&conn)
+            .expect("listing mesocycles should succeed")
+            .first()
+            .expect("the fixture created one mesocycle")
+            .id;
+        let microcycle_2 = microcycles::create(&conn, mesocycle_id)
+            .expect("microcycle creation should succeed")
+            .id();
+
+        let first_cell = create(&mut conn, planned.id(), microcycle_1, 3, regular_rir())
+            .expect("set group creation should succeed");
+        let second_cell = create(&mut conn, planned.id(), microcycle_2, 3, regular_rir())
+            .expect("set group creation should succeed");
+
+        assert_eq!(first_cell.position(), 0);
+        assert_eq!(second_cell.position(), 0);
+    }
+
+    #[test]
     fn list_set_groups_returns_empty_for_planned_exercise_with_none() {
         let conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
 
-        let result =
-            list(&conn, planned.id()).expect("listing for an existing planned exercise succeeds");
+        let result = list(&conn, planned.id(), microcycle_id)
+            .expect("listing for an existing planned exercise succeeds");
 
         assert!(result.is_empty());
     }
@@ -698,7 +841,7 @@ mod tests {
     fn list_set_groups_returns_error_when_planned_exercise_does_not_exist() {
         let conn = setup_test_db();
 
-        let result = list(&conn, 9999);
+        let result = list(&conn, 9999, 1);
 
         assert!(matches!(
             result,
@@ -709,7 +852,7 @@ mod tests {
     #[test]
     fn every_set_group_type_round_trips_through_the_database() {
         let mut conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
 
         let valid_reps = "the rep target is valid";
         let valid_intensity = "the intensity value is in range";
@@ -744,12 +887,12 @@ mod tests {
         ]
         .into_iter()
         .map(|set_group_type| {
-            create(&mut conn, planned.id(), 4, set_group_type)
+            create(&mut conn, planned.id(), microcycle_id, 4, set_group_type)
                 .expect("set group creation should succeed")
         })
         .collect();
 
-        let listed = list(&conn, planned.id()).expect("listing should succeed");
+        let listed = list(&conn, planned.id(), microcycle_id).expect("listing should succeed");
 
         assert_eq!(listed, created);
     }
@@ -777,8 +920,8 @@ mod tests {
     #[test]
     fn update_set_group_changes_its_prescription_and_keeps_position() {
         let mut conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
-        let group = create(&mut conn, planned.id(), 3, regular_rir())
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
+        let group = create(&mut conn, planned.id(), microcycle_id, 3, regular_rir())
             .expect("set group creation should succeed");
 
         let new_set_group_type = SetGroupType::Prescribed {
@@ -793,15 +936,15 @@ mod tests {
         assert_eq!(updated.set_group_type(), new_set_group_type);
         assert_eq!(updated.position(), group.position());
 
-        let listed = list(&conn, planned.id()).expect("listing should succeed");
+        let listed = list(&conn, planned.id(), microcycle_id).expect("listing should succeed");
         assert_eq!(listed, vec![updated]);
     }
 
     #[test]
     fn update_set_group_to_myorep_match_clears_its_prescription() {
         let mut conn = setup_test_db();
-        let planned = weighted_planned_exercise(&conn);
-        let group = create(&mut conn, planned.id(), 3, regular_rir())
+        let (planned, microcycle_id) = weighted_planned_exercise(&conn);
+        let group = create(&mut conn, planned.id(), microcycle_id, 3, regular_rir())
             .expect("set group creation should succeed");
 
         let updated = update(&mut conn, group.id(), 3, SetGroupType::MyorepMatch)
@@ -809,7 +952,7 @@ mod tests {
 
         assert_eq!(updated.set_group_type(), SetGroupType::MyorepMatch);
 
-        let listed = list(&conn, planned.id()).expect("listing should succeed");
+        let listed = list(&conn, planned.id(), microcycle_id).expect("listing should succeed");
         assert_eq!(listed, vec![updated]);
     }
 
@@ -822,16 +965,19 @@ mod tests {
         assert!(matches!(result, Err(SetGroupError::NotFound { id: 9999 })));
     }
 
-    /// Returns the planned exercise id and three of its set groups.
+    /// Returns the planned exercise id, the microcycle id of the cell, and three
+    /// of the cell's set groups.
     fn planned_exercise_with_three_groups(
         conn: &mut Connection,
-    ) -> (i64, SetGroup, SetGroup, SetGroup) {
-        let planned = weighted_planned_exercise(conn);
+    ) -> (i64, i64, SetGroup, SetGroup, SetGroup) {
+        let (planned, microcycle_id) = weighted_planned_exercise(conn);
         let new_group = |conn: &mut Connection| {
-            create(conn, planned.id(), 3, regular_rir()).expect("set group creation should succeed")
+            create(conn, planned.id(), microcycle_id, 3, regular_rir())
+                .expect("set group creation should succeed")
         };
         (
             planned.id(),
+            microcycle_id,
             new_group(conn),
             new_group(conn),
             new_group(conn),
@@ -841,11 +987,12 @@ mod tests {
     #[test]
     fn create_set_group_after_delete_does_not_reuse_a_position() {
         let mut conn = setup_test_db();
-        let (planned_id, _a, middle, _c) = planned_exercise_with_three_groups(&mut conn);
+        let (planned_id, microcycle_id, _a, middle, _c) =
+            planned_exercise_with_three_groups(&mut conn);
 
         delete(&conn, middle.id()).expect("delete should succeed");
 
-        let next = create(&mut conn, planned_id, 3, regular_rir())
+        let next = create(&mut conn, planned_id, microcycle_id, 3, regular_rir())
             .expect("set group creation should succeed");
         assert_eq!(next.position(), 3);
     }
@@ -853,11 +1000,12 @@ mod tests {
     #[test]
     fn delete_set_group_removes_it() {
         let mut conn = setup_test_db();
-        let (planned_id, group, _b, _c) = planned_exercise_with_three_groups(&mut conn);
+        let (planned_id, microcycle_id, group, _b, _c) =
+            planned_exercise_with_three_groups(&mut conn);
 
         delete(&conn, group.id()).expect("delete should succeed");
 
-        let listed = list(&conn, planned_id).expect("listing should succeed");
+        let listed = list(&conn, planned_id, microcycle_id).expect("listing should succeed");
         assert!(!listed.iter().any(|g| g.id() == group.id()));
     }
 
@@ -873,11 +1021,12 @@ mod tests {
     #[test]
     fn delete_planned_exercise_cascades_to_its_set_groups() {
         let mut conn = setup_test_db();
-        let (planned_id, _a, _b, _c) = planned_exercise_with_three_groups(&mut conn);
+        let (planned_id, _microcycle_id, _a, _b, _c) =
+            planned_exercise_with_three_groups(&mut conn);
 
         planned_exercises::delete(&conn, planned_id).expect("delete should succeed");
 
-        let result = list(&conn, planned_id);
+        let result = list(&conn, planned_id, 1);
         assert!(matches!(
             result,
             Err(SetGroupError::AssociatedPlannedExerciseNotFound { .. })
@@ -887,11 +1036,17 @@ mod tests {
     #[test]
     fn reorder_set_groups_rewrites_positions_in_the_given_order() {
         let mut conn = setup_test_db();
-        let (planned_id, a, b, c) = planned_exercise_with_three_groups(&mut conn);
+        let (planned_id, microcycle_id, a, b, c) = planned_exercise_with_three_groups(&mut conn);
 
-        reorder(&mut conn, planned_id, &[c.id(), a.id(), b.id()]).expect("reorder should succeed");
+        reorder(
+            &mut conn,
+            planned_id,
+            microcycle_id,
+            &[c.id(), a.id(), b.id()],
+        )
+        .expect("reorder should succeed");
 
-        let ordered = list(&conn, planned_id).expect("listing should succeed");
+        let ordered = list(&conn, planned_id, microcycle_id).expect("listing should succeed");
         let ids: Vec<i64> = ordered.iter().map(|g| g.id()).collect();
         assert_eq!(ids, vec![c.id(), a.id(), b.id()]);
         assert_eq!(ordered[0].position(), 0);
@@ -902,9 +1057,9 @@ mod tests {
     #[test]
     fn reorder_set_groups_returns_mismatch_when_ids_do_not_match_children() {
         let mut conn = setup_test_db();
-        let (planned_id, a, _b, _c) = planned_exercise_with_three_groups(&mut conn);
+        let (planned_id, microcycle_id, a, _b, _c) = planned_exercise_with_three_groups(&mut conn);
 
-        let result = reorder(&mut conn, planned_id, &[a.id()]);
+        let result = reorder(&mut conn, planned_id, microcycle_id, &[a.id()]);
 
         assert!(matches!(result, Err(SetGroupError::ReorderMismatch { .. })));
     }

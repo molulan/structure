@@ -1,9 +1,23 @@
-import type { Intensity, RepTarget, SetGroup, Weight } from "../../api/types";
+import type { Intensity, Phase, RepTarget, SetGroup, Weight } from "../../api/types";
 
 // Shown in place of a value whose variant isn't one we recognize (e.g. the
 // backend grew a new enum variant the client doesn't know yet). Degrading to
 // this beats throwing, which would blank the whole detail render.
 const UNKNOWN = "?";
+
+const PHASE_LABELS: Record<Phase, string> = {
+  Accumulation: "ACCUM",
+  Intensification: "INTENS",
+  Deload: "DELOAD",
+};
+
+/**
+ * The week header's phase badge, abbreviated to keep the column narrow. An
+ * unrecognized phase falls through to its raw name rather than rendering blank.
+ */
+export function phaseLabel(phase: Phase): string {
+  return PHASE_LABELS[phase] ?? phase;
+}
 
 export function formatReps(reps: RepTarget): string {
   if ("Exact" in reps) return String(reps.Exact);

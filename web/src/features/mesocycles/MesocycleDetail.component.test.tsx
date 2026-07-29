@@ -16,31 +16,32 @@ vi.mock("../../lib/apiClient", () => ({
 import { api } from "../../lib/apiClient";
 const mockApi = vi.mocked(api);
 
-const fullTree: FullMesocycle = {
+// The grid's own rendering is covered by MesocycleGrid.component.test.tsx; this
+// fixture is only rich enough to prove the detail view hands it the data.
+const fullGrid: FullMesocycle = {
   id: 1,
   name: "Hypertrophy Block",
   mode: "Manual",
-  microcycles: [
+  microcycles: [{ id: 10, position: 0, phase: "Accumulation" }],
+  workouts: [
     {
-      id: 10,
+      id: 100,
+      name: "Push",
       position: 0,
-      phase: "Accumulation",
-      workouts: [
+      planned_exercises: [
         {
-          id: 100,
-          name: "Push",
+          id: 1000,
           position: 0,
-          planned_exercises: [
+          exercise: {
+            id: 1,
+            name: "Bench Press",
+            exercise_type: "Weighted",
+            primary_muscle_group: "Chest",
+            secondary_muscle_groups: ["Triceps", "Shoulders"],
+          },
+          prescriptions: [
             {
-              id: 1000,
-              position: 0,
-              exercise: {
-                id: 1,
-                name: "Bench Press",
-                exercise_type: "Weighted",
-                primary_muscle_group: "Chest",
-                secondary_muscle_groups: ["Triceps", "Shoulders"],
-              },
+              microcycle_id: 10,
               set_groups: [
                 {
                   id: 1,
@@ -81,27 +82,26 @@ describe("MesocycleDetail", () => {
   });
 
   it("shows the empty state for a mesocycle with no weeks", async () => {
-    mockApi.getFullMesocycle.mockResolvedValue({ ...fullTree, microcycles: [] });
+    mockApi.getFullMesocycle.mockResolvedValue({ ...fullGrid, microcycles: [], workouts: [] });
     renderWithClient(<MesocycleDetail id={1} onBack={() => {}} />);
 
     expect(await screen.findByText("Hypertrophy Block")).toBeInTheDocument();
     expect(screen.getByText("No weeks yet.")).toBeInTheDocument();
   });
 
-  it("renders the full nested tree with formatted set groups", async () => {
-    mockApi.getFullMesocycle.mockResolvedValue(fullTree);
+  it("renders the mesocycle header and its grid", async () => {
+    mockApi.getFullMesocycle.mockResolvedValue(fullGrid);
     renderWithClient(<MesocycleDetail id={1} onBack={() => {}} />);
 
-    expect(await screen.findByRole("heading", { name: "Push" })).toBeInTheDocument();
-    expect(screen.getByText("Week 1")).toBeInTheDocument();
-    expect(screen.getByText("Accumulation")).toBeInTheDocument();
-    expect(screen.getByText("Bench Press")).toBeInTheDocument();
-    expect(screen.getByText("Chest")).toBeInTheDocument();
+    expect(await screen.findByText("Hypertrophy Block")).toBeInTheDocument();
+    expect(screen.getByText("Manual")).toBeInTheDocument();
+    expect(screen.getByRole("columnheader", { name: /Week 1/ })).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: /Bench Press/ })).toBeInTheDocument();
     expect(screen.getByText("3×8–12 RIR2")).toBeInTheDocument();
   });
 
   it("calls onBack when the back button is clicked", async () => {
-    mockApi.getFullMesocycle.mockResolvedValue(fullTree);
+    mockApi.getFullMesocycle.mockResolvedValue(fullGrid);
     const onBack = vi.fn();
     renderWithClient(<MesocycleDetail id={1} onBack={onBack} />);
 

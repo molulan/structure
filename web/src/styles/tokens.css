@@ -14,6 +14,14 @@
   --accent: #2f43d4;
   --danger: #b2503f;
 
+  /* Phase badges: a foreground/background pair per training phase. */
+  --phase-accumulation-fg: #4a7a5a;
+  --phase-accumulation-bg: #e3ece5;
+  --phase-intensification-fg: #8a6a2f;
+  --phase-intensification-bg: #efe7d5;
+  --phase-deload-fg: #4a5d80;
+  --phase-deload-bg: #dfe3ec;
+
   --font-sans: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   --font-mono: ui-monospace, "SFMono-Regular", "JetBrains Mono", monospace;
 

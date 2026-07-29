@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
-import type { Intensity, RepTarget, SetGroup } from "../../api/types";
-import { describeSetGroup, formatIntensity, formatReps } from "./format";
+import type { Intensity, Phase, RepTarget, SetGroup } from "../../api/types";
+import { describeSetGroup, formatIntensity, formatReps, phaseLabel } from "./format";
+
+describe("phaseLabel", () => {
+  it("abbreviates each phase for the week header", () => {
+    expect(phaseLabel("Accumulation")).toBe("ACCUM");
+    expect(phaseLabel("Intensification")).toBe("INTENS");
+    expect(phaseLabel("Deload")).toBe("DELOAD");
+  });
+  it("falls back to the raw name for an unrecognized phase", () => {
+    expect(phaseLabel("Taper" as Phase)).toBe("Taper");
+  });
+});
 
 describe("formatReps", () => {
   it("renders an exact count as the bare number", () => {

@@ -2,9 +2,10 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createApiClient, type ApiClient } from "../../src/api/client";
 import { buildFullMesocycle } from "../support/seed";
 
-// Builds a full mesocycle tree via the API, then asserts GET /mesocycles/{id}/full
+// Builds a full mesocycle grid via the API, then asserts GET /mesocycles/{id}/full
 // deserializes into our hand-written TS types with every leaf correctly encoded
-// (snake_case keys, externally-tagged enums, bare-string unit variants).
+// (snake_case keys, externally-tagged enums, bare-string unit variants) and the
+// per-week cells keyed by microcycle.
 let base: string;
 let api: ApiClient;
 
@@ -41,22 +42,22 @@ async function setPhase(microcycleId: number, phase: string): Promise<void> {
 }
 
 describe("full mesocycle contract", () => {
-  it("returns the whole nested tree with correctly-encoded leaves", async () => {
+  it("returns the whole grid with correctly-encoded leaves", async () => {
     const tree = await buildFullMesocycle(post, "Full Tree");
-    await setPhase(tree.microcycleId, "Accumulation");
+    await setPhase(tree.microcycleIds[0], "Accumulation");
 
     const full = await api.getFullMesocycle(tree.mesocycleId);
 
     expect(full.name).toBe("Full Tree");
     expect(full.mode).toBe("Manual");
-    expect(full.microcycles).toHaveLength(1);
 
-    const week = full.microcycles[0];
-    expect(week.position).toBe(0);
-    expect(week.phase).toBe("Accumulation");
-    expect(week.workouts).toHaveLength(1);
+    // Weeks are the columns, workouts the row groups — siblings, not nested.
+    expect(full.microcycles.map((m) => m.id)).toEqual(tree.microcycleIds);
+    expect(full.microcycles.map((m) => m.position)).toEqual([0, 1, 2]);
+    expect(full.microcycles[0].phase).toBe("Accumulation");
 
-    const workout = week.workouts[0];
+    expect(full.workouts).toHaveLength(1);
+    const workout = full.workouts[0];
     expect(workout.name).toBe("Push");
     expect(workout.planned_exercises).toHaveLength(1);
 
@@ -66,14 +67,23 @@ describe("full mesocycle contract", () => {
     expect(pe.exercise.primary_muscle_group).toBe("Chest");
     expect([...pe.exercise.secondary_muscle_groups].sort()).toEqual(["Shoulders", "Triceps"]);
 
-    expect(pe.set_groups).toHaveLength(3);
-    expect(pe.set_groups[0].set_group_type).toEqual({
+    // One cell per week, in column order — including the week with nothing in it.
+    expect(pe.prescriptions.map((p) => p.microcycle_id)).toEqual(tree.microcycleIds);
+    const [first, second, third] = pe.prescriptions;
+
+    expect(first.set_groups).toHaveLength(3);
+    expect(first.set_groups[0].set_group_type).toEqual({
       Prescribed: { set_type: "Regular", reps: { Range: { min: 8, max: 12 } }, intensity: { Rir: 2 } },
     });
-    expect(pe.set_groups[1].set_group_type).toEqual({
+    expect(first.set_groups[1].set_group_type).toEqual({
       Prescribed: { set_type: "Regular", reps: { AtLeast: 12 }, intensity: { Rir: 0 } },
     });
-    expect(pe.set_groups[2].set_group_type).toBe("MyorepMatch");
+    expect(first.set_groups[2].set_group_type).toBe("MyorepMatch");
+
+    expect(second.set_groups).toHaveLength(1);
+    expect(second.set_groups[0].number_of_sets).toBe(4);
+
+    expect(third.set_groups).toEqual([]);
   });
 
   it("returns a phase of null for a microcycle with no phase set", async () => {

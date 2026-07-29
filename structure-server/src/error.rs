@@ -151,7 +151,7 @@ impl From<SetGroupError> for ApiError {
             SetGroupError::AssociatedMicrocycleNotFound { id } => {
                 ApiError::not_found(format!("microcycle {id} not found"))
             }
-            SetGroupError::CrossMesocycleCell {
+            SetGroupError::MesocycleMismatch {
                 planned_exercise_id,
                 microcycle_id,
             } => ApiError::unprocessable(format!(

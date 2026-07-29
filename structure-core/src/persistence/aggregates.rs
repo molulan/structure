@@ -284,8 +284,8 @@ mod tests {
 
         let regular = || SetGroupType::Prescribed {
             set_type: PrescribedSetType::Regular,
-            reps: RepTarget::exact(5).unwrap(),
-            intensity: Intensity::Rir(Rir::new(2).unwrap()),
+            reps: RepTarget::exact(5).expect("5 is a valid rep count"),
+            intensity: Intensity::Rir(Rir::new(2).expect("2 is a valid RIR")),
         };
         // Two set groups in week 1, one in week 2 — distinct counts so we can tell
         // the cells apart and confirm a group never bleeds into the wrong column.
@@ -306,13 +306,13 @@ mod tests {
         let week1_prescription = prescriptions
             .iter()
             .find(|p| p.microcycle_id == week1.id())
-            .unwrap();
+            .expect("week 1 should have a prescription cell");
         assert_eq!(week1_prescription.set_groups.len(), 2);
 
         let week2_prescription = prescriptions
             .iter()
             .find(|p| p.microcycle_id == week2.id())
-            .unwrap();
+            .expect("week 2 should have a prescription cell");
         assert_eq!(week2_prescription.set_groups.len(), 1);
         assert_eq!(week2_prescription.set_groups[0].number_of_sets(), 5);
     }

@@ -16,7 +16,7 @@ pub enum SetGroupError {
     #[error(
         "microcycle {microcycle_id} is not in the same mesocycle as planned exercise {planned_exercise_id}"
     )]
-    CrossMesocycleCell {
+    MesocycleMismatch {
         planned_exercise_id: i64,
         microcycle_id: i64,
     },
@@ -163,7 +163,7 @@ pub fn create(
     }
 
     if !same_mesocycle(&tx, planned_exercise_id, microcycle_id)? {
-        return Err(SetGroupError::CrossMesocycleCell {
+        return Err(SetGroupError::MesocycleMismatch {
             planned_exercise_id,
             microcycle_id,
         });
@@ -635,7 +635,7 @@ mod tests {
 
         assert!(matches!(
             result,
-            Err(SetGroupError::CrossMesocycleCell { .. })
+            Err(SetGroupError::MesocycleMismatch { .. })
         ));
     }
 

@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as DevWorkbenchRouteImport } from './routes/dev.workbench'
 import { Route as MesocyclesIdRouteImport } from './routes/mesocycles.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DevWorkbenchRoute = DevWorkbenchRouteImport.update({
+  id: '/dev/workbench',
+  path: '/dev/workbench',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MesocyclesIdRoute = MesocyclesIdRouteImport.update({
@@ -25,27 +31,31 @@ const MesocyclesIdRoute = MesocyclesIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/dev/workbench': typeof DevWorkbenchRoute
   '/mesocycles/$id': typeof MesocyclesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/dev/workbench': typeof DevWorkbenchRoute
   '/mesocycles/$id': typeof MesocyclesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/dev/workbench': typeof DevWorkbenchRoute
   '/mesocycles/$id': typeof MesocyclesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/mesocycles/$id'
+  fullPaths: '/' | '/dev/workbench' | '/mesocycles/$id'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/mesocycles/$id'
-  id: '__root__' | '/' | '/mesocycles/$id'
+  to: '/' | '/dev/workbench' | '/mesocycles/$id'
+  id: '__root__' | '/' | '/dev/workbench' | '/mesocycles/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  DevWorkbenchRoute: typeof DevWorkbenchRoute
   MesocyclesIdRoute: typeof MesocyclesIdRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dev/workbench': {
+      id: '/dev/workbench'
+      path: '/dev/workbench'
+      fullPath: '/dev/workbench'
+      preLoaderRoute: typeof DevWorkbenchRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mesocycles/$id': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  DevWorkbenchRoute: DevWorkbenchRoute,
   MesocyclesIdRoute: MesocyclesIdRoute,
 }
 export const routeTree = rootRouteImport

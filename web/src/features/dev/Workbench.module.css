@@ -1,0 +1,86 @@
+/*
+ * Chrome only. Every value comes from tokens.css so the page can never drift
+ * into a look the app itself doesn't have — a workbench styled from its own
+ * palette would report the wrong answer about how a component reads.
+ */
+
+.page {
+  padding: var(--space-6);
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.pageHead {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-6);
+}
+
+.pageTitle {
+  font-size: 1.25rem;
+  margin: 0 0 var(--space-2);
+}
+
+.pageNote {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.group {
+  margin-bottom: var(--space-6);
+}
+
+.groupName {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-3);
+}
+
+.stages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.stage {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.stageHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.stageTitle {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.stageNote {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+/*
+ * The component sits on the app's own background rather than the card's, so a
+ * contrast that only works against `--surface` can't pass unnoticed here.
+ */
+.frame {
+  background: var(--bg);
+  padding: var(--space-4);
+  overflow-x: auto;
+}

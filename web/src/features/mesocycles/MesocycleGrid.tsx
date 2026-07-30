@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { FullMicrocycle, FullWorkout, Phase } from "../../api/types";
 import { PHASES } from "../../api/enums";
 import { PlanErrors } from "./PlanErrors";
@@ -38,8 +38,16 @@ export function MesocycleGrid({ mesocycleId, microcycles, workouts }: Props) {
                   No weeks yet.
                 </th>
               ) : (
-                microcycles.map((week) => (
-                  <WeekHeader key={week.id} mesocycleId={mesocycleId} week={week} />
+                // Numbered by column, not by stored `position`: deleting a week
+                // leaves a gap in positions, and the grid must still read
+                // Week 1, 2, 3 across.
+                microcycles.map((week, index) => (
+                  <WeekHeader
+                    key={week.id}
+                    mesocycleId={mesocycleId}
+                    week={week}
+                    label={`Week ${index + 1}`}
+                  />
                 ))
               )}
             </tr>
@@ -88,13 +96,23 @@ function AddWeek({ mesocycleId }: { mesocycleId: number }) {
   );
 }
 
-function WeekHeader({ mesocycleId, week }: { mesocycleId: number; week: FullMicrocycle }) {
+function WeekHeader({
+  mesocycleId,
+  week,
+  label,
+}: {
+  mesocycleId: number;
+  week: FullMicrocycle;
+  label: string;
+}) {
   const setPhase = useSetPhase(mesocycleId);
   const deleteWeek = useDeleteWeek(mesocycleId);
   // Held only while the change is in flight: a controlled select driven purely
   // by server data snaps back to the old phase until the refetch lands.
   const [chosenPhase, setChosenPhase] = useState<string | null>(null);
-  const label = `Week ${week.position + 1}`;
+  // Only the newest change may release the held value; an earlier reply
+  // landing later would otherwise revert a choice the user has since made.
+  const latestChange = useRef(0);
 
   function onDelete() {
     if (window.confirm(`Delete ${label}? Everything prescribed in it is deleted too.`)) {
@@ -103,20 +121,34 @@ function WeekHeader({ mesocycleId, week }: { mesocycleId: number; week: FullMicr
   }
 
   function onPhaseChange(value: string) {
+    const change = ++latestChange.current;
     setChosenPhase(value);
     setPhase.mutate(
       { microcycleId: week.id, phase: (value || null) as Phase | null },
       // Either way the server's value takes over again — on failure that
       // reverts the control, with the banner saying why.
-      { onSuccess: () => setChosenPhase(null), onError: () => setChosenPhase(null) },
+      {
+        onSettled: () => {
+          if (latestChange.current === change) setChosenPhase(null);
+        },
+      },
     );
   }
+
+  // A phase this client doesn't know still has to be displayed as itself
+  // rather than falling through to the empty option and reading as unset.
+  const shownPhase = chosenPhase ?? week.phase ?? "";
+  const unknownPhase = shownPhase !== "" && !PHASES.includes(shownPhase as Phase);
 
   return (
     // Named explicitly: the cell's controls would otherwise be folded into the
     // header's accessible name, and a table header is announced before every
     // cell beneath it.
-    <th scope="col" className={styles.weekHead} aria-label={label}>
+    <th
+      scope="col"
+      className={styles.weekHead}
+      aria-label={week.phase ? `${label}, ${week.phase}` : label}
+    >
       <div className={styles.weekHeadRow}>
         <span className={styles.weekLabel}>{label}</span>
         <button
@@ -132,9 +164,9 @@ function WeekHeader({ mesocycleId, week }: { mesocycleId: number; week: FullMicr
           colouring and spells the phase out rather than abbreviating it. */}
       <select
         className={styles.phaseSelect}
-        data-phase={chosenPhase ?? week.phase ?? ""}
+        data-phase={shownPhase}
         aria-label={`Phase for ${label}`}
-        value={chosenPhase ?? week.phase ?? ""}
+        value={shownPhase}
         onChange={(event) => onPhaseChange(event.target.value)}
       >
         <option value="">No phase</option>
@@ -143,6 +175,7 @@ function WeekHeader({ mesocycleId, week }: { mesocycleId: number; week: FullMicr
             {phase}
           </option>
         ))}
+        {unknownPhase && <option value={shownPhase}>{shownPhase}</option>}
       </select>
     </th>
   );

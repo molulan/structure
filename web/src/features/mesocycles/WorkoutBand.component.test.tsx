@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { renderWithClient } from "../../test/renderWithClient";
 import { pushWorkout, weeks } from "../../test/planFixtures";
 import type { FullWorkout } from "../../api/types";
+import { ApiError } from "../../api/client";
+import { PlanErrors } from "./PlanErrors";
 import { WorkoutBand } from "./WorkoutBand";
 
 vi.mock("../../lib/apiClient", async () => (await import("../../test/apiMock")).mockApiModule());
@@ -15,14 +17,16 @@ const MESOCYCLE_ID = 7;
 // A tbody needs a table around it to render at all.
 function renderBand(workout: FullWorkout = pushWorkout) {
   return renderWithClient(
-    <table>
-      <WorkoutBand
-        mesocycleId={MESOCYCLE_ID}
-        workout={workout}
-        microcycles={weeks}
-        columnCount={4}
-      />
-    </table>,
+    <PlanErrors>
+      <table>
+        <WorkoutBand
+          mesocycleId={MESOCYCLE_ID}
+          workout={workout}
+          microcycles={weeks}
+          columnCount={3}
+        />
+      </table>
+    </PlanErrors>,
   );
 }
 
@@ -136,6 +140,50 @@ describe("WorkoutBand", () => {
 
     expect(mockApi.deletePlannedExercise).toHaveBeenCalledWith(1000);
     confirm.mockRestore();
+  });
+
+  it("reports a rejected rename", async () => {
+    mockApi.renameWorkout.mockRejectedValue(new ApiError(409, "a workout named Pull already exists"));
+    renderBand();
+
+    await userEvent.click(screen.getByRole("button", { name: "Rename Push" }));
+    const field = screen.getByLabelText("Workout name");
+    await userEvent.clear(field);
+    await userEvent.type(field, "Pull");
+    await userEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "a workout named Pull already exists",
+    );
+  });
+
+  it("reports a rejected removal", async () => {
+    mockApi.deletePlannedExercise.mockRejectedValue(new ApiError(500, "database is locked"));
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    renderBand();
+
+    await userEvent.click(screen.getByRole("button", { name: "Remove Bench Press" }));
+
+    expect(await screen.findByRole("alert")).toHaveTextContent("database is locked");
+    confirm.mockRestore();
+  });
+
+  it("keeps the row as wide as the header when there are no weeks", () => {
+    renderWithClient(
+      <PlanErrors>
+        <table>
+          <WorkoutBand
+            mesocycleId={MESOCYCLE_ID}
+            workout={pushWorkout}
+            microcycles={[]}
+            columnCount={2}
+          />
+        </table>
+      </PlanErrors>,
+    );
+
+    const row = screen.getByRole("rowheader", { name: /Bench Press/ }).closest("tr");
+    expect(within(row!).getAllByRole("cell")).toHaveLength(1);
   });
 
   it("shows a placeholder for a workout with no exercises", () => {

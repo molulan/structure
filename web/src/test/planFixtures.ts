@@ -11,6 +11,15 @@ export const benchPress: LibraryExercise = {
   secondary_muscle_groups: ["Triceps", "Shoulders"],
 };
 
+/** Not placed in `pushWorkout` — the one the picker can still offer. */
+export const squat: LibraryExercise = {
+  id: 2,
+  name: "Squat",
+  exercise_type: "Weighted",
+  primary_muscle_group: "Quads",
+  secondary_muscle_groups: ["Glutes"],
+};
+
 export const weeks: FullMicrocycle[] = [
   { id: 10, position: 0, phase: "Accumulation" },
   { id: 11, position: 1, phase: null },

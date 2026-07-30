@@ -25,6 +25,12 @@ export function AddExercise({ mesocycleId, workout }: Props) {
   const [selectedId, setSelectedId] = useState("");
   const [creating, setCreating] = useState(false);
 
+  // The same exercise twice in one workout is a non-goal of the plan model, and
+  // two identically-named rows are indistinguishable once placed — so what is
+  // already here is not offered again.
+  const placed = new Set(workout.planned_exercises.map((planned) => planned.exercise.id));
+  const available = (library.data ?? []).filter((exercise) => !placed.has(exercise.id));
+
   function place(libraryExerciseId: number) {
     addExercise.mutate(
       { workoutId: workout.id, libraryExerciseId },
@@ -65,8 +71,10 @@ export function AddExercise({ mesocycleId, workout }: Props) {
         onChange={(event) => setSelectedId(event.target.value)}
         disabled={library.isPending}
       >
-        <option value="">Pick an exercise…</option>
-        {(library.data ?? []).map((exercise) => (
+        <option value="">
+          {library.isSuccess && available.length === 0 ? "All exercises added" : "Pick an exercise…"}
+        </option>
+        {available.map((exercise) => (
           <option key={exercise.id} value={exercise.id}>
             {exercise.name}
           </option>

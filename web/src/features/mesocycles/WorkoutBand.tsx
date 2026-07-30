@@ -27,7 +27,11 @@ export function WorkoutBand({ mesocycleId, workout, microcycles, columnCount }: 
           scope="rowgroup"
           colSpan={columnCount}
           className={styles.workoutHead}
-          aria-label={workout.name}
+          aria-label={
+            workout.planned_exercises.length > 0
+              ? `${workout.name}, ${exerciseCount(workout.planned_exercises.length)}`
+              : workout.name
+          }
         >
           <WorkoutHeading mesocycleId={mesocycleId} workout={workout} />
         </th>
@@ -183,6 +187,9 @@ function ExerciseRow({
           </button>
         </span>
       </th>
+      {/* Keeps the row as wide as the header when the notice stands in for the
+          week columns; a mesocycle can hold exercises before it holds weeks. */}
+      {microcycles.length === 0 && <td className={styles.noWeeksCell} />}
       {microcycles.map((week) => {
         const setGroups = cells.get(week.id) ?? [];
         return (

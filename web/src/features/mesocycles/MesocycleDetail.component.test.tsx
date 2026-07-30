@@ -1,18 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithClient } from "../../test/renderWithClient";
 import { ApiError } from "../../api/client";
 import type { FullMesocycle } from "../../api/types";
 import { MesocycleDetail } from "./MesocycleDetail";
 
-vi.mock("../../lib/apiClient", () => ({
-  api: {
-    listMesocycles: vi.fn(),
-    createMesocycle: vi.fn(),
-    getFullMesocycle: vi.fn(),
-  },
-}));
+vi.mock("../../lib/apiClient", async () => (await import("../../test/apiMock")).mockApiModule());
 import { api } from "../../lib/apiClient";
 const mockApi = vi.mocked(api);
 
@@ -66,6 +60,7 @@ const fullGrid: FullMesocycle = {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  mockApi.listLibraryExercises.mockResolvedValue([]);
 });
 
 describe("MesocycleDetail", () => {
@@ -98,6 +93,18 @@ describe("MesocycleDetail", () => {
     expect(screen.getByRole("columnheader", { name: /Week 1/ })).toBeInTheDocument();
     expect(screen.getByRole("rowheader", { name: /Bench Press/ })).toBeInTheDocument();
     expect(screen.getByText("3×8–12 RIR2")).toBeInTheDocument();
+  });
+
+  // The mutations invalidate this view's query; this is the one place both
+  // halves are mounted together, so it is where the refetch can be observed.
+  it("refetches the grid after an edit lands", async () => {
+    mockApi.getFullMesocycle.mockResolvedValue(fullGrid);
+    mockApi.addMicrocycle.mockResolvedValue({ id: 11, position: 1, phase: null });
+    renderWithClient(<MesocycleDetail id={1} onBack={() => {}} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "+ Week" }));
+
+    await waitFor(() => expect(mockApi.getFullMesocycle).toHaveBeenCalledTimes(2));
   });
 
   it("calls onBack when the back button is clicked", async () => {

@@ -28,6 +28,7 @@ export function MesocycleDetail({ id, onBack }: Props) {
           </div>
 
           <MesocycleGrid
+            mesocycleId={id}
             microcycles={mesocycle.data.microcycles}
             workouts={mesocycle.data.workouts}
           />

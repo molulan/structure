@@ -2,9 +2,9 @@ import { test, expect, type APIRequestContext } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { buildFullMesocycle, type Post } from "../tests/support/seed";
 
-// The e2e backend has no editing UI yet, so seed through its API (the same
-// in-memory instance the app reads via the proxy), then verify the browser
-// renders it.
+// Seeds through the API (the same in-memory instance the app reads via the
+// proxy) and checks what the browser renders. The editing loop is driven
+// through the UI instead, in plan-editing.spec.ts.
 const BACKEND = "http://127.0.0.1:3001/api";
 
 function apiPost(request: APIRequestContext): Post {
@@ -32,9 +32,10 @@ test("opens a mesocycle and renders its grid", async ({ page, request }) => {
 
   await expect(page).toHaveURL(new RegExp(`/mesocycles/${mesocycleId}$`));
   await expect(page.getByRole("heading", { name: "Push" })).toBeVisible();
-  // The badge reads ACCUM on screen; its accessible name is the full phase.
-  await expect(page.getByRole("columnheader", { name: /Week 1 Accumulation/ })).toBeVisible();
-  await expect(page.getByRole("columnheader", { name: /Week 3 Deload/ })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: /Week 1/ })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: /Week 3/ })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Phase for Week 1" })).toHaveValue("Accumulation");
+  await expect(page.getByRole("combobox", { name: "Phase for Week 3" })).toHaveValue("Deload");
   await expect(page.getByRole("rowheader", { name: /Bench Press/ })).toBeVisible();
 
   // Week 1's cell carries its three set groups; week 3 was never prescribed.
@@ -45,10 +46,6 @@ test("opens a mesocycle and renders its grid", async ({ page, request }) => {
   await expect(cells.nth(1)).toContainText("4×8 RIR1");
   await expect(cells.nth(2)).toContainText("—");
   await expect(cells.nth(2)).toContainText("Not prescribed");
-
-  const legend = page.getByRole("region", { name: "Phase key" });
-  await expect(legend).toContainText("Accumulation");
-  await expect(legend).toContainText("Deload");
 
   mkdirSync("e2e/screenshots", { recursive: true });
   await page.screenshot({ path: "e2e/screenshots/mesocycle-detail.png", fullPage: true });

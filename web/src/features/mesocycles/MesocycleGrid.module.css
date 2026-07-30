@@ -30,35 +30,49 @@
   white-space: nowrap;
 }
 
+.weekHeadRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
 .weekLabel {
   font-size: 13px;
   letter-spacing: 0.3px;
 }
 
-/* Each phase gets its own pair of tokens; an unknown one keeps the muted default. */
-.phase {
+/* The select is the phase display too, so it carries the phase colouring;
+   an unset or unknown phase keeps the muted default. */
+.phaseSelect {
+  font: inherit;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 500;
-  letter-spacing: 0.6px;
+  width: 100%;
+  margin-top: var(--space-1);
+  padding: 1px 2px;
+  border: 1px solid transparent;
   border-radius: 4px;
-  padding: 1px 5px;
-  margin-left: var(--space-1);
   color: var(--text-muted);
   background: var(--surface);
 }
 
-.phase[data-phase="Accumulation"] {
+.phaseSelect:hover {
+  border-color: var(--border);
+}
+
+.phaseSelect[data-phase="Accumulation"] {
   color: var(--phase-accumulation-fg);
   background: var(--phase-accumulation-bg);
 }
 
-.phase[data-phase="Intensification"] {
+.phaseSelect[data-phase="Intensification"] {
   color: var(--phase-intensification-fg);
   background: var(--phase-intensification-bg);
 }
 
-.phase[data-phase="Deload"] {
+.phaseSelect[data-phase="Deload"] {
   color: var(--phase-deload-fg);
   background: var(--phase-deload-bg);
 }
@@ -101,8 +115,14 @@
   overflow-wrap: anywhere;
 }
 
+.rowHeadFoot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
 .muscle {
-  display: block;
   font-family: var(--font-mono);
   font-size: 10px;
   font-weight: 400;
@@ -144,27 +164,6 @@
   white-space: nowrap;
 }
 
-.legend {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin: var(--space-3) 0 0;
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.legendItem {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-}
-
-/* The badge's own left margin is for the week header, not the legend. */
-.legendItem .phase {
-  margin-left: 0;
-}
-
 .noWeeks {
   text-align: left;
   vertical-align: bottom;
@@ -181,4 +180,134 @@
   color: var(--text-muted);
   text-align: left;
   padding: var(--space-2) var(--space-1);
+}
+
+.addWeekCell {
+  vertical-align: bottom;
+  padding: 0 var(--space-1) var(--space-2);
+  width: 110px;
+}
+
+.addButton {
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  white-space: nowrap;
+  padding: var(--space-1) var(--space-3);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.addButton:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.textButton {
+  font: inherit;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.textButton:hover:not(:disabled) {
+  color: var(--accent);
+}
+
+.iconButton {
+  font: inherit;
+  font-size: 11px;
+  line-height: 1;
+  padding: 2px 4px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.iconButton:hover:not(:disabled) {
+  color: var(--danger);
+}
+
+.addButton:disabled,
+.textButton:disabled,
+.iconButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.input,
+.select {
+  font: inherit;
+  font-size: 13px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+}
+
+.input:focus,
+.select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.renameForm,
+.addExercise,
+.addWorkout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.addExerciseCell {
+  padding: var(--space-2) var(--space-1) var(--space-3);
+}
+
+.addWorkout {
+  margin-top: var(--space-4);
+}
+
+.error {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--danger);
+}
+
+.workoutHeadRow {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.workoutActions {
+  display: inline-flex;
+  gap: var(--space-3);
+  margin-left: var(--space-2);
+}
+
+.toolbar {
+  display: flex;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.errorBanner {
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--danger);
 }

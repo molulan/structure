@@ -47,6 +47,35 @@ describe("MesocycleGrid layout", () => {
     expect(headers[1]).toHaveTextContent("Week 2");
   });
 
+  // Deleting a week leaves a gap in the stored positions, so the label has to
+  // come from the column's place in the row, not from `position`.
+  it("numbers the columns by position in the grid, not by stored position", () => {
+    renderGrid({
+      microcycles: [
+        { id: 10, position: 0, phase: null },
+        { id: 12, position: 2, phase: null },
+      ],
+    });
+
+    const headers = screen.getAllByRole("columnheader");
+    expect(headers[0]).toHaveTextContent("Week 1");
+    expect(headers[1]).toHaveTextContent("Week 2");
+    expect(screen.getByRole("button", { name: "Delete Week 2" })).toBeInTheDocument();
+  });
+
+  it("keeps the phase in the column header's accessible name", () => {
+    renderGrid();
+
+    expect(screen.getByRole("columnheader", { name: "Week 1, Accumulation" })).toBeInTheDocument();
+  });
+
+  // A phase the backend knows and this client does not must still read as itself.
+  it("displays an unrecognised phase rather than showing it as unset", () => {
+    renderGrid({ microcycles: [{ id: 10, position: 0, phase: "Taper" as never }] });
+
+    expect(screen.getByRole("combobox", { name: "Phase for Week 1" })).toHaveValue("Taper");
+  });
+
   it("shows each week's phase in its own control", () => {
     renderGrid();
 
@@ -107,6 +136,19 @@ describe("MesocycleGrid week editing", () => {
 
     await userEvent.click(within(alert).getByRole("button", { name: "Dismiss" }));
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("clears a stale failure once an edit succeeds", async () => {
+    mockApi.addMicrocycle.mockRejectedValueOnce(new ApiError(500, "database is locked"));
+    renderGrid();
+
+    await userEvent.click(screen.getByRole("button", { name: "+ Week" }));
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+
+    mockApi.addMicrocycle.mockResolvedValue({ id: 12, position: 2, phase: null });
+    await userEvent.click(screen.getByRole("button", { name: "+ Week" }));
+
+    await waitFor(() => expect(screen.queryByRole("alert")).not.toBeInTheDocument());
   });
 
   it("holds the chosen phase until the server answers", async () => {

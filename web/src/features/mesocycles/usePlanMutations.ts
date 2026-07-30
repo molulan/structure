@@ -13,15 +13,19 @@ function useGridMutation<TArgs>(mesocycleId: number, mutationFn: (args: TArgs) =
   const errors = usePlanErrorSink();
   return useMutation({
     mutationFn,
-    onSuccess: () =>
+    onSuccess: () => errors.clear(),
+    // Failure has to reach the user: these controls sit in table cells with no
+    // room of their own to report, so they share the grid's error banner.
+    onError: (error) => errors.report(error),
+    // Refetch either way. A request that reached the server but lost its
+    // response looks like a failure here, and leaving the grid on pre-edit
+    // state would invite a retry that applies the edit twice.
+    onSettled: () =>
       Promise.all([
         queryClient.invalidateQueries({ queryKey: fullMesocycleKey(mesocycleId) }),
         // The list renders a week count per mesocycle, which week edits change.
         queryClient.invalidateQueries({ queryKey: mesocyclesKey }),
       ]),
-    // Failure has to reach the user: these controls sit in table cells with no
-    // room of their own to report, so they share the grid's error banner.
-    onError: (error) => errors.report(error),
   });
 }
 

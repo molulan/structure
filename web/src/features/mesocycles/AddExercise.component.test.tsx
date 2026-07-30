@@ -2,8 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithClient } from "../../test/renderWithClient";
-import { benchPress, pushWorkout } from "../../test/planFixtures";
+import { benchPress, pushWorkout, squat } from "../../test/planFixtures";
 import { ApiError } from "../../api/client";
+import { PlanErrors } from "./PlanErrors";
 import { AddExercise } from "./AddExercise";
 
 vi.mock("../../lib/apiClient", async () => (await import("../../test/apiMock")).mockApiModule());
@@ -13,34 +14,55 @@ const mockApi = vi.mocked(api);
 const MESOCYCLE_ID = 7;
 
 function renderAddExercise() {
-  return renderWithClient(<AddExercise mesocycleId={MESOCYCLE_ID} workout={pushWorkout} />);
+  return renderWithClient(
+    <PlanErrors>
+      <AddExercise mesocycleId={MESOCYCLE_ID} workout={pushWorkout} />
+    </PlanErrors>,
+  );
 }
 
-async function createSquat() {
+async function createDeadlift() {
   await userEvent.click(await screen.findByRole("button", { name: "New exercise…" }));
-  await userEvent.type(screen.getByLabelText("Exercise name"), "Squat");
-  await userEvent.selectOptions(screen.getByLabelText("Primary muscle group"), "Quads");
+  await userEvent.type(screen.getByLabelText("Exercise name"), "Deadlift");
+  await userEvent.selectOptions(screen.getByLabelText("Primary muscle group"), "Hamstrings");
   await userEvent.click(screen.getByRole("button", { name: "Create and add" }));
 }
 
+const deadlift = {
+  id: 3,
+  name: "Deadlift",
+  exercise_type: "Weighted" as const,
+  primary_muscle_group: "Hamstrings" as const,
+  secondary_muscle_groups: [],
+};
+
 beforeEach(() => {
   vi.clearAllMocks();
-  mockApi.listLibraryExercises.mockResolvedValue([benchPress]);
+  mockApi.listLibraryExercises.mockResolvedValue([benchPress, squat]);
 });
 
 describe("AddExercise", () => {
   it("places a library exercise into the workout", async () => {
-    mockApi.addPlannedExercise.mockResolvedValue({ id: 1001, exercise: benchPress, position: 1 });
+    mockApi.addPlannedExercise.mockResolvedValue({ id: 1001, exercise: squat, position: 1 });
     renderAddExercise();
 
     // The picker is disabled and optionless until the library query settles.
-    await screen.findByRole("option", { name: "Bench Press" });
+    await screen.findByRole("option", { name: "Squat" });
     const picker = screen.getByRole("combobox", { name: "Exercise to add to Push" });
-    await userEvent.selectOptions(picker, "Bench Press");
+    await userEvent.selectOptions(picker, "Squat");
     await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
 
-    expect(mockApi.addPlannedExercise).toHaveBeenCalledWith(100, 1);
+    expect(mockApi.addPlannedExercise).toHaveBeenCalledWith(100, 2);
     await waitFor(() => expect(picker).toHaveValue(""));
+  });
+
+  // Two identical rows are indistinguishable once placed — including to the
+  // "Remove X" buttons, which would share an accessible name.
+  it("does not offer an exercise the workout already has", async () => {
+    renderAddExercise();
+
+    await screen.findByRole("option", { name: "Squat" });
+    expect(screen.queryByRole("option", { name: "Bench Press" })).not.toBeInTheDocument();
   });
 
   it("cannot be submitted until an exercise is picked", async () => {
@@ -50,19 +72,18 @@ describe("AddExercise", () => {
   });
 
   it("creates a library exercise and places it in one step", async () => {
-    const squat = { ...benchPress, id: 2, name: "Squat", primary_muscle_group: "Quads" as const };
-    mockApi.createLibraryExercise.mockResolvedValue(squat);
-    mockApi.addPlannedExercise.mockResolvedValue({ id: 1002, exercise: squat, position: 1 });
+    mockApi.createLibraryExercise.mockResolvedValue(deadlift);
+    mockApi.addPlannedExercise.mockResolvedValue({ id: 1002, exercise: deadlift, position: 1 });
     renderAddExercise();
 
-    await createSquat();
+    await createDeadlift();
 
     expect(mockApi.createLibraryExercise).toHaveBeenCalledWith({
-      name: "Squat",
+      name: "Deadlift",
       exercise_type: "Weighted",
-      primary_muscle_group: "Quads",
+      primary_muscle_group: "Hamstrings",
     });
-    await waitFor(() => expect(mockApi.addPlannedExercise).toHaveBeenCalledWith(100, 2));
+    await waitFor(() => expect(mockApi.addPlannedExercise).toHaveBeenCalledWith(100, 3));
     // Back to the picker once it lands.
     await screen.findByRole("button", { name: "+ Exercise" });
   });
@@ -70,22 +91,23 @@ describe("AddExercise", () => {
   // The exercise exists in the library the moment the first request succeeds;
   // retrying the whole form would collide with the name it just took.
   it("leaves a created-but-unplaced exercise ready to retry from the picker", async () => {
-    const squat = { ...benchPress, id: 2, name: "Squat", primary_muscle_group: "Quads" as const };
-    mockApi.createLibraryExercise.mockResolvedValue(squat);
+    mockApi.createLibraryExercise.mockResolvedValue(deadlift);
     mockApi.addPlannedExercise.mockRejectedValue(new ApiError(500, "boom"));
     // The library gains the new exercise once it has been created, which is
     // what lets the picker hold on to it after the placement fails.
     mockApi.listLibraryExercises.mockImplementation(async () =>
-      mockApi.createLibraryExercise.mock.calls.length > 0 ? [benchPress, squat] : [benchPress],
+      mockApi.createLibraryExercise.mock.calls.length > 0
+        ? [benchPress, squat, deadlift]
+        : [benchPress, squat],
     );
     renderAddExercise();
 
-    await createSquat();
+    await createDeadlift();
 
     const picker = await screen.findByRole("combobox", { name: "Exercise to add to Push" });
-    await waitFor(() => expect(picker).toHaveValue("2"));
+    await waitFor(() => expect(picker).toHaveValue("3"));
 
-    mockApi.addPlannedExercise.mockResolvedValue({ id: 1002, exercise: squat, position: 1 });
+    mockApi.addPlannedExercise.mockResolvedValue({ id: 1002, exercise: deadlift, position: 1 });
     await userEvent.click(screen.getByRole("button", { name: "+ Exercise" }));
 
     expect(mockApi.createLibraryExercise).toHaveBeenCalledTimes(1);
@@ -115,7 +137,7 @@ describe("AddExercise", () => {
     renderAddExercise();
 
     await userEvent.click(await screen.findByRole("button", { name: "New exercise…" }));
-    await userEvent.type(screen.getByLabelText("Exercise name"), "Squat");
+    await userEvent.type(screen.getByLabelText("Exercise name"), "Deadlift");
     await userEvent.click(screen.getByRole("button", { name: "Create and add" }));
 
     expect(await screen.findByText("Failed to fetch")).toBeInTheDocument();

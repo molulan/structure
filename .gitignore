@@ -2,3 +2,6 @@
 /dev.db
 /dev-*.db
 /structure.db
+
+# Local SQLite databases, created by running the server or the FFI layer.
+structure.db

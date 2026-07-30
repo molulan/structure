@@ -107,6 +107,21 @@ describe("MesocycleDetail", () => {
     await waitFor(() => expect(mockApi.getFullMesocycle).toHaveBeenCalledTimes(2));
   });
 
+  // Every edit refetches; losing the grid on a failed refetch would also lose
+  // whatever the user was in the middle of typing.
+  it("keeps the grid on screen when a refetch fails", async () => {
+    mockApi.getFullMesocycle.mockResolvedValueOnce(fullGrid);
+    mockApi.addMicrocycle.mockResolvedValue({ id: 11, position: 1, phase: null });
+    mockApi.getFullMesocycle.mockRejectedValue(new ApiError(503, "unavailable"));
+    renderWithClient(<MesocycleDetail id={1} onBack={() => {}} />);
+
+    await userEvent.click(await screen.findByRole("button", { name: "+ Week" }));
+
+    expect(await screen.findByText(/Could not refresh/)).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: /Bench Press/ })).toBeInTheDocument();
+    expect(screen.queryByText("Could not load this mesocycle.")).not.toBeInTheDocument();
+  });
+
   it("calls onBack when the back button is clicked", async () => {
     mockApi.getFullMesocycle.mockResolvedValue(fullGrid);
     const onBack = vi.fn();

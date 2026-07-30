@@ -10,11 +10,14 @@ import styles from "./MesocycleGrid.module.css";
  */
 interface PlanErrorSink {
   report: (error: unknown) => void;
+  /** Called when an edit succeeds, so a stale failure stops contradicting it. */
+  clear: () => void;
 }
 
-// Reporting is a no-op outside a provider so a component can be mounted on its
-// own (in a test, say) without arranging one.
-const PlanErrorContext = createContext<PlanErrorSink>({ report: () => {} });
+// Reporting is a no-op outside a provider. Components that edit should be
+// mounted inside one — including in tests, or their failure paths render
+// nothing to assert on.
+const PlanErrorContext = createContext<PlanErrorSink>({ report: () => {}, clear: () => {} });
 
 export function usePlanErrorSink(): PlanErrorSink {
   return useContext(PlanErrorContext);
@@ -23,14 +26,15 @@ export function usePlanErrorSink(): PlanErrorSink {
 export function PlanErrors({ children }: { children: ReactNode }) {
   const [message, setMessage] = useState<string | null>(null);
   const report = useCallback((error: unknown) => setMessage(describeError(error)), []);
-  const sink = useMemo(() => ({ report }), [report]);
+  const clear = useCallback(() => setMessage(null), []);
+  const sink = useMemo(() => ({ report, clear }), [report, clear]);
 
   return (
     <PlanErrorContext.Provider value={sink}>
       {message !== null && (
         <p className={styles.errorBanner} role="alert">
           {message}{" "}
-          <button className={styles.textButton} onClick={() => setMessage(null)}>
+          <button className={styles.textButton} onClick={clear}>
             Dismiss
           </button>
         </p>

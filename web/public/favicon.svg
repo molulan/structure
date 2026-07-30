@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!--
+    A mesocycle in four bars: three weeks of climbing volume, then the deload —
+    which is the one thing this app's plan grid is actually about. Drawn as
+    columns rather than a barbell because it survives 16px, and because the
+    barbell is what every training app reaches for.
+
+    Colours are the app's own tokens from tokens.css (bg, text, and the deload
+    phase badge's foreground for the fourth bar), kept literal here since an SVG
+    served from public/ never sees the stylesheet.
+  -->
+  <style>
+    .tile { fill: #f4f3ef }
+    .week { fill: #1b1b1a }
+    .deload { fill: #4a5d80 }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #1b1b1a }
+      .week { fill: #f4f3ef }
+      .deload { fill: #9fb0cc }
+    }
+  </style>
+  <rect class="tile" width="32" height="32" rx="7" />
+  <rect class="week" x="3" y="17" width="5" height="10" rx="1" />
+  <rect class="week" x="10" y="13" width="5" height="14" rx="1" />
+  <rect class="week" x="17" y="9" width="5" height="18" rx="1" />
+  <rect class="deload" x="24" y="18" width="5" height="9" rx="1" />
+</svg>

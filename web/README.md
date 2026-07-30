@@ -56,6 +56,21 @@ on console errors, uncaught exceptions and 4xx/5xx responses, so a screenshot
 that looks right but logged a warning still reports a problem. Output lands in
 `.shots/` (gitignored).
 
+### Driving it interactively
+
+`.mcp.json` at the repo root configures a headless [Playwright MCP][mcp] server,
+which gives an agent a real browser to drive against the running stack — click,
+hover, fill a form, read the console and network log — rather than one still
+frame at a time. Claude Code picks it up automatically and asks to approve the
+project-scoped server the first time; the version is pinned so a session doesn't
+change behaviour under you.
+
+`npm run shot` is still the right first reach for "does this look right". The MCP
+server earns its keep on interaction: what a dropdown does when open, what a cell
+looks like mid-edit, which request a click actually fired.
+
+[mcp]: https://github.com/microsoft/playwright-mcp
+
 ## Verify
 
 One gate runs the whole verification stack:

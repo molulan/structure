@@ -23,9 +23,16 @@ cargo clippy --workspace
 Web frontend (`web/`, an npm project):
 
 ```bash
-npm run dev        # Vite dev server; proxies /api to the Axum backend on :3000
+npm run app        # backend + Vite together on :5173, against a seeded persistent dev.db
+npm run app:reset  # the same, after wiping dev.db back to fresh seed data
+npm run shot -- /mesocycles/1   # screenshot the running app into web/.shots/
+npm run dev        # Vite alone; proxies /api to a backend you started yourself on :3000
 npm run verify     # the required pre-merge gate: typecheck + lint + unit + component + contract + e2e
 ```
+
+### Verifying frontend changes
+
+Every change under `web/` ends with a look at the running app, not just green tests. Leave `npm run app` up — it serves a seeded four-week plan, so no screen is empty — and take a `npm run shot -- <route>` after each edit: Vite hot-reloads, so the screenshot is current within a second or two, and the script fails on console errors and 4xx/5xx responses, which a screenshot alone would hide. Iterate against that; save the full `npm run verify` for before the commit rather than between edits. The dev data lives in `web/scripts/seedDev.ts` — extend it when a screen needs something the block doesn't cover yet, and keep it distinct from `tests/support/seed.ts`, which is shaped for assertions rather than for looking at.
 
 Within the Rust workspace, tests live next to the code in `#[cfg(test)] mod tests` blocks. Persistence tests use an in-memory SQLite database via `connection::init_db(":memory:")` — no fixtures or external DB needed. The server's HTTP-level tests live in `structure-server/tests/`, driving `router(Store::open(":memory:"))` through `tower::ServiceExt::oneshot` (API routes are under `/api`); shared request helpers are in `tests/common/mod.rs`.
 

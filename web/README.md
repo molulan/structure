@@ -13,22 +13,48 @@ in later PRs.
 - **CSS Modules + design tokens** (`src/styles/tokens.css`) — the palette is
   provisional (inherited from the prototype); a deliberate design pass comes later
 
-## Develop
+## Run it
 
 ```bash
 npm install
-npm run dev        # Vite on :5173, proxying /api → http://127.0.0.1:3000
+npm run app        # → http://127.0.0.1:5173
 ```
 
-Run the backend separately (from the repo root):
+That is the whole thing: the Axum backend on `:3000` against a persistent
+`dev.db` at the repo root, that database seeded with a four-week block if it is
+empty, and Vite in front of it. It prints the app URL and a link straight to the
+seeded plan, and Ctrl-C stops both halves.
+
+`dev.db` is gitignored and yours to mess up — whatever you build by hand is still
+there next time. `npm run app:reset` deletes it and reseeds. The seed itself is
+`scripts/seedDev.ts`; extend it when a screen needs data the block doesn't have.
+
+Two behaviours worth knowing:
+
+- If something is **already serving `:3000`**, that backend is reused and *never
+  seeded* — it may well be the real `structure.db`, and writing a demo block into
+  it isn't the dev stack's business. The banner says so when this happens.
+- Ports are overridable (`STRUCTURE_DEV_API_PORT`, `STRUCTURE_DEV_WEB_PORT`) for
+  running a second stack alongside the first; the Vite proxy follows the backend.
+
+The lower-level pieces are still there if you want them: `npm run dev` runs Vite
+alone against a backend you started yourself (`cargo run -p structure-server`),
+with `VITE_PROXY_TARGET` to point it at a non-default port.
+
+## Look at it
 
 ```bash
-cargo run -p structure-server   # listens on :3000
+npm run shot -- /mesocycles/1          # → .shots/mesocycles-1.png
+npm run shot -- / /mesocycles/1        # several routes at once
+npm run shot -- /mesocycles/1 --viewport=430x900 --viewport-only
 ```
 
-If you run the backend on a non-default port (`PORT=…`), point the dev proxy at
-it too, e.g. `VITE_PROXY_TARGET=http://127.0.0.1:4000 npm run dev` — otherwise
-the proxy still targets `:3000` and every `/api` request fails.
+Screenshots the stack that's *already running*, so an edit is on film as fast as
+Vite can hot-reload it — where `test:e2e`, the only other thing that photographs
+the app, pays a fresh cargo build and browser launch every run. It exits non-zero
+on console errors, uncaught exceptions and 4xx/5xx responses, so a screenshot
+that looks right but logged a warning still reports a problem. Output lands in
+`.shots/` (gitignored).
 
 ## Verify
 

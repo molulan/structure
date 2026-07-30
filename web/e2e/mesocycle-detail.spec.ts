@@ -15,17 +15,40 @@ function apiPost(request: APIRequestContext): Post {
   };
 }
 
-test("opens a mesocycle and renders its full tree", async ({ page, request }) => {
-  const { mesocycleId } = await buildFullMesocycle(apiPost(request), "Detail Block");
+async function setPhase(request: APIRequestContext, microcycleId: number, phase: string) {
+  const response = await request.put(`${BACKEND}/microcycles/${microcycleId}/phase`, {
+    data: { phase },
+  });
+  expect(response.ok(), `PUT phase → ${response.status()}`).toBeTruthy();
+}
+
+test("opens a mesocycle and renders its grid", async ({ page, request }) => {
+  const { mesocycleId, microcycleIds } = await buildFullMesocycle(apiPost(request), "Detail Block");
+  await setPhase(request, microcycleIds[0], "Accumulation");
+  await setPhase(request, microcycleIds[2], "Deload");
 
   await page.goto("/");
   await page.getByRole("button", { name: /Detail Block/ }).click();
 
   await expect(page).toHaveURL(new RegExp(`/mesocycles/${mesocycleId}$`));
   await expect(page.getByRole("heading", { name: "Push" })).toBeVisible();
-  await expect(page.getByText("Week 1")).toBeVisible();
-  await expect(page.getByText("Bench Press")).toBeVisible();
-  await expect(page.getByText("3×8–12 RIR2")).toBeVisible();
+  // The badge reads ACCUM on screen; its accessible name is the full phase.
+  await expect(page.getByRole("columnheader", { name: /Week 1 Accumulation/ })).toBeVisible();
+  await expect(page.getByRole("columnheader", { name: /Week 3 Deload/ })).toBeVisible();
+  await expect(page.getByRole("rowheader", { name: /Bench Press/ })).toBeVisible();
+
+  // Week 1's cell carries its three set groups; week 3 was never prescribed.
+  const row = page.getByRole("row").filter({ has: page.getByRole("rowheader", { name: /Bench Press/ }) });
+  const cells = row.getByRole("cell");
+  await expect(cells.nth(0)).toContainText("3×8–12 RIR2");
+  await expect(cells.nth(0)).toContainText("2× match");
+  await expect(cells.nth(1)).toContainText("4×8 RIR1");
+  await expect(cells.nth(2)).toContainText("—");
+  await expect(cells.nth(2)).toContainText("Not prescribed");
+
+  const legend = page.getByRole("region", { name: "Phase key" });
+  await expect(legend).toContainText("Accumulation");
+  await expect(legend).toContainText("Deload");
 
   mkdirSync("e2e/screenshots", { recursive: true });
   await page.screenshot({ path: "e2e/screenshots/mesocycle-detail.png", fullPage: true });
@@ -39,13 +62,15 @@ test("deep-links to a mesocycle and survives a reload", async ({ page, request }
   // A minimal tree (no library exercise) is enough to prove the URL renders the
   // right detail view — and it sidesteps the shared backend's globally-unique
   // library-exercise names that a second full-tree seed would collide on.
+  // No microcycle: structure hangs off the mesocycle, so the workout has to
+  // render before any week exists.
   const post = apiPost(request);
   const mesocycle = await post("/mesocycles", { name: "Deep Link Block", mode: "Manual" });
-  const microcycle = await post(`/mesocycles/${mesocycle.id}/microcycles`);
-  await post(`/microcycles/${microcycle.id}/workouts`, { name: "Deep Squat Day" });
+  await post(`/mesocycles/${mesocycle.id}/workouts`, { name: "Deep Squat Day" });
 
   await page.goto(`/mesocycles/${mesocycle.id}`);
   await expect(page.getByRole("heading", { name: "Deep Squat Day" })).toBeVisible();
+  await expect(page.getByText("No weeks yet.")).toBeVisible();
 
   await page.reload();
   await expect(page.getByRole("heading", { name: "Deep Squat Day" })).toBeVisible();

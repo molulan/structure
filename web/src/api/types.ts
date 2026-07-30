@@ -90,11 +90,17 @@ export interface SetGroup {
   set_group_type: SetGroupType;
 }
 
+/** The set groups prescribed for one planned exercise in one week — a grid cell. */
+export interface Prescription {
+  microcycle_id: number;
+  set_groups: SetGroup[];
+}
+
 export interface FullPlannedExercise {
   id: number;
   exercise: LibraryExercise;
   position: number;
-  set_groups: SetGroup[];
+  prescriptions: Prescription[];
 }
 
 export interface FullWorkout {
@@ -108,12 +114,17 @@ export interface FullMicrocycle {
   id: number;
   position: number;
   phase: Phase | null;
-  workouts: FullWorkout[];
 }
 
+/**
+ * The plan grid: `microcycles` are the columns (weeks), `workouts` and their
+ * `planned_exercises` the rows, and a planned exercise's `prescriptions` hold
+ * one cell per week.
+ */
 export interface FullMesocycle {
   id: number;
   name: string;
   mode: MesocycleMode;
   microcycles: FullMicrocycle[];
+  workouts: FullWorkout[];
 }

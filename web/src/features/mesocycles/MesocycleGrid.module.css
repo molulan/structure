@@ -1,0 +1,184 @@
+/* Weeks can outrun the viewport; the grid scrolls sideways on its own. */
+.scroll {
+  overflow-x: auto;
+  padding-bottom: var(--space-3);
+}
+
+.scroll:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.grid {
+  border-collapse: separate;
+  border-spacing: var(--space-1) var(--space-1);
+  table-layout: fixed;
+  width: max-content;
+}
+
+.corner {
+  width: 190px;
+}
+
+.weekHead {
+  width: 170px;
+  text-align: left;
+  vertical-align: bottom;
+  padding: 0 var(--space-1) var(--space-2);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.weekLabel {
+  font-size: 13px;
+  letter-spacing: 0.3px;
+}
+
+/* Each phase gets its own pair of tokens; an unknown one keeps the muted default. */
+.phase {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  border-radius: 4px;
+  padding: 1px 5px;
+  margin-left: var(--space-1);
+  color: var(--text-muted);
+  background: var(--surface);
+}
+
+.phase[data-phase="Accumulation"] {
+  color: var(--phase-accumulation-fg);
+  background: var(--phase-accumulation-bg);
+}
+
+.phase[data-phase="Intensification"] {
+  color: var(--phase-intensification-fg);
+  background: var(--phase-intensification-bg);
+}
+
+.phase[data-phase="Deload"] {
+  color: var(--phase-deload-fg);
+  background: var(--phase-deload-bg);
+}
+
+.workoutHead {
+  text-align: left;
+  padding: var(--space-4) var(--space-1) var(--space-2);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Inline so the exercise count sits beside the name rather than below it. */
+.workoutName {
+  display: inline;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.workoutMeta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: var(--space-1);
+}
+
+.rowHead {
+  text-align: left;
+  vertical-align: middle;
+  padding: 0 var(--space-3) 0 0;
+}
+
+/* Wraps rather than truncating: the column is fixed and the name appears
+   nowhere else, so an ellipsis would hide the only copy of it — and a `title`
+   tooltip never fires on touch. */
+.exerciseName {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.muscle {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.cell {
+  vertical-align: middle;
+  border: 1.5px solid var(--border);
+  border-radius: 9px;
+  padding: var(--space-2);
+  background: var(--surface-raised);
+}
+
+/* Wraps rather than running past the fixed column width: a long spec like
+   `3×8–12 ×102.5kg dropset` would otherwise paint over the next week's cell. */
+.setLine {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.34;
+  overflow-wrap: anywhere;
+}
+
+.unprescribed {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* Available to screen readers, invisible on screen. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* The badge's own left margin is for the week header, not the legend. */
+.legendItem .phase {
+  margin-left: 0;
+}
+
+.noWeeks {
+  text-align: left;
+  vertical-align: bottom;
+  padding: 0 var(--space-1) var(--space-2);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.bandEmpty {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text-muted);
+  text-align: left;
+  padding: var(--space-2) var(--space-1);
+}

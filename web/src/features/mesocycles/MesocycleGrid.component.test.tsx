@@ -59,11 +59,14 @@ function cellsOf(exercise: string): HTMLElement[] {
 }
 
 describe("MesocycleGrid", () => {
-  it("shows the empty state when there are no weeks", () => {
+  // Workouts hang off the mesocycle, not the microcycle, so a week-less
+  // mesocycle can still hold structure — it must not be rendered as empty.
+  it("still renders the workouts when there are no weeks", () => {
     render(<MesocycleGrid microcycles={[]} workouts={workouts} />);
 
     expect(screen.getByText("No weeks yet.")).toBeInTheDocument();
-    expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Push" })).toBeInTheDocument();
+    expect(screen.getByRole("rowheader", { name: /Bench Press/ })).toBeInTheDocument();
   });
 
   it("renders a column per week, numbered from one, with its phase badge", () => {
@@ -79,7 +82,11 @@ describe("MesocycleGrid", () => {
   it("groups exercise rows under their workout", () => {
     render(<MesocycleGrid microcycles={weeks} workouts={workouts} />);
 
-    expect(screen.getByRole("columnheader", { name: /Push/ })).toHaveTextContent("1 exercise");
+    // The band heads its row group, not the week columns, and stays a heading
+    // so the workouts are reachable by heading navigation.
+    const band = screen.getByRole("rowheader", { name: /Push/ });
+    expect(band).toHaveTextContent("1 exercise");
+    expect(within(band).getByRole("heading", { name: "Push" })).toBeInTheDocument();
     expect(screen.getByRole("rowheader", { name: /Bench Press/ })).toHaveTextContent("Chest");
   });
 
@@ -89,7 +96,9 @@ describe("MesocycleGrid", () => {
     const [week1, week2] = cellsOf("Bench Press");
     expect(week1).toHaveTextContent("3×8–12 RIR2");
     expect(week1).toHaveTextContent("2× match");
+    // The dash is decorative; the cell's meaning is spelled out for screen readers.
     expect(week2).toHaveTextContent("—");
+    expect(within(week2).getByText("Not prescribed")).toBeInTheDocument();
   });
 
   it("places cells by microcycle id rather than by prescription order", () => {
@@ -122,6 +131,6 @@ describe("MesocycleGrid", () => {
     render(<MesocycleGrid microcycles={weeks} workouts={[{ ...workouts[0], planned_exercises: [] }]} />);
 
     expect(screen.getByText("No exercises yet.")).toBeInTheDocument();
-    expect(screen.getByRole("columnheader", { name: /Push/ })).not.toHaveTextContent("exercises");
+    expect(screen.getByRole("rowheader", { name: /Push/ })).not.toHaveTextContent("exercises");
   });
 });

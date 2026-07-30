@@ -12,9 +12,10 @@ interface Props {
  * prescribed for that (planned exercise, week). Read-only.
  */
 export function MesocycleGrid({ microcycles, workouts }: Props) {
-  if (microcycles.length === 0) {
-    return <p className={styles.empty}>No weeks yet.</p>;
-  }
+  // A mesocycle can hold workouts before it has any weeks — structure hangs off
+  // the mesocycle, not the microcycle — so a week-less grid still renders its
+  // rows, with the missing weeks called out in place of the columns.
+  const columnCount = microcycles.length > 0 ? microcycles.length + 1 : 2;
 
   return (
     <div className={styles.scroll}>
@@ -22,37 +23,39 @@ export function MesocycleGrid({ microcycles, workouts }: Props) {
         <thead>
           <tr>
             <td className={styles.corner} />
-            {microcycles.map((week) => (
-              <th key={week.id} scope="col" className={styles.weekHead}>
-                <span className={styles.weekLabel}>Week {week.position + 1}</span>{" "}
-                {week.phase && (
-                  <span className={styles.phase} data-phase={week.phase} title={week.phase}>
-                    {phaseLabel(week.phase)}
-                  </span>
-                )}
+            {microcycles.length === 0 ? (
+              <th scope="col" className={styles.noWeeks}>
+                No weeks yet.
               </th>
-            ))}
+            ) : (
+              microcycles.map((week) => (
+                <th key={week.id} scope="col" className={styles.weekHead}>
+                  <span className={styles.weekLabel}>Week {week.position + 1}</span>{" "}
+                  {week.phase && (
+                    <span className={styles.phase} data-phase={week.phase} title={week.phase}>
+                      {phaseLabel(week.phase)}
+                    </span>
+                  )}
+                </th>
+              ))
+            )}
           </tr>
         </thead>
 
         {workouts.length === 0 ? (
           <tbody>
             <tr>
-              <td className={styles.bandEmpty} colSpan={microcycles.length + 1}>
+              <td className={styles.bandEmpty} colSpan={columnCount}>
                 No workouts yet.
               </td>
             </tr>
           </tbody>
         ) : (
           workouts.map((workout) => (
-            <tbody key={workout.id} className={styles.band}>
+            <tbody key={workout.id}>
               <tr>
-                <th
-                  scope="colgroup"
-                  colSpan={microcycles.length + 1}
-                  className={styles.workoutHead}
-                >
-                  <span className={styles.workoutName}>{workout.name}</span>{" "}
+                <th scope="rowgroup" colSpan={columnCount} className={styles.workoutHead}>
+                  <h2 className={styles.workoutName}>{workout.name}</h2>{" "}
                   {workout.planned_exercises.length > 0 && (
                     <span className={styles.workoutMeta}>
                       {exerciseCount(workout.planned_exercises.length)}
@@ -63,7 +66,7 @@ export function MesocycleGrid({ microcycles, workouts }: Props) {
 
               {workout.planned_exercises.length === 0 ? (
                 <tr>
-                  <td className={styles.bandEmpty} colSpan={microcycles.length + 1}>
+                  <td className={styles.bandEmpty} colSpan={columnCount}>
                     No exercises yet.
                   </td>
                 </tr>
@@ -103,9 +106,15 @@ function ExerciseRow({
         return (
           <td key={week.id} className={styles.cell}>
             {setGroups.length === 0 ? (
-              <span className={styles.unprescribed} aria-label="Not prescribed">
-                —
-              </span>
+              // The dash is decoration; the cell's meaning is spelled out for
+              // screen readers, which an aria-label on a plain span would not
+              // reliably reach.
+              <>
+                <span className={styles.unprescribed} aria-hidden="true">
+                  —
+                </span>
+                <span className={styles.srOnly}>Not prescribed</span>
+              </>
             ) : (
               setGroups.map((group) => (
                 <div key={group.id} className={styles.setLine}>

@@ -23,7 +23,7 @@ export function MesocycleDetail({ id, onBack }: Props) {
       ) : (
         <>
           <div className={styles.title}>
-            <span className={styles.name}>{mesocycle.data.name}</span>
+            <h1 className={styles.name}>{mesocycle.data.name}</h1>
             <span className={styles.mode}>{mesocycle.data.mode}</span>
           </div>
 

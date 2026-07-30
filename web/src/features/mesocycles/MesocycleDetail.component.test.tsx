@@ -93,7 +93,7 @@ describe("MesocycleDetail", () => {
     mockApi.getFullMesocycle.mockResolvedValue(fullGrid);
     renderWithClient(<MesocycleDetail id={1} onBack={() => {}} />);
 
-    expect(await screen.findByText("Hypertrophy Block")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Hypertrophy Block", level: 1 })).toBeInTheDocument();
     expect(screen.getByText("Manual")).toBeInTheDocument();
     expect(screen.getByRole("columnheader", { name: /Week 1/ })).toBeInTheDocument();
     expect(screen.getByRole("rowheader", { name: /Bench Press/ })).toBeInTheDocument();

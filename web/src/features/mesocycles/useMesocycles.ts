@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/apiClient";
 import type { CreateMesocycle } from "../../api/types";
 
-const mesocyclesKey = ["mesocycles"] as const;
+export const mesocyclesKey = ["mesocycles"] as const;
 
 export function useMesocycles() {
   return useQuery({

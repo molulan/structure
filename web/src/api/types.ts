@@ -90,6 +90,34 @@ export interface SetGroup {
   set_group_type: SetGroupType;
 }
 
+/** A week on its own, as returned by `POST /mesocycles/{id}/microcycles`. */
+export interface Microcycle {
+  id: number;
+  position: number;
+  phase: Phase | null;
+}
+
+/** A workout on its own, as returned by the workout create/rename endpoints. */
+export interface Workout {
+  id: number;
+  name: string;
+  position: number;
+}
+
+/** A planned exercise on its own, as returned by its create endpoint. */
+export interface PlannedExercise {
+  id: number;
+  exercise: LibraryExercise;
+  position: number;
+}
+
+export interface CreateLibraryExercise {
+  name: string;
+  exercise_type: ExerciseType;
+  primary_muscle_group: MuscleGroup;
+  secondary_muscle_groups?: MuscleGroup[];
+}
+
 /** The set groups prescribed for one planned exercise in one week — a grid cell. */
 export interface Prescription {
   microcycle_id: number;

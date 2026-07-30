@@ -29,13 +29,21 @@ seeded plan, and Ctrl-C stops both halves.
 there next time. `npm run app:reset` deletes it and reseeds. The seed itself is
 `scripts/seedDev.ts`; extend it when a screen needs data the block doesn't have.
 
-Two behaviours worth knowing:
+Three behaviours worth knowing:
 
 - If something is **already serving `:3000`**, that backend is reused and *never
   seeded* — it may well be the real `structure.db`, and writing a demo block into
-  it isn't the dev stack's business. The banner says so when this happens.
+  it isn't the dev stack's business. The banner says so when this happens. A
+  backend the stack starts itself announces its own bind before anything is
+  seeded, so a stranger that took the port while cargo compiled can't be mistaken
+  for ours.
+- Something **already serving `:5173`** is an error rather than a reuse. It
+  proxies `/api` to a backend this stack knows nothing about, so carrying on
+  would advertise a URL whose edits land in someone else's database.
 - Ports are overridable (`STRUCTURE_DEV_API_PORT`, `STRUCTURE_DEV_WEB_PORT`) for
-  running a second stack alongside the first; the Vite proxy follows the backend.
+  running a second stack alongside the first; the Vite proxy follows the backend,
+  and the database is named after the backend port (`dev-3001.db`) so the two
+  stacks never share one SQLite file.
 
 The lower-level pieces are still there if you want them: `npm run dev` runs Vite
 alone against a backend you started yourself (`cargo run -p structure-server`),

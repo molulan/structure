@@ -1,6 +1,8 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { rmSync } from "node:fs";
-import { resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
+import { createInterface } from "node:readline";
+import { fileURLToPath } from "node:url";
 import { seedDevPlan, SEEDED_EXERCISE_COUNT, SEEDED_WORKOUT_COUNT } from "./seedDev";
 
 // One command that leaves the whole app running and worth looking at: the Axum
@@ -9,19 +11,28 @@ import { seedDevPlan, SEEDED_EXERCISE_COUNT, SEEDED_WORKOUT_COUNT } from "./seed
 // on an empty screen — the plan grid only says anything with a plan in it.
 //
 // Default ports are fixed, unlike the e2e harness's 3001/5174: a stable URL is
-// the whole value for a human, and a collision there means the stack is already
-// up, which is a reason to reuse rather than fail. The env overrides exist for
-// running a second stack alongside the first.
+// the whole value for a human. The env overrides exist for running a second
+// stack alongside the first, which is why the database is named after the
+// backend port — two stacks must not share one SQLite file.
 
-const BACKEND_PORT = Number(process.env.STRUCTURE_DEV_API_PORT ?? 3000);
+const DEFAULT_API_PORT = 3000;
+const BACKEND_PORT = Number(process.env.STRUCTURE_DEV_API_PORT ?? DEFAULT_API_PORT);
 const WEB_PORT = Number(process.env.STRUCTURE_DEV_WEB_PORT ?? 5173);
 const BACKEND_URL = `http://127.0.0.1:${BACKEND_PORT}`;
 const WEB_URL = `http://127.0.0.1:${WEB_PORT}`;
 const API_URL = `${BACKEND_URL}/api`;
 
-// Relative to web/, where the npm script runs. Absolute because the backend
-// resolves STRUCTURE_DB against its own working directory.
-const DB_PATH = resolve("..", "dev.db");
+// Resolved from this file, not the working directory: invoked as anything but
+// `npm run app` from web/ — an IDE run configuration, `tsx web/scripts/…` from
+// the repo root — a cwd-relative path would put the database outside the
+// repository, and `--reset` would delete files there.
+const WEB_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const REPO_ROOT = resolve(WEB_DIR, "..");
+const DB_PATH = join(
+  REPO_ROOT,
+  BACKEND_PORT === DEFAULT_API_PORT ? "dev.db" : `dev-${BACKEND_PORT}.db`,
+);
+const DB_NAME = basename(DB_PATH);
 
 const spawned: ChildProcess[] = [];
 
@@ -30,28 +41,46 @@ async function run(): Promise<void> {
   const backendWasUp = await isUp(`${BACKEND_URL}/health`);
 
   if (reset) {
+    // The database is named after the backend port, so a backend answering that
+    // port is the only thing that can hold this file open.
     if (backendWasUp) {
       throw new Error(
-        `a backend is already running on :${BACKEND_PORT} and holds the dev database — ` +
+        `a backend is already running on :${BACKEND_PORT} and may hold ${DB_NAME} open — ` +
           "stop it first, then re-run with --reset",
       );
     }
-    // -wal and -shm may or may not exist depending on how the last run ended.
     for (const suffix of ["", "-wal", "-shm"]) {
       rmSync(`${DB_PATH}${suffix}`, { force: true });
     }
-    console.log("reset: deleted dev.db");
+    console.log(`reset: deleted ${DB_NAME}`);
+  }
+
+  // Vite is never reused. Something already on the web port proxies /api to a
+  // backend we know nothing about, so the banner would advertise a URL whose
+  // edits land in someone else's database.
+  if (await isUp(WEB_URL)) {
+    throw new Error(
+      `something is already serving :${WEB_PORT} — stop it, or pick another port with ` +
+        "STRUCTURE_DEV_WEB_PORT",
+    );
   }
 
   if (backendWasUp) {
     console.log(`backend: reusing the one already on :${BACKEND_PORT}`);
   } else {
     console.log(`backend: starting on :${BACKEND_PORT} (a cold cargo build takes a while)`);
-    const backend = start("cargo", ["run", "--quiet", "--manifest-path", "../Cargo.toml", "-p", "structure-server"], {
-      PORT: String(BACKEND_PORT),
-      STRUCTURE_DB: DB_PATH,
-    });
-    await waitFor(`${BACKEND_URL}/health`, backend, "structure-server");
+    const backend = start(
+      "structure-server",
+      "cargo",
+      ["run", "--quiet", "--manifest-path", join(REPO_ROOT, "Cargo.toml"), "-p", "structure-server"],
+      { PORT: String(BACKEND_PORT), STRUCTURE_DB: DB_PATH },
+      "pipe",
+    );
+    // Readiness comes from our own child announcing its bind, not from probing
+    // the port: a probe cannot tell our server from one that grabbed the port
+    // while cargo was still compiling, and mistaking those seeds a database we
+    // do not own.
+    await waitForLine(backend, `listening on ${BACKEND_URL}`, "structure-server", 300_000);
   }
 
   // Only ever seed a database we opened ourselves. A backend that was already up
@@ -59,15 +88,15 @@ async function run(): Promise<void> {
   // — and writing a demo block into that is not ours to do.
   const planId = backendWasUp ? await firstPlanId() : await ensureSeeded();
 
-  if (await isUp(WEB_URL)) {
-    console.log(`web: reusing the dev server already on :${WEB_PORT}`);
-  } else {
-    console.log(`web: starting Vite on :${WEB_PORT}`);
-    const web = start("npm", ["run", "dev", "--", "--port", String(WEB_PORT), "--strictPort"], {
-      VITE_PROXY_TARGET: BACKEND_URL,
-    });
-    await waitFor(WEB_URL, web, "vite");
-  }
+  console.log(`web: starting Vite on :${WEB_PORT}`);
+  const web = start(
+    "vite",
+    "npm",
+    ["run", "dev", "--", "--port", String(WEB_PORT), "--strictPort"],
+    { VITE_PROXY_TARGET: BACKEND_URL },
+    "inherit",
+  );
+  await waitForPort(WEB_URL, web, "vite");
 
   banner(planId, backendWasUp);
 }
@@ -80,22 +109,95 @@ async function isUp(url: string): Promise<boolean> {
   }
 }
 
-function start(command: string, args: string[], env: Record<string, string>): ChildProcess {
-  const child = spawn(command, args, { env: { ...process.env, ...env }, stdio: "inherit" });
+/**
+ * Spawns a child in its own process group, so shutdown can signal the whole
+ * group: `cargo run` forwards nothing to the `structure-server` it spawns, and
+ * signalling only the wrapper leaves the server holding the port and the
+ * database. `stdin` is ignored rather than inherited — a detached child reading
+ * the terminal would take SIGTTIN and stop.
+ */
+function start(
+  name: string,
+  command: string,
+  args: string[],
+  env: Record<string, string>,
+  stdout: "pipe" | "inherit",
+): ChildProcess {
+  const child = spawn(command, args, {
+    cwd: WEB_DIR,
+    env: { ...process.env, ...env },
+    stdio: ["ignore", stdout, "inherit"],
+    detached: true,
+  });
   spawned.push(child);
+
+  // 'error' fires instead of 'exit' when the command cannot be executed at all,
+  // and an unhandled one would throw past the top-level catch.
+  child.on("error", (error) => {
+    if (shuttingDown) return;
+    console.error(`\ncould not start ${name} (${command}): ${error.message}`);
+    void shutdown(1);
+  });
+
   child.on("exit", (code) => {
     // A child dying is fatal for the stack — half a stack is worse than none,
     // because the surviving half looks like it works.
-    if (!shuttingDown) {
-      console.error(`\n${command} exited (code ${code}) — shutting the stack down`);
-      shutdown(1);
-    }
+    if (shuttingDown) return;
+    console.error(`\n${name} exited (code ${code}) — shutting the stack down`);
+    void shutdown(1);
   });
+
   return child;
 }
 
-async function waitFor(url: string, child: ChildProcess, name: string): Promise<void> {
-  const deadline = Date.now() + 300_000;
+/** Resolves when the child prints `marker`, echoing its output through meanwhile. */
+function waitForLine(
+  child: ChildProcess,
+  marker: string,
+  name: string,
+  timeoutMs: number,
+): Promise<void> {
+  if (!child.stdout) throw new Error(`${name} was not started with a readable stdout`);
+  const lines = createInterface({ input: child.stdout });
+
+  return new Promise((resolvePromise, reject) => {
+    const timer = setTimeout(() => {
+      finish(() => reject(new Error(`${name} did not report itself listening within the timeout`)));
+    }, timeoutMs);
+
+    const onExit = () =>
+      finish(() =>
+        reject(
+          new Error(
+            `${name} exited before it came up — is something else already serving :${BACKEND_PORT}?`,
+          ),
+        ),
+      );
+
+    function finish(settle: () => void): void {
+      clearTimeout(timer);
+      lines.off("line", onLine);
+      child.off("exit", onExit);
+      settle();
+    }
+
+    function onLine(line: string): void {
+      console.log(line);
+      if (line.includes(marker)) finish(resolvePromise);
+    }
+
+    lines.on("line", onLine);
+    child.on("exit", onExit);
+  });
+}
+
+/**
+ * Vite gets a port probe rather than a stdout marker: `--strictPort` makes it
+ * exit rather than drift to another port, and the web port was checked free
+ * before it started, so anything answering here is ours.
+ */
+async function waitForPort(url: string, child: ChildProcess, name: string): Promise<void> {
+  const deadline = Date.now() + 120_000;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) throw new Error(`${name} exited before it came up`);
     if (await isUp(url)) return;
@@ -113,7 +215,7 @@ async function waitFor(url: string, child: ChildProcess, name: string): Promise<
 async function ensureSeeded(): Promise<number | null> {
   const existing = await plans();
   if (existing.length > 0) {
-    console.log(`data: ${existing.length} mesocycle(s) already in dev.db — left as they are`);
+    console.log(`data: ${existing.length} mesocycle(s) already in ${DB_NAME} — left as they are`);
     return existing[0].id;
   }
   console.log("data: empty, seeding a four-week block");
@@ -130,8 +232,37 @@ async function firstPlanId(): Promise<number | null> {
   return existing[0]?.id ?? null;
 }
 
+/**
+ * The plan list, with every way a stranger on the port can answer turned into a
+ * message that names the real problem. Reusing whatever holds `:3000` means the
+ * reply may be an unrelated service's 404 page, and a bare `.json()` would
+ * surface that as an unexplained syntax error.
+ */
 async function plans(): Promise<{ id: number }[]> {
-  return (await (await fetch(`${API_URL}/mesocycles`)).json()) as { id: number }[];
+  const url = `${API_URL}/mesocycles`;
+  const notOurs = `something is serving :${BACKEND_PORT}, but it does not answer like structure-server`;
+
+  let response: Response;
+  try {
+    response = await fetch(url);
+  } catch (error) {
+    throw new Error(`could not reach ${url}: ${error instanceof Error ? error.message : error}`);
+  }
+  if (!response.ok) {
+    throw new Error(`${url} answered ${response.status} — ${notOurs}`);
+  }
+
+  const body = await response.text();
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    throw new Error(`${url} did not return JSON — ${notOurs}`);
+  }
+  if (!Array.isArray(parsed)) {
+    throw new Error(`${url} did not return a list of mesocycles — ${notOurs}`);
+  }
+  return parsed as { id: number }[];
 }
 
 function banner(planId: number | null, foreignBackend: boolean): void {
@@ -145,8 +276,8 @@ function banner(planId: number | null, foreignBackend: boolean): void {
     ...(planId === null ? [] : [`    plan    ${WEB_URL}/mesocycles/${planId}`]),
     `    api     ${API_URL}`,
     foreignBackend
-      ? `    data    the backend already on :${BACKEND_PORT} — not dev.db`
-      : "    data    dev.db  (npm run app:reset for a fresh one)",
+      ? `    data    the backend already on :${BACKEND_PORT} — not ${DB_NAME}`
+      : `    data    ${DB_NAME}  (npm run app:reset for a fresh one)`,
     "",
     "  Ctrl-C to stop",
     rule,
@@ -157,19 +288,46 @@ function banner(planId: number | null, foreignBackend: boolean): void {
 
 let shuttingDown = false;
 
-function shutdown(code: number): void {
+async function shutdown(code: number): Promise<void> {
+  if (shuttingDown) return;
   shuttingDown = true;
-  for (const child of spawned) child.kill("SIGTERM");
+
+  signalGroups("SIGTERM");
+  await Promise.race([allExited(), new Promise((r) => setTimeout(r, 3_000))]);
+  signalGroups("SIGKILL");
+
   process.exit(code);
 }
 
+/**
+ * Signals each child's whole process group. `cargo run` is a wrapper: killing it
+ * alone leaves the `structure-server` it spawned holding the port and the
+ * database, which then poisons every later run.
+ */
+function signalGroups(signal: "SIGTERM" | "SIGKILL"): void {
+  for (const child of spawned) {
+    if (child.pid === undefined || child.exitCode !== null || child.signalCode !== null) continue;
+    try {
+      process.kill(-child.pid, signal);
+    } catch {
+      // Already gone, or the group outlived its leader — nothing to signal.
+    }
+  }
+}
+
+async function allExited(): Promise<void> {
+  while (spawned.some((child) => child.exitCode === null && child.signalCode === null)) {
+    await new Promise((r) => setTimeout(r, 100));
+  }
+}
+
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
-  process.on(signal, () => shutdown(0));
+  process.on(signal, () => void shutdown(0));
 }
 
 try {
   await run();
 } catch (error) {
   console.error(`\n${error instanceof Error ? error.message : String(error)}`);
-  shutdown(1);
+  await shutdown(1);
 }

@@ -1,5 +1,5 @@
-import type { FullMicrocycle, FullPlannedExercise, FullWorkout } from "../../api/types";
-import { describeSetGroup, phaseLabel } from "./format";
+import type { FullMicrocycle, FullPlannedExercise, FullWorkout, Phase } from "../../api/types";
+import { describeSetGroup, phaseLabel, PHASE_ORDER } from "./format";
 import styles from "./MesocycleGrid.module.css";
 
 interface Props {
@@ -16,70 +16,97 @@ export function MesocycleGrid({ microcycles, workouts }: Props) {
   // the mesocycle, not the microcycle — so a week-less grid still renders its
   // rows, with the missing weeks called out in place of the columns.
   const columnCount = microcycles.length > 0 ? microcycles.length + 1 : 2;
+  const phasesInUse = PHASE_ORDER.filter((phase) => microcycles.some((w) => w.phase === phase));
 
   return (
-    <div className={styles.scroll}>
-      <table className={styles.grid}>
-        <thead>
-          <tr>
-            <td className={styles.corner} />
-            {microcycles.length === 0 ? (
-              <th scope="col" className={styles.noWeeks}>
-                No weeks yet.
-              </th>
-            ) : (
-              microcycles.map((week) => (
-                <th key={week.id} scope="col" className={styles.weekHead}>
-                  <span className={styles.weekLabel}>Week {week.position + 1}</span>{" "}
-                  {week.phase && (
-                    <span className={styles.phase} data-phase={week.phase} title={week.phase}>
-                      {phaseLabel(week.phase)}
-                    </span>
-                  )}
-                </th>
-              ))
-            )}
-          </tr>
-        </thead>
-
-        {workouts.length === 0 ? (
-          <tbody>
+    <>
+      {/* Focusable so the weeks past the viewport edge can be reached without a
+          pointer; a plain overflow container takes no keyboard focus. */}
+      <div className={styles.scroll} role="region" aria-label="Plan grid" tabIndex={0}>
+        <table className={styles.grid}>
+          <thead>
             <tr>
-              <td className={styles.bandEmpty} colSpan={columnCount}>
-                No workouts yet.
-              </td>
-            </tr>
-          </tbody>
-        ) : (
-          workouts.map((workout) => (
-            <tbody key={workout.id}>
-              <tr>
-                <th scope="rowgroup" colSpan={columnCount} className={styles.workoutHead}>
-                  <h2 className={styles.workoutName}>{workout.name}</h2>{" "}
-                  {workout.planned_exercises.length > 0 && (
-                    <span className={styles.workoutMeta}>
-                      {exerciseCount(workout.planned_exercises.length)}
-                    </span>
-                  )}
+              <td className={styles.corner} />
+              {microcycles.length === 0 ? (
+                <th scope="col" className={styles.noWeeks}>
+                  No weeks yet.
                 </th>
-              </tr>
-
-              {workout.planned_exercises.length === 0 ? (
-                <tr>
-                  <td className={styles.bandEmpty} colSpan={columnCount}>
-                    No exercises yet.
-                  </td>
-                </tr>
               ) : (
-                workout.planned_exercises.map((planned) => (
-                  <ExerciseRow key={planned.id} planned={planned} microcycles={microcycles} />
+                microcycles.map((week) => (
+                  <th key={week.id} scope="col" className={styles.weekHead}>
+                    <span className={styles.weekLabel}>Week {week.position + 1}</span>{" "}
+                    {week.phase && <PhaseBadge phase={week.phase} />}
+                  </th>
                 ))
               )}
+            </tr>
+          </thead>
+
+          {workouts.length === 0 ? (
+            <tbody>
+              <tr>
+                <td className={styles.bandEmpty} colSpan={columnCount}>
+                  No workouts yet.
+                </td>
+              </tr>
             </tbody>
-          ))
-        )}
-      </table>
-    </div>
+          ) : (
+            workouts.map((workout) => (
+              <tbody key={workout.id}>
+                <tr>
+                  <th scope="rowgroup" colSpan={columnCount} className={styles.workoutHead}>
+                    <h2 className={styles.workoutName}>{workout.name}</h2>{" "}
+                    {workout.planned_exercises.length > 0 && (
+                      <span className={styles.workoutMeta}>
+                        {exerciseCount(workout.planned_exercises.length)}
+                      </span>
+                    )}
+                  </th>
+                </tr>
+
+                {workout.planned_exercises.length === 0 ? (
+                  <tr>
+                    <td className={styles.bandEmpty} colSpan={columnCount}>
+                      No exercises yet.
+                    </td>
+                  </tr>
+                ) : (
+                  workout.planned_exercises.map((planned) => (
+                    <ExerciseRow key={planned.id} planned={planned} microcycles={microcycles} />
+                  ))
+                )}
+              </tbody>
+            ))
+          )}
+        </table>
+      </div>
+
+      {/* The badges alone are only decodable by hovering their title, which
+          never happens on touch — so the abbreviations in play are spelled out. */}
+      {phasesInUse.length > 0 && (
+        <section className={styles.legend} aria-label="Phase key">
+          {phasesInUse.map((phase) => (
+            <span key={phase} className={styles.legendItem}>
+              <span className={styles.phase} data-phase={phase} aria-hidden="true">
+                {phaseLabel(phase)}
+              </span>{" "}
+              {phase}
+            </span>
+          ))}
+        </section>
+      )}
+    </>
+  );
+}
+
+// The abbreviation is for the eye only; screen readers get the full phase name
+// rather than an unpronounceable "INTENS".
+function PhaseBadge({ phase }: { phase: Phase }) {
+  return (
+    <span className={styles.phase} data-phase={phase} title={phase}>
+      <span aria-hidden="true">{phaseLabel(phase)}</span>
+      <span className={styles.srOnly}>{phase}</span>
+    </span>
   );
 }
 

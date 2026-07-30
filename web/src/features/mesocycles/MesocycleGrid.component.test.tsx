@@ -120,6 +120,39 @@ describe("MesocycleGrid", () => {
     expect(week2).toHaveTextContent("—");
   });
 
+  it("announces the full phase name rather than the abbreviation", () => {
+    render(<MesocycleGrid microcycles={weeks} workouts={workouts} />);
+
+    const header = screen.getAllByRole("columnheader")[0];
+    expect(within(header).getByText("Accumulation")).toBeInTheDocument();
+  });
+
+  it("spells out the abbreviations of the phases in use, and only those", () => {
+    render(
+      <MesocycleGrid
+        microcycles={[...weeks, { id: 12, position: 2, phase: "Deload" }]}
+        workouts={workouts}
+      />,
+    );
+
+    const legend = screen.getByRole("region", { name: "Phase key" });
+    expect(legend).toHaveTextContent("ACCUM Accumulation");
+    expect(legend).toHaveTextContent("DELOAD Deload");
+    expect(legend).not.toHaveTextContent("Intensification");
+  });
+
+  it("omits the legend when no week has a phase", () => {
+    render(<MesocycleGrid microcycles={[{ id: 10, position: 0, phase: null }]} workouts={workouts} />);
+
+    expect(screen.queryByRole("region", { name: "Phase key" })).not.toBeInTheDocument();
+  });
+
+  it("makes the scrolling grid reachable by keyboard", () => {
+    render(<MesocycleGrid microcycles={weeks} workouts={workouts} />);
+
+    expect(screen.getByRole("region", { name: "Plan grid" })).toHaveAttribute("tabindex", "0");
+  });
+
   it("shows a placeholder for a mesocycle with weeks but no workouts", () => {
     render(<MesocycleGrid microcycles={weeks} workouts={[]} />);
 

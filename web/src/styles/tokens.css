@@ -14,10 +14,12 @@
   --accent: #2f43d4;
   --danger: #b2503f;
 
-  /* Phase badges: a foreground/background pair per training phase. */
-  --phase-accumulation-fg: #4a7a5a;
+  /* Phase badges: a foreground/background pair per training phase. The
+     foregrounds are darkened from the prototype's to clear WCAG AA (4.5:1) at
+     the badge's small type — 4.66, 4.61 and 5.16 respectively. */
+  --phase-accumulation-fg: #447153;
   --phase-accumulation-bg: #e3ece5;
-  --phase-intensification-fg: #8a6a2f;
+  --phase-intensification-fg: #80622b;
   --phase-intensification-bg: #efe7d5;
   --phase-deload-fg: #4a5d80;
   --phase-deload-bg: #dfe3ec;

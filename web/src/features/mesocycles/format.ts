@@ -11,6 +11,9 @@ const PHASE_LABELS: Record<Phase, string> = {
   Deload: "DELOAD",
 };
 
+/** Every phase, in training order — the record's key order. */
+export const PHASE_ORDER = Object.keys(PHASE_LABELS) as Phase[];
+
 /**
  * The week header's phase badge, abbreviated to keep the column narrow. An
  * unrecognized phase falls through to its raw name rather than rendering blank.

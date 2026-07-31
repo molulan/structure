@@ -1,11 +1,26 @@
-import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 
 vi.mock("../../lib/apiClient", async () => (await import("../../test/apiMock")).mockApiModule());
 import { api } from "../../lib/apiClient";
 import { Workbench } from "./Workbench";
 
 const mockApi = vi.mocked(api);
+
+// `mockApi` is the app's own client — the singleton every screen outside this
+// page uses. Asserting it stays untouched is the real invariant: the workbench
+// substitutes `offlineApi` for its stages, and anything reaching past that
+// substitution lands here instead.
+function expectNothingSent() {
+  for (const [name, method] of Object.entries(mockApi)) {
+    expect(method, `${name} was called`).not.toHaveBeenCalled();
+  }
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe("Workbench", () => {
   // The page's one load-bearing rule. It has to render with the backend
@@ -15,9 +30,25 @@ describe("Workbench", () => {
   it("renders every stage without calling the API", () => {
     render(<Workbench />);
 
-    for (const [name, method] of Object.entries(mockApi)) {
-      expect(method, `${name} was called`).not.toHaveBeenCalled();
-    }
+    expectNothingSent();
+  });
+
+  // Rendering was never the risky half: every control here is a real one, and a
+  // sentinel mesocycle id only ever covered the two mutations that take one.
+  it("sends nothing when its live controls are pressed", async () => {
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<Workbench />);
+
+    // Addressed by the workout's own id, so the sentinel never applied to it.
+    await userEvent.click(screen.getByRole("button", { name: "Delete Legs" }));
+
+    // Not scoped to a mesocycle at all: this one wrote a real library row.
+    await userEvent.click(screen.getAllByRole("button", { name: "New exercise…" })[0]);
+    await userEvent.type(screen.getByLabelText("Exercise name"), "Zercher Squat");
+    await userEvent.click(screen.getByRole("button", { name: "Create and add" }));
+
+    expectNothingSent();
+    confirm.mockRestore();
   });
 
   // The page's chrome labels its specimens without ranking above them: a
@@ -50,5 +81,20 @@ describe("Workbench", () => {
     expect(screen.getAllByText("No exercises yet.")).not.toHaveLength(0);
     expect(screen.getAllByText("No weeks yet.")).not.toHaveLength(0);
     expect(screen.getAllByText("No workouts yet.")).not.toHaveLength(0);
+  });
+
+  // Dismiss is one of the states these stages exist to show, so the banner has
+  // to be restorable — otherwise the first click empties the stage for good.
+  it("raises a dismissed banner again", async () => {
+    render(<Workbench />);
+
+    const stage = screen.getByRole("article", { name: "Request failed" });
+    await userEvent.click(within(stage).getByRole("button", { name: "Dismiss" }));
+    expect(within(stage).queryByRole("alert")).not.toBeInTheDocument();
+
+    await userEvent.click(within(stage).getByRole("button", { name: "Raise again" }));
+    expect(within(stage).getByRole("alert")).toHaveTextContent(
+      'A workout named "Push" already exists',
+    );
   });
 });

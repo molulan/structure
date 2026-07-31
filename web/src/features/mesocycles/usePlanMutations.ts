@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { api } from "../../lib/apiClient";
+import { useApi } from "../../lib/ApiProvider";
 import type { CreateLibraryExercise, Phase } from "../../api/types";
 import { fullMesocycleKey } from "./useFullMesocycle";
 import { mesocyclesKey } from "./useMesocycles";
@@ -30,14 +30,17 @@ function useGridMutation<TArgs>(mesocycleId: number, mutationFn: (args: TArgs) =
 }
 
 export function useAddWeek(mesocycleId: number) {
+  const api = useApi();
   return useGridMutation<void>(mesocycleId, () => api.addMicrocycle(mesocycleId));
 }
 
 export function useDeleteWeek(mesocycleId: number) {
+  const api = useApi();
   return useGridMutation<number>(mesocycleId, (microcycleId) => api.deleteMicrocycle(microcycleId));
 }
 
 export function useSetPhase(mesocycleId: number) {
+  const api = useApi();
   return useGridMutation<{ microcycleId: number; phase: Phase | null }>(
     mesocycleId,
     ({ microcycleId, phase }) => api.setMicrocyclePhase(microcycleId, phase),
@@ -45,20 +48,24 @@ export function useSetPhase(mesocycleId: number) {
 }
 
 export function useAddWorkout(mesocycleId: number) {
+  const api = useApi();
   return useGridMutation<string>(mesocycleId, (name) => api.addWorkout(mesocycleId, name));
 }
 
 export function useRenameWorkout(mesocycleId: number) {
+  const api = useApi();
   return useGridMutation<{ workoutId: number; name: string }>(mesocycleId, ({ workoutId, name }) =>
     api.renameWorkout(workoutId, name),
   );
 }
 
 export function useDeleteWorkout(mesocycleId: number) {
+  const api = useApi();
   return useGridMutation<number>(mesocycleId, (workoutId) => api.deleteWorkout(workoutId));
 }
 
 export function useAddPlannedExercise(mesocycleId: number) {
+  const api = useApi();
   return useGridMutation<{ workoutId: number; libraryExerciseId: number }>(
     mesocycleId,
     ({ workoutId, libraryExerciseId }) => api.addPlannedExercise(workoutId, libraryExerciseId),
@@ -66,6 +73,7 @@ export function useAddPlannedExercise(mesocycleId: number) {
 }
 
 export function useDeletePlannedExercise(mesocycleId: number) {
+  const api = useApi();
   return useGridMutation<number>(mesocycleId, (plannedExerciseId) =>
     api.deletePlannedExercise(plannedExerciseId),
   );
@@ -74,6 +82,7 @@ export function useDeletePlannedExercise(mesocycleId: number) {
 export const libraryExercisesKey = ["library-exercises"] as const;
 
 export function useLibraryExercises() {
+  const api = useApi();
   return useQuery({
     queryKey: libraryExercisesKey,
     queryFn: () => api.listLibraryExercises(),
@@ -82,6 +91,7 @@ export function useLibraryExercises() {
 
 /** Adds to the library; the caller decides whether to place it in a workout. */
 export function useCreateLibraryExercise() {
+  const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (body: CreateLibraryExercise) => api.createLibraryExercise(body),

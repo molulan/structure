@@ -1,14 +1,23 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError } from "../../api/client";
-import type { FullPlannedExercise, FullWorkout, LibraryExercise } from "../../api/types";
-import { benchPress, pushWorkout, squat, weeks } from "../../test/planFixtures";
+import type { FullWorkout, LibraryExercise } from "../../api/types";
+import { ApiProvider } from "../../lib/ApiProvider";
 import { AddExercise } from "../mesocycles/AddExercise";
 import { GridFrame } from "../mesocycles/GridFrame";
 import { MesocycleGrid } from "../mesocycles/MesocycleGrid";
 import { PlanErrors, usePlanErrorSink } from "../mesocycles/PlanErrors";
 import { WorkoutBand } from "../mesocycles/WorkoutBand";
 import { libraryExercisesKey } from "../mesocycles/usePlanMutations";
+import {
+  benchPress,
+  emptyWorkout,
+  longNamedWorkout,
+  pushWorkout,
+  squat,
+  weeks,
+} from "./fixtures";
+import { offlineApi } from "./offlineApi";
 import styles from "./Workbench.module.css";
 
 /**
@@ -24,9 +33,11 @@ import styles from "./Workbench.module.css";
  *
  * Two rules keep it useful:
  *
- * - **Nothing here touches the network.** Reads are seeded into each stage's own
- *   query cache and never refetched, so the page renders identically with no
- *   backend running — and `npm run shot`, which fails on any 4xx, stays honest.
+ * - **Nothing here reaches the network.** Each stage gets `offlineApi`, whose
+ *   every method rejects, so the page renders and behaves identically with no
+ *   backend running and no control can edit real data — whatever id it carries.
+ *   Reads are seeded into the stage's own query cache and pinned fresh, so a
+ *   stage shows its state rather than a failed load.
  * - **Only states the seed cannot reach.** Anything visible at `/mesocycles/1`
  *   belongs there instead; a second copy would just be a second thing to update.
  */
@@ -37,7 +48,8 @@ export function Workbench() {
         <h1 className={styles.pageTitle}>Workbench</h1>
         <p className={styles.pageNote}>
           Plan states that seed data can&apos;t produce, rendered from fixtures. The controls are
-          live but point at no mesocycle, so pressing one fails by design.
+          the real ones, wired to a client with no backend behind it: pressing one reports a
+          failure without sending anything.
         </p>
       </header>
 
@@ -116,43 +128,13 @@ export function Workbench() {
   );
 }
 
-// No mesocycle has this id. The edit controls below are the real ones and fire
-// real requests when clicked, so they have to land on nothing rather than on
-// whatever `dev.db` currently holds.
+// The grid needs a mesocycle id and no request is ever sent, so the value only
+// has to be recognisable while reading the stages.
 const NOWHERE = 0x7fffffff;
 
 // Hoisted so the effect that reports them doesn't see a new object each render.
 const conflict = new ApiError(409, 'A workout named "Push" already exists in this mesocycle.');
 const offline = new TypeError("Failed to fetch");
-
-const emptyWorkout: FullWorkout = {
-  id: 200,
-  name: "Legs",
-  position: 1,
-  planned_exercises: [],
-};
-
-const longNamedExercise: LibraryExercise = {
-  id: 3,
-  name: "Single-Leg Romanian Deadlift (Dumbbell, Deficit)",
-  exercise_type: "Weighted",
-  primary_muscle_group: "Hamstrings",
-  secondary_muscle_groups: ["Glutes", "Back"],
-};
-
-const longNamedPlanned: FullPlannedExercise = {
-  id: 2000,
-  position: 0,
-  exercise: longNamedExercise,
-  prescriptions: weeks.map((week) => ({ microcycle_id: week.id, set_groups: [] })),
-};
-
-const longNamedWorkout: FullWorkout = {
-  id: 201,
-  name: "Lower Body — Hamstring and Glute Emphasis, Deload Variant",
-  position: 2,
-  planned_exercises: [longNamedPlanned],
-};
 
 /*
  * The group and stage labels are placards about the specimen, not content
@@ -183,20 +165,12 @@ function Stage({
   children: ReactNode;
 }) {
   // One client per stage, because the states differ in what the library holds.
-  // Seeded rather than fetched, and pinned fresh so nothing ever goes to the
-  // network — the page has to render the same with the backend stopped.
+  // `staleTime: Infinity` is the whole of it: seeded data that never goes stale
+  // is never refetched on mount, on focus or on reconnect, so each stage shows
+  // the library it was given rather than a load that failed against `offlineApi`.
   const [client] = useState(() => {
     const seeded = new QueryClient({
-      defaultOptions: {
-        queries: {
-          retry: false,
-          staleTime: Infinity,
-          gcTime: Infinity,
-          refetchOnMount: false,
-          refetchOnWindowFocus: false,
-          refetchOnReconnect: false,
-        },
-      },
+      defaultOptions: { queries: { staleTime: Infinity } },
     });
     seeded.setQueryData(libraryExercisesKey, library ?? []);
     return seeded;
@@ -209,17 +183,31 @@ function Stage({
         <p className={styles.stageNote}>{note}</p>
       </div>
       <div className={styles.frame}>
-        <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        <QueryClientProvider client={client}>
+          <ApiProvider client={offlineApi}>{children}</ApiProvider>
+        </QueryClientProvider>
       </div>
     </article>
   );
 }
 
-/** Puts a failure on the banner without one: the sink is what a failed edit calls. */
+/**
+ * Puts a failure on the banner without one: the sink is what a failed edit
+ * calls. Dismiss is part of what these stages exist to show, so raising it
+ * again has to be possible — otherwise the first click empties the stage until
+ * the page is reloaded.
+ */
 function Report({ error }: { error: unknown }) {
   const { report } = usePlanErrorSink();
-  useEffect(() => report(error), [report, error]);
-  return null;
+  const [raised, setRaised] = useState(0);
+
+  useEffect(() => report(error), [report, error, raised]);
+
+  return (
+    <button className={styles.raise} type="button" onClick={() => setRaised((n) => n + 1)}>
+      Raise again
+    </button>
+  );
 }
 
 /**

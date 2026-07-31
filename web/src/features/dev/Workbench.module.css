@@ -79,6 +79,20 @@
   font-size: 0.8125rem;
 }
 
+/* Puts a dismissed banner back. Page chrome rather than part of the specimen,
+   so it reads as a plain link and not as one of the component's own buttons. */
+.raise {
+  margin-top: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /*
  * The component sits on the app's own background rather than the card's, so a
  * contrast that only works against `--surface` can't pass unnoticed here.

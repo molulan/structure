@@ -5,6 +5,7 @@ import { renderWithClient } from "../../test/renderWithClient";
 import { pushWorkout, weeks } from "../../test/planFixtures";
 import type { FullWorkout } from "../../api/types";
 import { ApiError } from "../../api/client";
+import { GridFrame } from "./GridFrame";
 import { PlanErrors } from "./PlanErrors";
 import { WorkoutBand } from "./WorkoutBand";
 
@@ -14,13 +15,15 @@ const mockApi = vi.mocked(api);
 
 const MESOCYCLE_ID = 7;
 
-// A tbody needs a table around it to render at all.
+// A tbody needs a table around it to render at all — the app's own, not one
+// built here. A hand-made `<table>` has no header row, which is what sizes the
+// columns, so these tests would keep passing against a shape the app dropped.
 function renderBand(workout: FullWorkout = pushWorkout) {
   return renderWithClient(
     <PlanErrors>
-      <table>
+      <GridFrame mesocycleId={MESOCYCLE_ID} microcycles={weeks}>
         <WorkoutBand mesocycleId={MESOCYCLE_ID} workout={workout} microcycles={weeks} />
-      </table>
+      </GridFrame>
     </PlanErrors>,
   );
 }
@@ -166,9 +169,9 @@ describe("WorkoutBand", () => {
   it("keeps the row as wide as the header when there are no weeks", () => {
     renderWithClient(
       <PlanErrors>
-        <table>
+        <GridFrame mesocycleId={MESOCYCLE_ID} microcycles={[]}>
           <WorkoutBand mesocycleId={MESOCYCLE_ID} workout={pushWorkout} microcycles={[]} />
-        </table>
+        </GridFrame>
       </PlanErrors>,
     );
 

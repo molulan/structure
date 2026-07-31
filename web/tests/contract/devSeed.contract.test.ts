@@ -1,6 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createApiClient, type ApiClient } from "../../src/api/client";
 import {
+  ensureFixturePlans,
   FIXTURE_PLAN_NAMES,
   REFERENCE_PLAN_NAME,
   seedDevPlan,
@@ -14,13 +15,15 @@ import {
 // same gate that guards the client's types guards the data we develop against.
 
 let api: ApiClient;
+let baseUrl: string;
 let planId: number;
 
 beforeAll(async () => {
-  const baseUrl = process.env.STRUCTURE_API_BASE;
-  if (!baseUrl) {
+  const configured = process.env.STRUCTURE_API_BASE;
+  if (!configured) {
     throw new Error("STRUCTURE_API_BASE not set — global setup did not run");
   }
+  baseUrl = configured;
   api = createApiClient(baseUrl);
   planId = await seedDevPlan(baseUrl);
 }, 120_000);
@@ -97,6 +100,17 @@ describe("dev seed contract", () => {
     expect(weeksFirst.microcycles).toHaveLength(3);
     expect(weeksFirst.workouts).toHaveLength(1);
     expect(weeksFirst.workouts[0].planned_exercises).toHaveLength(0);
+  });
+
+  // `npm run app` calls this on every start against a database it will not
+  // reseed, so it has to add nothing when the fixtures are already there. The
+  // cost of getting it wrong is a dev database that grows a duplicate set of
+  // plans every boot.
+  it("adds nothing when the fixture plans are already present", async () => {
+    const before = await api.listMesocycles();
+
+    expect(await ensureFixturePlans(baseUrl)).toEqual([]);
+    expect(await api.listMesocycles()).toHaveLength(before.length);
   });
 
   it("leaves at least one cell unprescribed, so the empty state is on screen too", async () => {

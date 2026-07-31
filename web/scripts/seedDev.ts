@@ -276,41 +276,79 @@ export async function seedDevPlan(baseUrl: string): Promise<number> {
     }
   }
 
-  await seedFixturePlans(api, existing);
+  await ensureFixturePlans(baseUrl);
 
   return mesocycle.id;
 }
 
 /**
- * The half-built states, seeded rather than mocked on the workbench: seeded they
- * stay clickable, so "+ Week" on an empty plan can be watched actually working.
- * Each is defined by what it *lacks*, which is why the seed contract test pins
- * their shape — nothing here would fail if a future server started handing out
- * a first week with every new mesocycle.
+ * How to build each fixture plan, keyed by the name that identifies it — keyed
+ * rather than a sequence because they are ensured one at a time, and a database
+ * already holding two of them should gain only the third.
+ *
+ * They are seeded rather than mocked on the workbench because seeded they stay
+ * clickable: "+ Week" on an empty plan can be watched actually working. Each is
+ * defined by what it *lacks*, which is why the seed contract test pins their
+ * shape — nothing here would fail if a future server started handing out a first
+ * week with every new mesocycle.
  */
-async function seedFixturePlans(api: ApiClient, library: Map<string, number>): Promise<void> {
-  await api.createMesocycle({ name: FIXTURE_PLAN_NAMES.empty, mode: "Manual" });
+const FIXTURE_PLANS: Record<
+  string,
+  (api: ApiClient, library: Map<string, number>) => Promise<void>
+> = {
+  [FIXTURE_PLAN_NAMES.empty]: async (api) => {
+    await api.createMesocycle({ name: FIXTURE_PLAN_NAMES.empty, mode: "Manual" });
+  },
 
-  const exercisesFirst = await api.createMesocycle({
-    name: FIXTURE_PLAN_NAMES.exercisesFirst,
-    mode: "Manual",
-  });
-  const push = await api.addWorkout(exercisesFirst.id, "Push");
-  await api.addPlannedExercise(push.id, requireExercise(library, "Barbell Bench Press"));
-  await api.addPlannedExercise(push.id, requireExercise(library, "Seated Overhead Press"));
-  const pull = await api.addWorkout(exercisesFirst.id, "Pull");
-  await api.addPlannedExercise(pull.id, requireExercise(library, "Barbell Row"));
+  [FIXTURE_PLAN_NAMES.exercisesFirst]: async (api, library) => {
+    const plan = await api.createMesocycle({
+      name: FIXTURE_PLAN_NAMES.exercisesFirst,
+      mode: "Manual",
+    });
+    const push = await api.addWorkout(plan.id, "Push");
+    await api.addPlannedExercise(push.id, requireExercise(library, "Barbell Bench Press"));
+    await api.addPlannedExercise(push.id, requireExercise(library, "Seated Overhead Press"));
+    const pull = await api.addWorkout(plan.id, "Pull");
+    await api.addPlannedExercise(pull.id, requireExercise(library, "Barbell Row"));
+  },
 
-  const weeksFirst = await api.createMesocycle({
-    name: FIXTURE_PLAN_NAMES.weeksFirst,
-    mode: "Manual",
-  });
-  for (let week = 0; week < 3; week += 1) {
-    await api.addMicrocycle(weeksFirst.id);
+  [FIXTURE_PLAN_NAMES.weeksFirst]: async (api) => {
+    const plan = await api.createMesocycle({
+      name: FIXTURE_PLAN_NAMES.weeksFirst,
+      mode: "Manual",
+    });
+    for (let week = 0; week < 3; week += 1) {
+      await api.addMicrocycle(plan.id);
+    }
+    // Left empty on purpose: an added workout with nothing in it yet is a state
+    // of its own, and it needs weeks around it to show the band spanning them.
+    await api.addWorkout(plan.id, "Legs");
+  },
+};
+
+/**
+ * Creates whichever fixture plans are absent and returns their names, touching
+ * nothing else.
+ *
+ * The dev database is deliberately long-lived, so it is only seeded when empty —
+ * which would leave everyone who ran `npm run app` before these existed without
+ * them, and with no sign that anything was missing. The fixtures are the seed's
+ * to maintain, unlike the block you build on; identifying them by name is what
+ * keeps this from duplicating them on a database that already has them.
+ */
+export async function ensureFixturePlans(baseUrl: string): Promise<string[]> {
+  const api = createApiClient(baseUrl);
+  const present = new Set((await api.listMesocycles()).map((plan) => plan.name));
+  const missing = Object.keys(FIXTURE_PLANS).filter((name) => !present.has(name));
+  if (missing.length === 0) return [];
+
+  const library = new Map((await api.listLibraryExercises()).map((e) => [e.name, e.id]));
+  for (const [name, build] of Object.entries(FIXTURE_PLANS)) {
+    if (present.has(name)) continue;
+    await build(api, library);
   }
-  // Left empty on purpose: an added workout with nothing in it yet is a state
-  // of its own, and it needs weeks around it to show the band spanning them.
-  await api.addWorkout(weeksFirst.id, "Legs");
+
+  return missing;
 }
 
 // A rename in `PLAN` would otherwise leave the draft silently empty, which is

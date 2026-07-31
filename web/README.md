@@ -46,6 +46,11 @@ an empty plan and watch the first column appear. `devSeed.contract.test.ts` pins
 their shape, since each is defined by what it lacks and the seed states that
 nowhere: it simply never makes the call.
 
+The reference block is only ever built into an empty database, but the three
+fixture plans are topped up on every start — they belong to the seed rather than
+to you, so a `dev.db` from before they existed gains them without your hand-built
+data being reset away. Delete one and it comes back next boot; that is the trade.
+
 Three behaviours worth knowing:
 
 - If something is **already serving `:3000`**, that backend is reused and *never

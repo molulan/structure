@@ -40,7 +40,7 @@ describe("Workbench", () => {
     render(<Workbench />);
 
     // Addressed by the workout's own id, so the sentinel never applied to it.
-    await userEvent.click(screen.getByRole("button", { name: "Delete Legs" }));
+    await userEvent.click(screen.getByRole("button", { name: /^Delete Lower Body/ }));
 
     // Not scoped to a mesocycle at all: this one wrote a real library row.
     await userEvent.click(screen.getAllByRole("button", { name: "New exercise…" })[0]);
@@ -64,23 +64,26 @@ describe("Workbench", () => {
     expect(levels.slice(1).every((level) => level === 2)).toBe(true);
   });
 
-  it("shows the failure states that seed data cannot reach", () => {
+  it("shows the states a database has no way to hold", () => {
     render(<Workbench />);
 
-    const banners = screen.getAllByRole("alert");
-    expect(banners.map((banner) => banner.textContent)).toEqual([
+    // A rejected edit and a transport failure — no row can express either.
+    expect(screen.getAllByRole("alert").map((banner) => banner.textContent)).toEqual([
       expect.stringContaining('A workout named "Push" already exists'),
       expect.stringContaining("Failed to fetch"),
     ]);
 
     // An exhausted library and an empty one are distinct states that the picker
-    // currently renders identically; both stages exist to keep that visible.
-    expect(screen.getAllByRole("combobox", { name: /Exercise to add to/ }).length).toBeGreaterThan(
-      0,
-    );
-    expect(screen.getAllByText("No exercises yet.")).not.toHaveLength(0);
-    expect(screen.getAllByText("No weeks yet.")).not.toHaveLength(0);
-    expect(screen.getAllByText("No workouts yet.")).not.toHaveLength(0);
+    // currently renders identically; both stages exist to keep that visible,
+    // and an empty library can't be seeded beside a plan that references one.
+    const pickers = screen.getAllByRole("combobox", { name: /Exercise to add to/ });
+    expect(
+      pickers.filter((picker) => picker.textContent?.includes("All exercises added")),
+    ).toHaveLength(2);
+
+    // Adversarial input rather than a state: seeding it would spoil every other
+    // screenshot of the demo plan.
+    expect(screen.getByRole("heading", { name: /Hamstring and Glute Emphasis/ })).toBeInTheDocument();
   });
 
   // Dismiss is one of the states these stages exist to show, so the banner has

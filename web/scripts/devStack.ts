@@ -3,7 +3,12 @@ import { rmSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { seedDevPlan, SEEDED_EXERCISE_COUNT, SEEDED_WORKOUT_COUNT } from "./seedDev";
+import {
+  FIXTURE_PLAN_NAMES,
+  seedDevPlan,
+  SEEDED_EXERCISE_COUNT,
+  SEEDED_WORKOUT_COUNT,
+} from "./seedDev";
 
 // One command that leaves the whole app running and worth looking at: the Axum
 // backend against a persistent dev database, that database populated if it is
@@ -221,7 +226,8 @@ async function ensureSeeded(): Promise<number | null> {
   console.log("data: empty, seeding a four-week block");
   const id = await seedDevPlan(API_URL);
   console.log(
-    `data: seeded ${SEEDED_WORKOUT_COUNT} workouts / ${SEEDED_EXERCISE_COUNT} exercises over 4 weeks`,
+    `data: seeded ${SEEDED_WORKOUT_COUNT} workouts / ${SEEDED_EXERCISE_COUNT} exercises over 4 weeks,` +
+      ` plus ${Object.keys(FIXTURE_PLAN_NAMES).length} plans caught mid-build`,
   );
   return id;
 }

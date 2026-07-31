@@ -29,6 +29,23 @@ seeded plan, and Ctrl-C stops both halves.
 there next time. `npm run app:reset` deletes it and reseeds. The seed itself is
 `scripts/seedDev.ts`; extend it when a screen needs data the block doesn't have.
 
+It builds four plans. One is a realistic four-week block — the reference, and the
+one the banner links to. The other three are plans caught mid-build, named for
+what they are because they are fixtures:
+
+| Plan | Shape |
+|---|---|
+| `Upper/Lower Hypertrophy` | four weeks, four workouts, every set-group encoding |
+| `Empty — no weeks or workouts` | nothing yet: both empty notices at once |
+| `Draft — exercises first` | two workouts with exercises, no weeks |
+| `Draft — weeks first` | three weeks, one workout still empty |
+
+Degenerate states belong here rather than on the workbench whenever a database
+can hold them, because seeded they stay **clickable** — you can press "+ Week" on
+an empty plan and watch the first column appear. `devSeed.contract.test.ts` pins
+their shape, since each is defined by what it lacks and the seed states that
+nowhere: it simply never makes the call.
+
 Three behaviours worth knowing:
 
 - If something is **already serving `:3000`**, that backend is reused and *never
@@ -78,6 +95,33 @@ server earns its keep on interaction: what a dropdown does when open, what a cel
 looks like mid-edit, which request a click actually fired.
 
 [mcp]: https://github.com/microsoft/playwright-mcp
+
+### The workbench
+
+```bash
+npm run shot -- /dev/workbench
+```
+
+A development-only route holding the plan states a **database has no way to
+hold**. Three kinds qualify, and nothing else belongs there:
+
+1. **States no data can produce** — a rejected edit, a `fetch` that never got a
+   status. No row expresses "the request came back 409".
+2. **States that contradict the seed's other content** — an empty library can't
+   coexist with a plan, since planned exercises reference library rows.
+3. **Adversarial input that isn't a state** — a name at length is a stress test,
+   and seeding one would degrade every other screenshot.
+
+Anything else that a plan can actually be in goes in `scripts/seedDev.ts`.
+
+Two rules keep the page honest. It **mounts the app's own wrappers** — the real
+`GridFrame`, not a copy — so a layout judged there is the layout that ships.
+And it **cannot reach the network**: each stage substitutes an API client whose
+every method rejects, via `ApiProvider`, so no control can edit real data
+whatever id it carries. That isn't a nicety — `npm run shot` fails on any 4xx,
+so a stage that fetched would break the screenshot loop for whoever was using it
+to look at something else. A component test presses a delete and creates a
+library exercise, then asserts the app's real client was never touched.
 
 ## Verify
 

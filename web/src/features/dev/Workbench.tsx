@@ -5,41 +5,35 @@ import type { FullWorkout, LibraryExercise } from "../../api/types";
 import { ApiProvider } from "../../lib/ApiProvider";
 import { AddExercise } from "../mesocycles/AddExercise";
 import { GridFrame } from "../mesocycles/GridFrame";
-import { MesocycleGrid } from "../mesocycles/MesocycleGrid";
 import { PlanErrors, usePlanErrorSink } from "../mesocycles/PlanErrors";
 import { WorkoutBand } from "../mesocycles/WorkoutBand";
 import { libraryExercisesKey } from "../mesocycles/usePlanMutations";
-import {
-  benchPress,
-  emptyWorkout,
-  longNamedWorkout,
-  pushWorkout,
-  squat,
-  weeks,
-} from "./fixtures";
+import { benchPress, longNamedWorkout, pushWorkout, squat, weeks } from "./fixtures";
 import { offlineApi } from "./offlineApi";
 import styles from "./Workbench.module.css";
 
 /**
- * Every plan screen state that seed data cannot produce, on one page.
+ * The plan screen states that seed data has no way to hold, on one page.
  *
- * `npm run app` covers the *domain's* state space — `scripts/seedDev.ts` puts a
- * four-week block on screen with every set-group encoding the grid can render.
- * What no seed reaches is the *app's* state space: a request that failed, a
- * library with nothing left to offer, a plan with exercises but no weeks. Those
- * live here, rendered from fixtures so they are always one URL away:
+ * Most degenerate states *are* seedable, and belong in `scripts/seedDev.ts`
+ * instead — seeded they stay clickable, so "+ Week" on an empty plan can be
+ * watched actually working, where everything here is frozen by construction.
+ * Three kinds don't fit in a database and live here:
+ *
+ * 1. **States no data can produce** — a rejected edit, a `fetch` that never got
+ *    a status. A row cannot express "the request came back 409".
+ * 2. **States that contradict the seed's other content** — an empty library
+ *    can't coexist with a plan, since planned exercises reference library rows.
+ * 3. **Adversarial input that isn't a state at all** — a name at length is a
+ *    stress test, and seeding one would degrade every other screenshot.
  *
  *     npm run shot -- /dev/workbench
  *
- * Two rules keep it useful:
- *
- * - **Nothing here reaches the network.** Each stage gets `offlineApi`, whose
- *   every method rejects, so the page renders and behaves identically with no
- *   backend running and no control can edit real data — whatever id it carries.
- *   Reads are seeded into the stage's own query cache and pinned fresh, so a
- *   stage shows its state rather than a failed load.
- * - **Only states the seed cannot reach.** Anything visible at `/mesocycles/1`
- *   belongs there instead; a second copy would just be a second thing to update.
+ * **Nothing here reaches the network.** Each stage gets `offlineApi`, whose
+ * every method rejects, so the page renders and behaves identically with no
+ * backend running and no control can edit real data — whatever id it carries.
+ * Reads are seeded into the stage's own query cache and pinned fresh, so a stage
+ * shows its state rather than a failed load.
  */
 export function Workbench() {
   return (
@@ -47,9 +41,10 @@ export function Workbench() {
       <header className={styles.pageHead}>
         <h1 className={styles.pageTitle}>Workbench</h1>
         <p className={styles.pageNote}>
-          Plan states that seed data can&apos;t produce, rendered from fixtures. The controls are
-          the real ones, wired to a client with no backend behind it: pressing one reports a
-          failure without sending anything.
+          Plan states a database has no way to hold, rendered from fixtures — everything else
+          lives in the seed, where it stays clickable. The controls here are the real ones, wired
+          to a client with no backend behind it: pressing one reports a failure without sending
+          anything.
         </p>
       </header>
 
@@ -67,29 +62,7 @@ export function Workbench() {
         </Stage>
       </Group>
 
-      <Group name="MesocycleGrid">
-        <Stage title="Fresh mesocycle" note="Nothing prescribed yet — both notices at once.">
-          <MesocycleGrid mesocycleId={NOWHERE} microcycles={[]} workouts={[]} />
-        </Stage>
-
-        <Stage
-          title="Exercises before weeks"
-          note="A plan can hold exercises with no weeks to prescribe them in."
-          library={[squat]}
-        >
-          <MesocycleGrid mesocycleId={NOWHERE} microcycles={[]} workouts={[pushWorkout]} />
-        </Stage>
-
-        <Stage title="Weeks, no workouts" note="Columns with nothing under them.">
-          <MesocycleGrid mesocycleId={NOWHERE} microcycles={weeks} workouts={[]} />
-        </Stage>
-      </Group>
-
       <Group name="WorkoutBand">
-        <Stage title="Empty workout" note="Added, not yet filled." library={[benchPress, squat]}>
-          <Band workout={emptyWorkout} />
-        </Stage>
-
         <Stage
           title="Names at length"
           note="Where the row header and band heading give out."

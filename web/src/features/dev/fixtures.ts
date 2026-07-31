@@ -78,13 +78,6 @@ export const pushWorkout: FullWorkout = {
   ],
 };
 
-export const emptyWorkout: FullWorkout = {
-  id: 200,
-  name: "Legs",
-  position: 1,
-  planned_exercises: [],
-};
-
 const longNamedPlanned: FullPlannedExercise = {
   id: 2000,
   position: 0,

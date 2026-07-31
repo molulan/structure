@@ -185,13 +185,14 @@ function Report({ error }: { error: unknown }) {
 
 /**
  * A band is a `<tbody>`, so it only lays out inside the grid's own table — the
- * real `GridFrame`, not a copy of it, or this page would report on a container
- * the app doesn't have.
+ * real `GridFrame`, not a copy of it. The header row it brings is what decides
+ * the column widths under `table-layout: fixed`, so a name is judged here at
+ * the 190px the label column is everywhere else.
  */
 function Band({ workout }: { workout: FullWorkout }) {
   return (
     <PlanErrors>
-      <GridFrame>
+      <GridFrame mesocycleId={NOWHERE} microcycles={weeks}>
         <WorkoutBand mesocycleId={NOWHERE} workout={workout} microcycles={weeks} />
       </GridFrame>
     </PlanErrors>

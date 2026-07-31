@@ -4,13 +4,11 @@ import { ApiError } from "../../api/client";
 import type { FullPlannedExercise, FullWorkout, LibraryExercise } from "../../api/types";
 import { benchPress, pushWorkout, squat, weeks } from "../../test/planFixtures";
 import { AddExercise } from "../mesocycles/AddExercise";
+import { GridFrame } from "../mesocycles/GridFrame";
 import { MesocycleGrid } from "../mesocycles/MesocycleGrid";
 import { PlanErrors, usePlanErrorSink } from "../mesocycles/PlanErrors";
 import { WorkoutBand } from "../mesocycles/WorkoutBand";
 import { libraryExercisesKey } from "../mesocycles/usePlanMutations";
-// The band is a `<tbody>`: reproducing its real container means borrowing the
-// grid's own table classes rather than approximating them here.
-import gridStyles from "../mesocycles/MesocycleGrid.module.css";
 import styles from "./Workbench.module.css";
 
 /**
@@ -156,10 +154,17 @@ const longNamedWorkout: FullWorkout = {
   planned_exercises: [longNamedPlanned],
 };
 
+/*
+ * The group and stage labels are placards about the specimen, not content
+ * inside it, so they stay out of the heading hierarchy: a `WorkoutBand` heads
+ * itself with an `<h2>`, and chrome ranked above it would invert the outline on
+ * the one page meant for judging how these components read. `aria-label` keeps
+ * each one navigable as a landmark instead.
+ */
 function Group({ name, children }: { name: string; children: ReactNode }) {
   return (
-    <section className={styles.group}>
-      <h2 className={styles.groupName}>{name}</h2>
+    <section className={styles.group} aria-label={name}>
+      <p className={styles.groupName}>{name}</p>
       <div className={styles.stages}>{children}</div>
     </section>
   );
@@ -198,9 +203,9 @@ function Stage({
   });
 
   return (
-    <article className={styles.stage}>
+    <article className={styles.stage} aria-label={title}>
       <div className={styles.stageHead}>
-        <h3 className={styles.stageTitle}>{title}</h3>
+        <p className={styles.stageTitle}>{title}</p>
         <p className={styles.stageNote}>{note}</p>
       </div>
       <div className={styles.frame}>
@@ -217,20 +222,17 @@ function Report({ error }: { error: unknown }) {
   return null;
 }
 
-/** A band is a `<tbody>`, so it only lays out inside the grid's own table. */
+/**
+ * A band is a `<tbody>`, so it only lays out inside the grid's own table — the
+ * real `GridFrame`, not a copy of it, or this page would report on a container
+ * the app doesn't have.
+ */
 function Band({ workout }: { workout: FullWorkout }) {
   return (
     <PlanErrors>
-      <div className={gridStyles.scroll}>
-        <table className={gridStyles.grid}>
-          <WorkoutBand
-            mesocycleId={NOWHERE}
-            workout={workout}
-            microcycles={weeks}
-            columnCount={1 + weeks.length}
-          />
-        </table>
-      </div>
+      <GridFrame>
+        <WorkoutBand mesocycleId={NOWHERE} workout={workout} microcycles={weeks} />
+      </GridFrame>
     </PlanErrors>
   );
 }

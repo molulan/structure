@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { FullMicrocycle, FullPlannedExercise, FullWorkout } from "../../api/types";
 import { describeSetGroup } from "./format";
 import { AddExercise } from "./AddExercise";
+import { gridColumnCount } from "./GridFrame";
 import {
   useDeletePlannedExercise,
   useDeleteWorkout,
@@ -13,11 +14,12 @@ interface Props {
   mesocycleId: number;
   workout: FullWorkout;
   microcycles: FullMicrocycle[];
-  columnCount: number;
 }
 
 /** One workout's row group: its header, its exercise rows, and the add control. */
-export function WorkoutBand({ mesocycleId, workout, microcycles, columnCount }: Props) {
+export function WorkoutBand({ mesocycleId, workout, microcycles }: Props) {
+  const columnCount = gridColumnCount(microcycles);
+
   return (
     <tbody>
       <tr>

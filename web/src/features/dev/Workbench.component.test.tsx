@@ -20,6 +20,19 @@ describe("Workbench", () => {
     }
   });
 
+  // The page's chrome labels its specimens without ranking above them: a
+  // `WorkoutBand` heads itself with an `<h2>`, so a stage `<h3>` around it would
+  // invert the outline on the one page meant for judging how these read.
+  it("leaves the heading outline to the components under test", () => {
+    render(<Workbench />);
+
+    const levels = screen.getAllByRole("heading").map((heading) => Number(heading.tagName[1]));
+
+    expect(levels[0]).toBe(1);
+    expect(levels.slice(1)).not.toHaveLength(0);
+    expect(levels.slice(1).every((level) => level === 2)).toBe(true);
+  });
+
   it("shows the failure states that seed data cannot reach", () => {
     render(<Workbench />);
 

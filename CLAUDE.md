@@ -36,6 +36,12 @@ Every change under `web/` ends with a look at the running app, not just green te
 
 For the times a still frame isn't enough — clicking into a cell, hovering, filling a form, reading the console or network log — `.mcp.json` configures a headless Playwright MCP server against the same running stack. Reach for `npm run shot` first: it answers "does this look right" in one command, where the MCP server costs tool-schema overhead in every session. On `browser_take_screenshot`, omit `filename` so output lands in the gitignored `web/.shots/mcp/`; a relative filename resolves against the repo root instead and leaves junk in the working tree.
 
+### Test harnesses mirror, never reconstruct
+
+A test or dev harness mounts the real thing inside the app's own wrappers, never a hand-built approximation of them — a copy that drifts reports on code that no longer exists, and it misleads in both directions: a green harness hiding a broken app, or a broken harness blamed on the app. Where there is no shared wrapper to reuse, extract one; the harness needing it is a finding about the code, not a licence to duplicate. Prefer making drift unrepresentable — one shared component, a value derived rather than passed — over a check that detects divergence after the fact.
+
+The converse also holds: when production is correct and only the harness is awkward, fix the harness. Don't widen a component's API so a dev page can render.
+
 Within the Rust workspace, tests live next to the code in `#[cfg(test)] mod tests` blocks. Persistence tests use an in-memory SQLite database via `connection::init_db(":memory:")` — no fixtures or external DB needed. The server's HTTP-level tests live in `structure-server/tests/`, driving `router(Store::open(":memory:"))` through `tower::ServiceExt::oneshot` (API routes are under `/api`); shared request helpers are in `tests/common/mod.rs`.
 
 ## Git

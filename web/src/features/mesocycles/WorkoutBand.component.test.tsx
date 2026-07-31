@@ -19,12 +19,7 @@ function renderBand(workout: FullWorkout = pushWorkout) {
   return renderWithClient(
     <PlanErrors>
       <table>
-        <WorkoutBand
-          mesocycleId={MESOCYCLE_ID}
-          workout={workout}
-          microcycles={weeks}
-          columnCount={3}
-        />
+        <WorkoutBand mesocycleId={MESOCYCLE_ID} workout={workout} microcycles={weeks} />
       </table>
     </PlanErrors>,
   );
@@ -172,12 +167,7 @@ describe("WorkoutBand", () => {
     renderWithClient(
       <PlanErrors>
         <table>
-          <WorkoutBand
-            mesocycleId={MESOCYCLE_ID}
-            workout={pushWorkout}
-            microcycles={[]}
-            columnCount={2}
-          />
+          <WorkoutBand mesocycleId={MESOCYCLE_ID} workout={pushWorkout} microcycles={[]} />
         </table>
       </PlanErrors>,
     );

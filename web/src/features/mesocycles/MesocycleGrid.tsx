@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type { FullMicrocycle, FullWorkout, Phase } from "../../api/types";
 import { PHASES } from "../../api/enums";
+import { GridFrame, gridColumnCount } from "./GridFrame";
 import { PlanErrors } from "./PlanErrors";
 import { WorkoutBand } from "./WorkoutBand";
 import { useAddWeek, useAddWorkout, useDeleteWeek, useSetPhase } from "./usePlanMutations";
@@ -18,62 +19,55 @@ interface Props {
  * weeks, workouts and their exercises; the cells themselves are still read-only.
  */
 export function MesocycleGrid({ mesocycleId, microcycles, workouts }: Props) {
-  // The label column plus the weeks — or the notice standing in for them, so
-  // every row still spans the same number of columns.
-  const columnCount = 1 + Math.max(microcycles.length, 1);
+  const columnCount = gridColumnCount(microcycles);
 
   return (
     <PlanErrors>
       <AddWeek mesocycleId={mesocycleId} />
 
-      {/* Focusable so the weeks past the viewport edge can be reached without a
-          pointer; a plain overflow container takes no keyboard focus. */}
-      <div className={styles.scroll} role="region" aria-label="Plan grid" tabIndex={0}>
-        <table className={styles.grid}>
-          <thead>
-            <tr>
-              <td className={styles.corner} />
-              {microcycles.length === 0 ? (
-                <th scope="col" className={styles.noWeeks}>
-                  No weeks yet.
-                </th>
-              ) : (
-                // Numbered by column, not by stored `position`: deleting a week
-                // leaves a gap in positions, and the grid must still read
-                // Week 1, 2, 3 across.
-                microcycles.map((week, index) => (
-                  <WeekHeader
-                    key={week.id}
-                    mesocycleId={mesocycleId}
-                    week={week}
-                    label={`Week ${index + 1}`}
-                  />
-                ))
-              )}
-            </tr>
-          </thead>
+      <GridFrame>
+        <thead>
+          <tr>
+            <td className={styles.corner} />
+            {microcycles.length === 0 ? (
+              <th scope="col" className={styles.noWeeks}>
+                No weeks yet.
+              </th>
+            ) : (
+              // Numbered by column, not by stored `position`: deleting a week
+              // leaves a gap in positions, and the grid must still read
+              // Week 1, 2, 3 across.
+              microcycles.map((week, index) => (
+                <WeekHeader
+                  key={week.id}
+                  mesocycleId={mesocycleId}
+                  week={week}
+                  label={`Week ${index + 1}`}
+                />
+              ))
+            )}
+          </tr>
+        </thead>
 
-          {workouts.length === 0 ? (
-            <tbody>
-              <tr>
-                <td className={styles.bandEmpty} colSpan={columnCount}>
-                  No workouts yet.
-                </td>
-              </tr>
-            </tbody>
-          ) : (
-            workouts.map((workout) => (
-              <WorkoutBand
-                key={workout.id}
-                mesocycleId={mesocycleId}
-                workout={workout}
-                microcycles={microcycles}
-                columnCount={columnCount}
-              />
-            ))
-          )}
-        </table>
-      </div>
+        {workouts.length === 0 ? (
+          <tbody>
+            <tr>
+              <td className={styles.bandEmpty} colSpan={columnCount}>
+                No workouts yet.
+              </td>
+            </tr>
+          </tbody>
+        ) : (
+          workouts.map((workout) => (
+            <WorkoutBand
+              key={workout.id}
+              mesocycleId={mesocycleId}
+              workout={workout}
+              microcycles={microcycles}
+            />
+          ))
+        )}
+      </GridFrame>
 
       <AddWorkout mesocycleId={mesocycleId} />
     </PlanErrors>

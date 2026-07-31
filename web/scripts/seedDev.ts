@@ -262,12 +262,10 @@ export async function seedDevPlan(baseUrl: string): Promise<number> {
   for (const workoutPlan of PLAN) {
     const workout = await api.addWorkout(mesocycle.id, workoutPlan.name);
     for (const { exercise, weeks: cells } of workoutPlan.exercises) {
-      let libraryId = existing.get(exercise.name);
-      if (libraryId === undefined) {
-        libraryId = (await api.createLibraryExercise(exercise)).id;
-        existing.set(exercise.name, libraryId);
-      }
-      const planned = await api.addPlannedExercise(workout.id, libraryId);
+      const planned = await api.addPlannedExercise(
+        workout.id,
+        await libraryIdFor(api, existing, exercise),
+      );
       for (const [index, week] of weeks.entries()) {
         for (const spec of cells[index] ?? []) {
           await addSetGroup(baseUrl, planned.id, week.id, spec);
@@ -305,11 +303,16 @@ const FIXTURE_PLANS: Record<
       name: FIXTURE_PLAN_NAMES.exercisesFirst,
       mode: "Manual",
     });
-    const push = await api.addWorkout(plan.id, "Push");
-    await api.addPlannedExercise(push.id, requireExercise(library, "Barbell Bench Press"));
-    await api.addPlannedExercise(push.id, requireExercise(library, "Seated Overhead Press"));
-    const pull = await api.addWorkout(plan.id, "Pull");
-    await api.addPlannedExercise(pull.id, requireExercise(library, "Barbell Row"));
+    // Borrowed from the reference block rather than named here. The draft only
+    // has to hold *some* exercises, so naming them would be a coupling that
+    // reads as detail: renaming one in `PLAN` would leave this plan empty, or
+    // abort the seed with the reference block already written.
+    for (const source of PLAN.slice(0, 2)) {
+      const workout = await api.addWorkout(plan.id, source.name);
+      for (const { exercise } of source.exercises.slice(0, 2)) {
+        await api.addPlannedExercise(workout.id, await libraryIdFor(api, library, exercise));
+      }
+    }
   },
 
   [FIXTURE_PLAN_NAMES.weeksFirst]: async (api) => {
@@ -351,14 +354,21 @@ export async function ensureFixturePlans(baseUrl: string): Promise<string[]> {
   return missing;
 }
 
-// A rename in `PLAN` would otherwise leave the draft silently empty, which is
-// the one thing it exists not to be.
-function requireExercise(library: Map<string, number>, name: string): number {
-  const id = library.get(name);
-  if (id === undefined) {
-    throw new Error(`fixture plans need "${name}", which the reference block did not create`);
-  }
-  return id;
+// Library exercise names are globally unique, so a row that exists is the one
+// we want and a missing one is ours to create — which is what lets a
+// half-finished seed be re-run, and what lets the drafts be topped up into a
+// database whose reference block predates an edit to `PLAN`.
+async function libraryIdFor(
+  api: ApiClient,
+  library: Map<string, number>,
+  exercise: CreateLibraryExercise,
+): Promise<number> {
+  const known = library.get(exercise.name);
+  if (known !== undefined) return known;
+
+  const created = await api.createLibraryExercise(exercise);
+  library.set(exercise.name, created.id);
+  return created.id;
 }
 
 // Cell prescription has no client method yet — the grid can't edit cells, so the

@@ -65,6 +65,22 @@ describe("AddExercise", () => {
     expect(screen.queryByRole("option", { name: "Bench Press" })).not.toBeInTheDocument();
   });
 
+  // A first-run account has nowhere to go but "New exercise…", so the picker
+  // must not report the state that means the opposite.
+  it("tells an empty library apart from a used-up one", async () => {
+    mockApi.listLibraryExercises.mockResolvedValue([]);
+    renderAddExercise();
+
+    expect(await screen.findByRole("option", { name: "No exercises yet — create one" })).toBeInTheDocument();
+  });
+
+  it("says the library is used up when the workout already holds all of it", async () => {
+    mockApi.listLibraryExercises.mockResolvedValue([benchPress]);
+    renderAddExercise();
+
+    expect(await screen.findByRole("option", { name: "All exercises added" })).toBeInTheDocument();
+  });
+
   it("cannot be submitted until an exercise is picked", async () => {
     renderAddExercise();
 

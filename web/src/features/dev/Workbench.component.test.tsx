@@ -73,13 +73,17 @@ describe("Workbench", () => {
       expect.stringContaining("Failed to fetch"),
     ]);
 
-    // An exhausted library and an empty one are distinct states that the picker
-    // currently renders identically; both stages exist to keep that visible,
-    // and an empty library can't be seeded beside a plan that references one.
-    const pickers = screen.getAllByRole("combobox", { name: /Exercise to add to/ });
-    expect(
-      pickers.filter((picker) => picker.textContent?.includes("All exercises added")),
-    ).toHaveLength(2);
+    // An empty library can't be seeded beside a plan that references one, so
+    // this page is where the two ways of having nothing to offer are read
+    // against each other — they must not say the same thing.
+    const group = screen.getByRole("region", { name: "AddExercise" });
+    const pickers = within(group).getAllByRole("combobox", { name: /Exercise to add to/ });
+    const placeholders = pickers.map((picker) => picker.querySelector("option")?.textContent);
+    expect(placeholders).toEqual([
+      "Pick an exercise…",
+      "All exercises added",
+      "No exercises yet — create one",
+    ]);
 
     // Adversarial input rather than a state: seeding it would spoil every other
     // screenshot of the demo plan.

@@ -14,5 +14,8 @@ export default defineConfig({
     include: ["src/**/*.component.test.tsx"],
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
+    // Restores spies between tests, so a failure can't leak one into the next.
+    // Implementations go too, so arrange mocks per test, never in `beforeAll`.
+    restoreMocks: true,
   },
 });

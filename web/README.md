@@ -29,6 +29,30 @@ seeded plan, and Ctrl-C stops both halves.
 there next time. `npm run app:reset` deletes it and reseeds. The seed itself is
 `scripts/seedDev.ts`; extend it when a screen needs data the block doesn't have.
 
+It builds four plans. One is a realistic four-week block — the reference, and the
+one the banner links to. The other three are plans caught mid-build, named for
+what they are because they are fixtures:
+
+| Plan | Shape |
+|---|---|
+| `Upper/Lower Hypertrophy` | four weeks, four workouts, every set-group encoding |
+| `Fixture (resets) — no weeks or workouts` | nothing yet: both empty notices at once |
+| `Fixture (resets) — exercises but no weeks` | two workouts with exercises, no weeks |
+| `Fixture (resets) — weeks but no exercises` | three weeks, one workout still empty |
+
+Seeding these rather than mocking them keeps them **clickable**: you can press
+"+ Week" on the empty plan and watch the first column appear. Each is defined by
+what it *lacks*, and the seed states that nowhere — it simply never makes the
+call — so `devSeed.contract.test.ts` pins their shape.
+
+The reference block is only ever built into an empty database. The three fixture
+plans are **discarded and rebuilt on every start**, because a fixture is only
+worth having while it still is the state it is named for — press "+ Week" on the
+empty one and it is not empty any more. Anything you do in them is gone next
+boot, which is what the names say; build on the reference block or a plan of your
+own. Your hand-built plans are never touched, and `--reset` is still how you ask
+for a clean database.
+
 Three behaviours worth knowing:
 
 - If something is **already serving `:3000`**, that backend is reused and *never

@@ -1,4 +1,4 @@
-import { createApiClient } from "../src/api/client";
+import { createApiClient, type ApiClient } from "../src/api/client";
 import type {
   CreateLibraryExercise,
   Intensity,
@@ -6,13 +6,32 @@ import type {
   SetGroupType,
 } from "../src/api/types";
 
-// The dev database's contents: one plausible four-week block, built over HTTP so
-// it goes through the same validation as the app itself. This is deliberately
-// *not* tests/support/seed.ts — that seed is shaped for assertions (a bare grid
-// with one empty cell), while this one exists to be looked at and clicked
-// through, so it favours a realistic training block over minimal coverage.
+// The dev database's contents: one plausible four-week block plus three plans
+// caught mid-build, all created over HTTP so they go through the same validation
+// as the app itself. This is deliberately *not* tests/support/seed.ts — that seed
+// is shaped for assertions (a bare grid with one empty cell), while this one
+// exists to be looked at and clicked through, so it favours a realistic training
+// block over minimal coverage.
 
-const MESOCYCLE_NAME = "Upper/Lower Hypertrophy";
+export const REFERENCE_PLAN_NAME = "Upper/Lower Hypertrophy";
+
+/**
+ * Plans whose interest is their *shape* rather than their contents: the states
+ * a plan passes through while it is being built. They can't live inside the
+ * reference block — it can't be both empty and four weeks deep.
+ *
+ * The names say both what each one is and that it is not yours. They are rebuilt
+ * on every start, so a "+ Week" pressed on the empty one is gone by the next —
+ * which is the point, since a fixture that has been used is no longer the state
+ * it is named for. Build on `REFERENCE_PLAN_NAME` or a plan of your own.
+ */
+export const FIXTURE_PLAN_NAMES = {
+  empty: "Fixture (resets) — no weeks or workouts",
+  exercisesNoWeeks: "Fixture (resets) — exercises but no weeks",
+  weeksNoExercises: "Fixture (resets) — weeks but no exercises",
+} as const;
+
+export type FixturePlanName = (typeof FIXTURE_PLAN_NAMES)[keyof typeof FIXTURE_PLAN_NAMES];
 
 interface SetGroupSpec {
   number_of_sets: number;
@@ -234,7 +253,7 @@ const PLAN: WorkoutPlan[] = [
 export async function seedDevPlan(baseUrl: string): Promise<number> {
   const api = createApiClient(baseUrl);
 
-  const mesocycle = await api.createMesocycle({ name: MESOCYCLE_NAME, mode: "Manual" });
+  const mesocycle = await api.createMesocycle({ name: REFERENCE_PLAN_NAME, mode: "Manual" });
 
   const weeks = [];
   for (const phase of ["Accumulation", "Accumulation", "Intensification", "Deload"] as const) {
@@ -248,12 +267,10 @@ export async function seedDevPlan(baseUrl: string): Promise<number> {
   for (const workoutPlan of PLAN) {
     const workout = await api.addWorkout(mesocycle.id, workoutPlan.name);
     for (const { exercise, weeks: cells } of workoutPlan.exercises) {
-      let libraryId = existing.get(exercise.name);
-      if (libraryId === undefined) {
-        libraryId = (await api.createLibraryExercise(exercise)).id;
-        existing.set(exercise.name, libraryId);
-      }
-      const planned = await api.addPlannedExercise(workout.id, libraryId);
+      const planned = await api.addPlannedExercise(
+        workout.id,
+        await libraryIdFor(api, existing, exercise),
+      );
       for (const [index, week] of weeks.entries()) {
         for (const spec of cells[index] ?? []) {
           await addSetGroup(baseUrl, planned.id, week.id, spec);
@@ -262,7 +279,117 @@ export async function seedDevPlan(baseUrl: string): Promise<number> {
     }
   }
 
+  await rebuildFixturePlans(baseUrl);
+
   return mesocycle.id;
+}
+
+/**
+ * How to build each fixture plan, keyed by the name that identifies it.
+ *
+ * They are seeded rather than mocked on the workbench because seeded they stay
+ * clickable: "+ Week" on an empty plan can be watched actually working. Each is
+ * defined by what it *lacks*, which is why the seed contract test pins their
+ * shape — nothing here would fail if a future server started handing out a first
+ * week with every new mesocycle.
+ */
+// Keyed by the name rather than by `string`, so declaring a fixture without
+// writing its builder is a compile error rather than a plan that never appears
+// and a count that disagrees with itself.
+const FIXTURE_PLANS: Record<
+  FixturePlanName,
+  (api: ApiClient, library: Map<string, number>) => Promise<void>
+> = {
+  [FIXTURE_PLAN_NAMES.empty]: async (api) => {
+    await api.createMesocycle({ name: FIXTURE_PLAN_NAMES.empty, mode: "Manual" });
+  },
+
+  [FIXTURE_PLAN_NAMES.exercisesNoWeeks]: async (api, library) => {
+    const plan = await api.createMesocycle({
+      name: FIXTURE_PLAN_NAMES.exercisesNoWeeks,
+      mode: "Manual",
+    });
+    // Borrowed from the reference block rather than named here. The draft only
+    // has to hold *some* exercises, so naming them would be a coupling that
+    // reads as detail: renaming one in `PLAN` would leave this plan empty, or
+    // abort the seed with the reference block already written.
+    for (const source of PLAN.slice(0, 2)) {
+      const workout = await api.addWorkout(plan.id, source.name);
+      for (const { exercise } of source.exercises.slice(0, 2)) {
+        await api.addPlannedExercise(workout.id, await libraryIdFor(api, library, exercise));
+      }
+    }
+  },
+
+  [FIXTURE_PLAN_NAMES.weeksNoExercises]: async (api) => {
+    const plan = await api.createMesocycle({
+      name: FIXTURE_PLAN_NAMES.weeksNoExercises,
+      mode: "Manual",
+    });
+    for (let week = 0; week < 3; week += 1) {
+      await api.addMicrocycle(plan.id);
+    }
+    // Left empty on purpose: an added workout with nothing in it yet is a state
+    // of its own, and it needs weeks around it to show the band spanning them.
+    await api.addWorkout(plan.id, "Legs");
+  },
+};
+
+/**
+ * Discards the fixture plans and builds them again, touching nothing else.
+ *
+ * Unconditional because a fixture is only worth having while it still *is* the
+ * state it is named for, and using one as intended destroys that: press "+ Week"
+ * on the empty plan and it is no longer empty. Checking whether each still has
+ * the right shape would need a predicate per fixture, kept in step with its
+ * builder by hand — so instead there is no state in which a fixture is wrong,
+ * because it is remade before anyone sees it.
+ *
+ * The block you build on is not touched: `npm run app` seeds that only into an
+ * empty database, and `--reset` is still how you ask for a clean one.
+ */
+export async function rebuildFixturePlans(baseUrl: string): Promise<FixturePlanName[]> {
+  const api = createApiClient(baseUrl);
+  const stale = (await api.listMesocycles()).filter((plan) => plan.name in FIXTURE_PLANS);
+  for (const plan of stale) {
+    await deleteMesocycle(baseUrl, plan.id);
+  }
+
+  const library = new Map((await api.listLibraryExercises()).map((e) => [e.name, e.id]));
+  for (const build of Object.values(FIXTURE_PLANS)) {
+    await build(api, library);
+  }
+
+  // The record is keyed by these, so `Record` has already required a builder
+  // for every one — the names and what was built cannot disagree.
+  return Object.values(FIXTURE_PLAN_NAMES);
+}
+
+// Deleting a mesocycle has no client method: the app cannot delete a plan, so
+// production would gain unused surface. Kept local for the same reason as
+// `addSetGroup` below.
+async function deleteMesocycle(baseUrl: string, id: number): Promise<void> {
+  const response = await fetch(`${baseUrl}/mesocycles/${id}`, { method: "DELETE" });
+  if (!response.ok) {
+    throw new Error(`DELETE /mesocycles/${id} → ${response.status}: ${await response.text()}`);
+  }
+}
+
+// Library exercise names are globally unique, so a row that exists is the one
+// we want and a missing one is ours to create — which is what lets a
+// half-finished seed be re-run, and what lets the fixtures be rebuilt into a
+// database whose reference block predates an edit to `PLAN`.
+async function libraryIdFor(
+  api: ApiClient,
+  library: Map<string, number>,
+  exercise: CreateLibraryExercise,
+): Promise<number> {
+  const known = library.get(exercise.name);
+  if (known !== undefined) return known;
+
+  const created = await api.createLibraryExercise(exercise);
+  library.set(exercise.name, created.id);
+  return created.id;
 }
 
 // Cell prescription has no client method yet — the grid can't edit cells, so the

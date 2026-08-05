@@ -3,7 +3,13 @@ import { rmSync } from "node:fs";
 import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
-import { seedDevPlan, SEEDED_EXERCISE_COUNT, SEEDED_WORKOUT_COUNT } from "./seedDev";
+import {
+  rebuildFixturePlans,
+  FIXTURE_PLAN_NAMES,
+  seedDevPlan,
+  SEEDED_EXERCISE_COUNT,
+  SEEDED_WORKOUT_COUNT,
+} from "./seedDev";
 
 // One command that leaves the whole app running and worth looking at: the Axum
 // backend against a persistent dev database, that database populated if it is
@@ -216,12 +222,19 @@ async function ensureSeeded(): Promise<number | null> {
   const existing = await plans();
   if (existing.length > 0) {
     console.log(`data: ${existing.length} mesocycle(s) already in ${DB_NAME} — left as they are`);
+    // Except the fixture plans, which belong to the seed rather than to you and
+    // are only worth having while they still are the states they are named for.
+    // Using one destroys that, so they are discarded and rebuilt; `--reset` is
+    // too blunt a way to ask for a plan that shows an empty grid again.
+    const rebuilt = await rebuildFixturePlans(API_URL);
+    console.log(`data: rebuilt ${rebuilt.length} fixture plan(s) — anything in them is gone`);
     return existing[0].id;
   }
   console.log("data: empty, seeding a four-week block");
   const id = await seedDevPlan(API_URL);
   console.log(
-    `data: seeded ${SEEDED_WORKOUT_COUNT} workouts / ${SEEDED_EXERCISE_COUNT} exercises over 4 weeks`,
+    `data: seeded ${SEEDED_WORKOUT_COUNT} workouts / ${SEEDED_EXERCISE_COUNT} exercises over 4 weeks,` +
+      ` plus ${Object.keys(FIXTURE_PLAN_NAMES).length} plans caught mid-build`,
   );
   return id;
 }

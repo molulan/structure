@@ -18,14 +18,17 @@ export const REFERENCE_PLAN_NAME = "Upper/Lower Hypertrophy";
 /**
  * Plans whose interest is their *shape* rather than their contents: the states
  * a plan passes through while it is being built. They can't live inside the
- * reference block — it can't be both empty and four weeks deep — and they are
- * named for what they are, because a fixture that pretends to be real data just
- * makes the list screen harder to read.
+ * reference block — it can't be both empty and four weeks deep.
+ *
+ * The names say both what each one is and that it is not yours. They are rebuilt
+ * on every start, so a "+ Week" pressed on the empty one is gone by the next —
+ * which is the point, since a fixture that has been used is no longer the state
+ * it is named for. Build on `REFERENCE_PLAN_NAME` or a plan of your own.
  */
 export const FIXTURE_PLAN_NAMES = {
-  empty: "Empty — no weeks or workouts",
-  exercisesFirst: "Draft — exercises first",
-  weeksFirst: "Draft — weeks first",
+  empty: "Fixture (resets) — no weeks or workouts",
+  workoutsFirst: "Fixture (resets) — workouts before weeks",
+  weeksFirst: "Fixture (resets) — weeks before workouts",
 } as const;
 
 interface SetGroupSpec {
@@ -274,15 +277,13 @@ export async function seedDevPlan(baseUrl: string): Promise<number> {
     }
   }
 
-  await ensureFixturePlans(baseUrl);
+  await rebuildFixturePlans(baseUrl);
 
   return mesocycle.id;
 }
 
 /**
- * How to build each fixture plan, keyed by the name that identifies it — keyed
- * rather than a sequence because they are ensured one at a time, and a database
- * already holding two of them should gain only the third.
+ * How to build each fixture plan, keyed by the name that identifies it.
  *
  * They are seeded rather than mocked on the workbench because seeded they stay
  * clickable: "+ Week" on an empty plan can be watched actually working. Each is
@@ -298,9 +299,9 @@ const FIXTURE_PLANS: Record<
     await api.createMesocycle({ name: FIXTURE_PLAN_NAMES.empty, mode: "Manual" });
   },
 
-  [FIXTURE_PLAN_NAMES.exercisesFirst]: async (api, library) => {
+  [FIXTURE_PLAN_NAMES.workoutsFirst]: async (api, library) => {
     const plan = await api.createMesocycle({
-      name: FIXTURE_PLAN_NAMES.exercisesFirst,
+      name: FIXTURE_PLAN_NAMES.workoutsFirst,
       mode: "Manual",
     });
     // Borrowed from the reference block rather than named here. The draft only
@@ -330,33 +331,46 @@ const FIXTURE_PLANS: Record<
 };
 
 /**
- * Creates whichever fixture plans are absent and returns their names, touching
- * nothing else.
+ * Discards the fixture plans and builds them again, touching nothing else.
  *
- * The dev database is deliberately long-lived, so it is only seeded when empty —
- * which would leave everyone who ran `npm run app` before these existed without
- * them, and with no sign that anything was missing. The fixtures are the seed's
- * to maintain, unlike the block you build on; identifying them by name is what
- * keeps this from duplicating them on a database that already has them.
+ * Unconditional because a fixture is only worth having while it still *is* the
+ * state it is named for, and using one as intended destroys that: press "+ Week"
+ * on the empty plan and it is no longer empty. Checking whether each still has
+ * the right shape would need a predicate per fixture, kept in step with its
+ * builder by hand — so instead there is no state in which a fixture is wrong,
+ * because it is remade before anyone sees it.
+ *
+ * The block you build on is not touched: `npm run app` seeds that only into an
+ * empty database, and `--reset` is still how you ask for a clean one.
  */
-export async function ensureFixturePlans(baseUrl: string): Promise<string[]> {
+export async function rebuildFixturePlans(baseUrl: string): Promise<string[]> {
   const api = createApiClient(baseUrl);
-  const present = new Set((await api.listMesocycles()).map((plan) => plan.name));
-  const missing = Object.keys(FIXTURE_PLANS).filter((name) => !present.has(name));
-  if (missing.length === 0) return [];
+  const stale = (await api.listMesocycles()).filter((plan) => plan.name in FIXTURE_PLANS);
+  for (const plan of stale) {
+    await deleteMesocycle(baseUrl, plan.id);
+  }
 
   const library = new Map((await api.listLibraryExercises()).map((e) => [e.name, e.id]));
-  for (const [name, build] of Object.entries(FIXTURE_PLANS)) {
-    if (present.has(name)) continue;
+  for (const build of Object.values(FIXTURE_PLANS)) {
     await build(api, library);
   }
 
-  return missing;
+  return Object.keys(FIXTURE_PLANS);
+}
+
+// Deleting a mesocycle has no client method: the app cannot delete a plan, so
+// production would gain unused surface. Kept local for the same reason as
+// `addSetGroup` below.
+async function deleteMesocycle(baseUrl: string, id: number): Promise<void> {
+  const response = await fetch(`${baseUrl}/mesocycles/${id}`, { method: "DELETE" });
+  if (!response.ok) {
+    throw new Error(`DELETE /mesocycles/${id} → ${response.status}: ${await response.text()}`);
+  }
 }
 
 // Library exercise names are globally unique, so a row that exists is the one
 // we want and a missing one is ours to create — which is what lets a
-// half-finished seed be re-run, and what lets the drafts be topped up into a
+// half-finished seed be re-run, and what lets the fixtures be rebuilt into a
 // database whose reference block predates an edit to `PLAN`.
 async function libraryIdFor(
   api: ApiClient,

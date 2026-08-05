@@ -1,7 +1,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createApiClient, type ApiClient } from "../../src/api/client";
 import {
-  ensureFixturePlans,
+  rebuildFixturePlans,
   FIXTURE_PLAN_NAMES,
   REFERENCE_PLAN_NAME,
   seedDevPlan,
@@ -92,9 +92,9 @@ describe("dev seed contract", () => {
     expect(empty.microcycles).toHaveLength(0);
     expect(empty.workouts).toHaveLength(0);
 
-    const exercisesFirst = await api.getFullMesocycle(idOf(FIXTURE_PLAN_NAMES.exercisesFirst));
-    expect(exercisesFirst.microcycles).toHaveLength(0);
-    expect(exercisesFirst.workouts.flatMap((w) => w.planned_exercises)).not.toHaveLength(0);
+    const workoutsFirst = await api.getFullMesocycle(idOf(FIXTURE_PLAN_NAMES.workoutsFirst));
+    expect(workoutsFirst.microcycles).toHaveLength(0);
+    expect(workoutsFirst.workouts.flatMap((w) => w.planned_exercises)).not.toHaveLength(0);
 
     const weeksFirst = await api.getFullMesocycle(idOf(FIXTURE_PLAN_NAMES.weeksFirst));
     expect(weeksFirst.microcycles).toHaveLength(3);
@@ -102,15 +102,39 @@ describe("dev seed contract", () => {
     expect(weeksFirst.workouts[0].planned_exercises).toHaveLength(0);
   });
 
-  // `npm run app` calls this on every start against a database it will not
-  // reseed, so it has to add nothing when the fixtures are already there. The
-  // cost of getting it wrong is a dev database that grows a duplicate set of
-  // plans every boot.
-  it("adds nothing when the fixture plans are already present", async () => {
-    const before = await api.listMesocycles();
+  // `npm run app` calls this on every start, so running it against a database
+  // that already holds the fixtures has to leave exactly one of each. The cost
+  // of getting it wrong is a dev database that grows a duplicate set every boot.
+  it("replaces the fixture plans rather than adding to them", async () => {
+    const fixtureCount = async () =>
+      (await api.listMesocycles()).filter((plan) =>
+        (Object.values(FIXTURE_PLAN_NAMES) as string[]).includes(plan.name),
+      ).length;
 
-    expect(await ensureFixturePlans(baseUrl)).toEqual([]);
-    expect(await api.listMesocycles()).toHaveLength(before.length);
+    expect(await fixtureCount()).toBe(3);
+    await rebuildFixturePlans(baseUrl);
+    expect(await fixtureCount()).toBe(3);
+  });
+
+  // Using a fixture as intended destroys the state it is named for, so a plan
+  // left half-used must come back whole rather than being recognised by name and
+  // skipped. Pressing "+ Week" on the empty one is the ordinary way to get here.
+  it("restores a fixture that has been used", async () => {
+    const list = await api.listMesocycles();
+    const empty = list.find((plan) => plan.name === FIXTURE_PLAN_NAMES.empty);
+    if (!empty) throw new Error("the empty fixture was not seeded");
+
+    await api.addMicrocycle(empty.id);
+
+    await rebuildFixturePlans(baseUrl);
+
+    const rebuilt = (await api.listMesocycles()).find(
+      (plan) => plan.name === FIXTURE_PLAN_NAMES.empty,
+    );
+    if (!rebuilt) throw new Error("the empty fixture was not rebuilt");
+    const plan = await api.getFullMesocycle(rebuilt.id);
+    expect(plan.microcycles).toHaveLength(0);
+    expect(plan.workouts).toHaveLength(0);
   });
 
   it("leaves at least one cell unprescribed, so the empty state is on screen too", async () => {

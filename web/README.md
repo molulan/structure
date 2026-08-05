@@ -36,9 +36,9 @@ what they are because they are fixtures:
 | Plan | Shape |
 |---|---|
 | `Upper/Lower Hypertrophy` | four weeks, four workouts, every set-group encoding |
-| `Empty — no weeks or workouts` | nothing yet: both empty notices at once |
-| `Draft — exercises first` | two workouts with exercises, no weeks |
-| `Draft — weeks first` | three weeks, one workout still empty |
+| `Fixture (resets) — no weeks or workouts` | nothing yet: both empty notices at once |
+| `Fixture (resets) — workouts before weeks` | two workouts with exercises, no weeks |
+| `Fixture (resets) — weeks before workouts` | three weeks, one workout still empty |
 
 Degenerate states belong here rather than on the workbench whenever a database
 can hold them, because seeded they stay **clickable** — you can press "+ Week" on
@@ -46,10 +46,13 @@ an empty plan and watch the first column appear. `devSeed.contract.test.ts` pins
 their shape, since each is defined by what it lacks and the seed states that
 nowhere: it simply never makes the call.
 
-The reference block is only ever built into an empty database, but the three
-fixture plans are topped up on every start — they belong to the seed rather than
-to you, so a `dev.db` from before they existed gains them without your hand-built
-data being reset away. Delete one and it comes back next boot; that is the trade.
+The reference block is only ever built into an empty database. The three fixture
+plans are **discarded and rebuilt on every start**, because a fixture is only
+worth having while it still is the state it is named for — press "+ Week" on the
+empty one and it is not empty any more. Anything you do in them is gone next
+boot, which is what the names say; build on the reference block or a plan of your
+own. Your hand-built plans are never touched, and `--reset` is still how you ask
+for a clean database.
 
 Three behaviours worth knowing:
 

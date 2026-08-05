@@ -4,7 +4,7 @@ import { basename, dirname, join, resolve } from "node:path";
 import { createInterface } from "node:readline";
 import { fileURLToPath } from "node:url";
 import {
-  ensureFixturePlans,
+  rebuildFixturePlans,
   FIXTURE_PLAN_NAMES,
   seedDevPlan,
   SEEDED_EXERCISE_COUNT,
@@ -222,13 +222,12 @@ async function ensureSeeded(): Promise<number | null> {
   const existing = await plans();
   if (existing.length > 0) {
     console.log(`data: ${existing.length} mesocycle(s) already in ${DB_NAME} — left as they are`);
-    // Except the fixture plans, which belong to the seed rather than to you: a
-    // database from before they existed should gain them without giving up what
-    // you built by hand, and `--reset` is too blunt a way to ask for that.
-    const added = await ensureFixturePlans(API_URL);
-    if (added.length > 0) {
-      console.log(`data: added ${added.length} missing fixture plan(s) — ${added.join(", ")}`);
-    }
+    // Except the fixture plans, which belong to the seed rather than to you and
+    // are only worth having while they still are the states they are named for.
+    // Using one destroys that, so they are discarded and rebuilt; `--reset` is
+    // too blunt a way to ask for a plan that shows an empty grid again.
+    const rebuilt = await rebuildFixturePlans(API_URL);
+    console.log(`data: rebuilt ${rebuilt.length} fixture plan(s) — anything in them is gone`);
     return existing[0].id;
   }
   console.log("data: empty, seeding a four-week block");

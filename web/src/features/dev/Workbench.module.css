@@ -1,0 +1,105 @@
+/*
+ * Chrome only. Colour, spacing, borders and the mono family come from
+ * tokens.css: a workbench with a palette of its own would report the wrong
+ * answer about how a component reads. Type sizes are literal because tokens.css
+ * has no scale to draw on — the app's own stylesheets set theirs the same way.
+ */
+
+.page {
+  padding: var(--space-6);
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.pageHead {
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-6);
+}
+
+.pageTitle {
+  font-size: 1.25rem;
+  margin: 0 0 var(--space-2);
+}
+
+.pageNote {
+  margin: 0;
+  max-width: 62ch;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.group {
+  margin-bottom: var(--space-6);
+}
+
+/* Weight is explicit because these labels are paragraphs, not headings — see
+   the note on `Group` for why they stay out of the heading hierarchy. */
+.groupName {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 var(--space-3);
+}
+
+.stages {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.stage {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.stageHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--border);
+}
+
+.stageTitle {
+  font-weight: 600;
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+.stageNote {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.8125rem;
+}
+
+/* Puts a dismissed banner back. Page chrome rather than part of the specimen,
+   so it reads as a plain link and not as one of the component's own buttons. */
+.raise {
+  margin-top: var(--space-2);
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/*
+ * The component sits on the app's own background rather than the card's, so a
+ * contrast that only works against `--surface` can't pass unnoticed here.
+ */
+.frame {
+  background: var(--bg);
+  padding: var(--space-4);
+  overflow-x: auto;
+}

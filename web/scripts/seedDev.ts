@@ -31,6 +31,8 @@ export const FIXTURE_PLAN_NAMES = {
   weeksNoExercises: "Fixture (resets) — weeks but no exercises",
 } as const;
 
+export type FixturePlanName = (typeof FIXTURE_PLAN_NAMES)[keyof typeof FIXTURE_PLAN_NAMES];
+
 interface SetGroupSpec {
   number_of_sets: number;
   set_group_type: SetGroupType;
@@ -291,8 +293,11 @@ export async function seedDevPlan(baseUrl: string): Promise<number> {
  * shape — nothing here would fail if a future server started handing out a first
  * week with every new mesocycle.
  */
+// Keyed by the name rather than by `string`, so declaring a fixture without
+// writing its builder is a compile error rather than a plan that never appears
+// and a count that disagrees with itself.
 const FIXTURE_PLANS: Record<
-  string,
+  FixturePlanName,
   (api: ApiClient, library: Map<string, number>) => Promise<void>
 > = {
   [FIXTURE_PLAN_NAMES.empty]: async (api) => {
@@ -343,7 +348,7 @@ const FIXTURE_PLANS: Record<
  * The block you build on is not touched: `npm run app` seeds that only into an
  * empty database, and `--reset` is still how you ask for a clean one.
  */
-export async function rebuildFixturePlans(baseUrl: string): Promise<string[]> {
+export async function rebuildFixturePlans(baseUrl: string): Promise<FixturePlanName[]> {
   const api = createApiClient(baseUrl);
   const stale = (await api.listMesocycles()).filter((plan) => plan.name in FIXTURE_PLANS);
   for (const plan of stale) {
@@ -355,7 +360,9 @@ export async function rebuildFixturePlans(baseUrl: string): Promise<string[]> {
     await build(api, library);
   }
 
-  return Object.keys(FIXTURE_PLANS);
+  // The record is keyed by these, so `Record` has already required a builder
+  // for every one — the names and what was built cannot disagree.
+  return Object.values(FIXTURE_PLAN_NAMES);
 }
 
 // Deleting a mesocycle has no client method: the app cannot delete a plan, so

@@ -35,12 +35,7 @@ export function MesocycleGrid({ mesocycleId, microcycles, workouts }: Props) {
           </tbody>
         ) : (
           workouts.map((workout) => (
-            <WorkoutBand
-              key={workout.id}
-              mesocycleId={mesocycleId}
-              workout={workout}
-              microcycles={microcycles}
-            />
+            <WorkoutBand key={workout.id} workout={workout} />
           ))
         )}
       </GridFrame>

@@ -22,7 +22,7 @@ function renderBand(workout: FullWorkout = pushWorkout) {
   return renderWithClient(
     <PlanErrors>
       <GridFrame mesocycleId={MESOCYCLE_ID} microcycles={weeks}>
-        <WorkoutBand mesocycleId={MESOCYCLE_ID} workout={workout} microcycles={weeks} />
+        <WorkoutBand workout={workout} />
       </GridFrame>
     </PlanErrors>,
   );
@@ -167,7 +167,7 @@ describe("WorkoutBand", () => {
     renderWithClient(
       <PlanErrors>
         <GridFrame mesocycleId={MESOCYCLE_ID} microcycles={[]}>
-          <WorkoutBand mesocycleId={MESOCYCLE_ID} workout={pushWorkout} microcycles={[]} />
+          <WorkoutBand workout={pushWorkout} />
         </GridFrame>
       </PlanErrors>,
     );

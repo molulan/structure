@@ -79,7 +79,7 @@ What that has meant here:
 
 - An invariant enforced in a constructor rather than validated by callers — `Set::new` rejects a `Load` that doesn't match its `ExerciseType`.
 - A value derived where it is used rather than passed in, so no caller can disagree with another — `gridColumnCount`, after a `columnCount` prop that every caller computed identically and one computed wrongly.
-- One shared component rather than a copy kept in step by convention — `GridFrame`, which owns the header row *because* `table-layout: fixed` makes it size every column beneath it.
+- One shared component rather than a copy kept in step by convention — `GridFrame`, which owns the header row *because* `table-layout: fixed` makes it size every column beneath it, and hands that same week list down to the row groups, so none can lay out against a different one.
 - A dependency substituted at a seam rather than a sentinel value hoping to neutralise it — `ApiProvider`, after an id that only made two of eight mutations harmless.
 - A guard on an import rather than inside the component it guards, so a dev-only module never compiles into a production build at all.
 

@@ -196,7 +196,7 @@ function Report({ error }: { error: unknown }) {
 function Band({ workout }: { workout: FullWorkout }) {
   return (
     <GridFrame mesocycleId={NOWHERE} microcycles={weeks}>
-      <WorkoutBand mesocycleId={NOWHERE} workout={workout} microcycles={weeks} />
+      <WorkoutBand workout={workout} />
     </GridFrame>
   );
 }

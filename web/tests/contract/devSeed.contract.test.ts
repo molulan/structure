@@ -92,14 +92,14 @@ describe("dev seed contract", () => {
     expect(empty.microcycles).toHaveLength(0);
     expect(empty.workouts).toHaveLength(0);
 
-    const workoutsFirst = await api.getFullMesocycle(idOf(FIXTURE_PLAN_NAMES.workoutsFirst));
-    expect(workoutsFirst.microcycles).toHaveLength(0);
-    expect(workoutsFirst.workouts.flatMap((w) => w.planned_exercises)).not.toHaveLength(0);
+    const exercisesNoWeeks = await api.getFullMesocycle(idOf(FIXTURE_PLAN_NAMES.exercisesNoWeeks));
+    expect(exercisesNoWeeks.microcycles).toHaveLength(0);
+    expect(exercisesNoWeeks.workouts.flatMap((w) => w.planned_exercises)).not.toHaveLength(0);
 
-    const weeksFirst = await api.getFullMesocycle(idOf(FIXTURE_PLAN_NAMES.weeksFirst));
-    expect(weeksFirst.microcycles).toHaveLength(3);
-    expect(weeksFirst.workouts).toHaveLength(1);
-    expect(weeksFirst.workouts[0].planned_exercises).toHaveLength(0);
+    const weeksNoExercises = await api.getFullMesocycle(idOf(FIXTURE_PLAN_NAMES.weeksNoExercises));
+    expect(weeksNoExercises.microcycles).toHaveLength(3);
+    expect(weeksNoExercises.workouts).toHaveLength(1);
+    expect(weeksNoExercises.workouts[0].planned_exercises).toHaveLength(0);
   });
 
   // `npm run app` calls this on every start, so running it against a database

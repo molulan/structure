@@ -27,8 +27,8 @@ export const REFERENCE_PLAN_NAME = "Upper/Lower Hypertrophy";
  */
 export const FIXTURE_PLAN_NAMES = {
   empty: "Fixture (resets) — no weeks or workouts",
-  workoutsFirst: "Fixture (resets) — workouts before weeks",
-  weeksFirst: "Fixture (resets) — weeks before exercises",
+  exercisesNoWeeks: "Fixture (resets) — exercises but no weeks",
+  weeksNoExercises: "Fixture (resets) — weeks but no exercises",
 } as const;
 
 interface SetGroupSpec {
@@ -299,9 +299,9 @@ const FIXTURE_PLANS: Record<
     await api.createMesocycle({ name: FIXTURE_PLAN_NAMES.empty, mode: "Manual" });
   },
 
-  [FIXTURE_PLAN_NAMES.workoutsFirst]: async (api, library) => {
+  [FIXTURE_PLAN_NAMES.exercisesNoWeeks]: async (api, library) => {
     const plan = await api.createMesocycle({
-      name: FIXTURE_PLAN_NAMES.workoutsFirst,
+      name: FIXTURE_PLAN_NAMES.exercisesNoWeeks,
       mode: "Manual",
     });
     // Borrowed from the reference block rather than named here. The draft only
@@ -316,9 +316,9 @@ const FIXTURE_PLANS: Record<
     }
   },
 
-  [FIXTURE_PLAN_NAMES.weeksFirst]: async (api) => {
+  [FIXTURE_PLAN_NAMES.weeksNoExercises]: async (api) => {
     const plan = await api.createMesocycle({
-      name: FIXTURE_PLAN_NAMES.weeksFirst,
+      name: FIXTURE_PLAN_NAMES.weeksNoExercises,
       mode: "Manual",
     });
     for (let week = 0; week < 3; week += 1) {

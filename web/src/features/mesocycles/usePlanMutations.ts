@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../../lib/ApiProvider";
+import type { ApiClient } from "../../api/client";
 import type { CreateLibraryExercise, Phase } from "../../api/types";
 import { fullMesocycleKey } from "./useFullMesocycle";
 import { mesocyclesKey } from "./useMesocycles";
@@ -8,11 +9,19 @@ import { usePlanErrorSink } from "./PlanErrors";
 // Every plan edit changes some part of one mesocycle's grid, so each mutation
 // refetches that grid on success — the simplest correct update. Optimistic
 // patching can come later, where the latency actually shows.
-function useGridMutation<TArgs>(mesocycleId: number, mutationFn: (args: TArgs) => Promise<unknown>) {
+//
+// The client is handed to `request` rather than read by each caller, for the
+// same reason the query client and the error sink are: this is where a grid
+// mutation's surroundings live.
+function useGridMutation<TArgs>(
+  mesocycleId: number,
+  request: (api: ApiClient, args: TArgs) => Promise<unknown>,
+) {
+  const api = useApi();
   const queryClient = useQueryClient();
   const errors = usePlanErrorSink();
   return useMutation({
-    mutationFn,
+    mutationFn: (args: TArgs) => request(api, args),
     onSuccess: () => errors.clear(),
     // Failure has to reach the user: these controls sit in table cells with no
     // room of their own to report, so they share the grid's error banner.
@@ -30,51 +39,47 @@ function useGridMutation<TArgs>(mesocycleId: number, mutationFn: (args: TArgs) =
 }
 
 export function useAddWeek(mesocycleId: number) {
-  const api = useApi();
-  return useGridMutation<void>(mesocycleId, () => api.addMicrocycle(mesocycleId));
+  return useGridMutation<void>(mesocycleId, (api) => api.addMicrocycle(mesocycleId));
 }
 
 export function useDeleteWeek(mesocycleId: number) {
-  const api = useApi();
-  return useGridMutation<number>(mesocycleId, (microcycleId) => api.deleteMicrocycle(microcycleId));
+  return useGridMutation<number>(mesocycleId, (api, microcycleId) =>
+    api.deleteMicrocycle(microcycleId),
+  );
 }
 
 export function useSetPhase(mesocycleId: number) {
-  const api = useApi();
   return useGridMutation<{ microcycleId: number; phase: Phase | null }>(
     mesocycleId,
-    ({ microcycleId, phase }) => api.setMicrocyclePhase(microcycleId, phase),
+    (api, { microcycleId, phase }) => api.setMicrocyclePhase(microcycleId, phase),
   );
 }
 
 export function useAddWorkout(mesocycleId: number) {
-  const api = useApi();
-  return useGridMutation<string>(mesocycleId, (name) => api.addWorkout(mesocycleId, name));
+  return useGridMutation<string>(mesocycleId, (api, name) => api.addWorkout(mesocycleId, name));
 }
 
 export function useRenameWorkout(mesocycleId: number) {
-  const api = useApi();
-  return useGridMutation<{ workoutId: number; name: string }>(mesocycleId, ({ workoutId, name }) =>
-    api.renameWorkout(workoutId, name),
+  return useGridMutation<{ workoutId: number; name: string }>(
+    mesocycleId,
+    (api, { workoutId, name }) => api.renameWorkout(workoutId, name),
   );
 }
 
 export function useDeleteWorkout(mesocycleId: number) {
-  const api = useApi();
-  return useGridMutation<number>(mesocycleId, (workoutId) => api.deleteWorkout(workoutId));
+  return useGridMutation<number>(mesocycleId, (api, workoutId) => api.deleteWorkout(workoutId));
 }
 
 export function useAddPlannedExercise(mesocycleId: number) {
-  const api = useApi();
   return useGridMutation<{ workoutId: number; libraryExerciseId: number }>(
     mesocycleId,
-    ({ workoutId, libraryExerciseId }) => api.addPlannedExercise(workoutId, libraryExerciseId),
+    (api, { workoutId, libraryExerciseId }) =>
+      api.addPlannedExercise(workoutId, libraryExerciseId),
   );
 }
 
 export function useDeletePlannedExercise(mesocycleId: number) {
-  const api = useApi();
-  return useGridMutation<number>(mesocycleId, (plannedExerciseId) =>
+  return useGridMutation<number>(mesocycleId, (api, plannedExerciseId) =>
     api.deletePlannedExercise(plannedExerciseId),
   );
 }

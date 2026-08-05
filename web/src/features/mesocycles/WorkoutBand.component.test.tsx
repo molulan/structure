@@ -5,6 +5,7 @@ import { renderWithClient } from "../../test/renderWithClient";
 import { pushWorkout, weeks } from "../../test/planFixtures";
 import type { FullWorkout } from "../../api/types";
 import { ApiError } from "../../api/client";
+import { GridFrame } from "./GridFrame";
 import { PlanErrors } from "./PlanErrors";
 import { WorkoutBand } from "./WorkoutBand";
 
@@ -14,18 +15,15 @@ const mockApi = vi.mocked(api);
 
 const MESOCYCLE_ID = 7;
 
-// A tbody needs a table around it to render at all.
+// A tbody needs a table around it to render at all — the app's own, not one
+// built here. A hand-made `<table>` has no header row, which is what sizes the
+// columns, so these tests would keep passing against a shape the app dropped.
 function renderBand(workout: FullWorkout = pushWorkout) {
   return renderWithClient(
     <PlanErrors>
-      <table>
-        <WorkoutBand
-          mesocycleId={MESOCYCLE_ID}
-          workout={workout}
-          microcycles={weeks}
-          columnCount={3}
-        />
-      </table>
+      <GridFrame mesocycleId={MESOCYCLE_ID} microcycles={weeks}>
+        <WorkoutBand workout={workout} />
+      </GridFrame>
     </PlanErrors>,
   );
 }
@@ -128,18 +126,16 @@ describe("WorkoutBand", () => {
     await userEvent.click(screen.getByRole("button", { name: "Delete Push" }));
     expect(mockApi.deleteWorkout).toHaveBeenCalledWith(100);
 
-    confirm.mockRestore();
   });
 
   it("removes an exercise only once the destruction is confirmed", async () => {
     mockApi.deletePlannedExercise.mockResolvedValue(undefined);
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     renderBand();
 
     await userEvent.click(screen.getByRole("button", { name: "Remove Bench Press" }));
 
     expect(mockApi.deletePlannedExercise).toHaveBeenCalledWith(1000);
-    confirm.mockRestore();
   });
 
   it("reports a rejected rename", async () => {
@@ -159,26 +155,20 @@ describe("WorkoutBand", () => {
 
   it("reports a rejected removal", async () => {
     mockApi.deletePlannedExercise.mockRejectedValue(new ApiError(500, "database is locked"));
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     renderBand();
 
     await userEvent.click(screen.getByRole("button", { name: "Remove Bench Press" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("database is locked");
-    confirm.mockRestore();
   });
 
   it("keeps the row as wide as the header when there are no weeks", () => {
     renderWithClient(
       <PlanErrors>
-        <table>
-          <WorkoutBand
-            mesocycleId={MESOCYCLE_ID}
-            workout={pushWorkout}
-            microcycles={[]}
-            columnCount={2}
-          />
-        </table>
+        <GridFrame mesocycleId={MESOCYCLE_ID} microcycles={[]}>
+          <WorkoutBand workout={pushWorkout} />
+        </GridFrame>
       </PlanErrors>,
     );
 

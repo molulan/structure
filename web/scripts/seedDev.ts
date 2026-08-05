@@ -28,7 +28,7 @@ export const REFERENCE_PLAN_NAME = "Upper/Lower Hypertrophy";
 export const FIXTURE_PLAN_NAMES = {
   empty: "Fixture (resets) — no weeks or workouts",
   workoutsFirst: "Fixture (resets) — workouts before weeks",
-  weeksFirst: "Fixture (resets) — weeks before workouts",
+  weeksFirst: "Fixture (resets) — weeks before exercises",
 } as const;
 
 interface SetGroupSpec {

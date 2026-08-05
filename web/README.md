@@ -38,7 +38,7 @@ what they are because they are fixtures:
 | `Upper/Lower Hypertrophy` | four weeks, four workouts, every set-group encoding |
 | `Fixture (resets) — no weeks or workouts` | nothing yet: both empty notices at once |
 | `Fixture (resets) — workouts before weeks` | two workouts with exercises, no weeks |
-| `Fixture (resets) — weeks before workouts` | three weeks, one workout still empty |
+| `Fixture (resets) — weeks before exercises` | three weeks, one workout still empty |
 
 Degenerate states belong here rather than on the workbench whenever a database
 can hold them, because seeded they stay **clickable** — you can press "+ Week" on

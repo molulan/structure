@@ -176,12 +176,12 @@ function Stage({
  */
 function Report({ error }: { error: unknown }) {
   const { report } = usePlanErrorSink();
-  const [raised, setRaised] = useState(0);
 
-  useEffect(() => report(error), [report, error, raised]);
+  // Once on arrival, so the stage shows its banner without being touched.
+  useEffect(() => report(error), [report, error]);
 
   return (
-    <button className={styles.raise} type="button" onClick={() => setRaised((n) => n + 1)}>
+    <button className={styles.raise} type="button" onClick={() => report(error)}>
       Raise again
     </button>
   );

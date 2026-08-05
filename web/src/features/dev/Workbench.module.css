@@ -1,7 +1,8 @@
 /*
- * Chrome only. Every value comes from tokens.css so the page can never drift
- * into a look the app itself doesn't have — a workbench styled from its own
- * palette would report the wrong answer about how a component reads.
+ * Chrome only. Colour, spacing, borders and the mono family come from
+ * tokens.css: a workbench with a palette of its own would report the wrong
+ * answer about how a component reads. Type sizes are literal because tokens.css
+ * has no scale to draw on — the app's own stylesheets set theirs the same way.
  */
 
 .page {

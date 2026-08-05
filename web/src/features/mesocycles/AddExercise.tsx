@@ -71,7 +71,13 @@ export function AddExercise({ mesocycleId, workout }: Props) {
         onChange={(event) => setSelectedId(event.target.value)}
         disabled={library.isPending}
       >
-        <option value="">{pickerPlaceholder(library.data, available.length)}</option>
+        {/* Only a library the server confirmed is described here: while pending
+            the select is disabled, and a failed load has its own message below.
+            A refetch that fails keeps the last good data, so passing `data`
+            unguarded would report on a library that was just refused. */}
+        <option value="">
+          {pickerPlaceholder(library.isSuccess ? library.data : undefined, available.length)}
+        </option>
         {available.map((exercise) => (
           <option key={exercise.id} value={exercise.id}>
             {exercise.name}
@@ -100,11 +106,12 @@ export function AddExercise({ mesocycleId, workout }: Props) {
  * false and a signal to look elsewhere. A library that is merely used up means
  * this workout already holds everything there is.
  */
-function pickerPlaceholder(library: LibraryExercise[] | undefined, availableCount: number): string {
-  // Still loading, or the load failed — the select is disabled or the error
-  // message below it says so, and neither is the placeholder's to report.
-  if (library === undefined) return "Pick an exercise…";
-  if (library.length === 0) return "No exercises yet — create one";
+function pickerPlaceholder(
+  confirmed: LibraryExercise[] | undefined,
+  availableCount: number,
+): string {
+  if (confirmed === undefined) return "Pick an exercise…";
+  if (confirmed.length === 0) return "No exercises yet — create one";
   if (availableCount === 0) return "All exercises added";
   return "Pick an exercise…";
 }

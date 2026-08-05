@@ -8,9 +8,8 @@ export function testClient(): QueryClient {
   return new QueryClient({ defaultOptions: { queries: { retry: false } } });
 }
 
-// The default is a call rather than a shared value, so every render still gets a
-// cache of its own. A test that needs one primed — the only way to reach a query
-// holding stale data while in error — builds it with `testClient` and passes it.
+// A test that needs a primed cache — the only way to reach a query holding stale
+// data while in error — builds one with `testClient` and passes it.
 export function renderWithClient(ui: ReactElement, client = testClient()): RenderResult {
   return render(<QueryClientProvider client={client}>{ui}</QueryClientProvider>);
 }

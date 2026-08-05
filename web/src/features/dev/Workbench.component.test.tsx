@@ -36,7 +36,7 @@ describe("Workbench", () => {
   // Rendering was never the risky half: every control here is a real one, and a
   // sentinel mesocycle id only ever covered the two mutations that take one.
   it("sends nothing when its live controls are pressed", async () => {
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     render(<Workbench />);
 
     // Addressed by the workout's own id, so the sentinel never applied to it.
@@ -48,7 +48,6 @@ describe("Workbench", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create and add" }));
 
     expectNothingSent();
-    confirm.mockRestore();
   });
 
   // The page's chrome labels its specimens without ranking above them: a

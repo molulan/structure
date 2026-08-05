@@ -180,7 +180,6 @@ describe("MesocycleGrid week editing", () => {
     await userEvent.click(screen.getByRole("button", { name: "Delete Week 1" }));
     expect(mockApi.deleteMicrocycle).toHaveBeenCalledWith(10);
 
-    confirm.mockRestore();
   });
 });
 

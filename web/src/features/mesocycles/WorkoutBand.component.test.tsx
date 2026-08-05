@@ -126,18 +126,16 @@ describe("WorkoutBand", () => {
     await userEvent.click(screen.getByRole("button", { name: "Delete Push" }));
     expect(mockApi.deleteWorkout).toHaveBeenCalledWith(100);
 
-    confirm.mockRestore();
   });
 
   it("removes an exercise only once the destruction is confirmed", async () => {
     mockApi.deletePlannedExercise.mockResolvedValue(undefined);
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     renderBand();
 
     await userEvent.click(screen.getByRole("button", { name: "Remove Bench Press" }));
 
     expect(mockApi.deletePlannedExercise).toHaveBeenCalledWith(1000);
-    confirm.mockRestore();
   });
 
   it("reports a rejected rename", async () => {
@@ -157,13 +155,12 @@ describe("WorkoutBand", () => {
 
   it("reports a rejected removal", async () => {
     mockApi.deletePlannedExercise.mockRejectedValue(new ApiError(500, "database is locked"));
-    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    vi.spyOn(window, "confirm").mockReturnValue(true);
     renderBand();
 
     await userEvent.click(screen.getByRole("button", { name: "Remove Bench Press" }));
 
     expect(await screen.findByRole("alert")).toHaveTextContent("database is locked");
-    confirm.mockRestore();
   });
 
   it("keeps the row as wide as the header when there are no weeks", () => {

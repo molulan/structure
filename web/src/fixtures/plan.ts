@@ -1,7 +1,10 @@
 import type { FullMicrocycle, FullWorkout, LibraryExercise } from "../api/types";
 
 // A one-workout, two-week plan: week 1 prescribed, week 2 left empty. Shared by
-// the grid's component tests so each one only spells out what it varies.
+// the grid's component tests, so each one only spells out what it varies, and by
+// the dev workbench. Neither owns it: a copy in either place drifts from the
+// other, and the page whose purpose is judging how these components read would
+// end up reporting on data no test covers.
 
 export const benchPress: LibraryExercise = {
   id: 1,

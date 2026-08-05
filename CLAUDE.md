@@ -36,6 +36,12 @@ Every change under `web/` ends with a look at the running app, not just green te
 
 For the times a still frame isn't enough — clicking into a cell, hovering, filling a form, reading the console or network log — `.mcp.json` configures a headless Playwright MCP server against the same running stack. Reach for `npm run shot` first: it answers "does this look right" in one command, where the MCP server costs tool-schema overhead in every session. On `browser_take_screenshot`, omit `filename` so output lands in the gitignored `web/.shots/mcp/`; a relative filename resolves against the repo root instead and leaves junk in the working tree.
 
+### Test harnesses mirror, never reconstruct
+
+A test or dev harness mounts the real thing inside the app's own wrappers, never a hand-built approximation of them — a copy that drifts reports on code that no longer exists, and it misleads in both directions: a green harness hiding a broken app, or a broken harness blamed on the app. Where there is no shared wrapper to reuse, extract one; the harness needing it is a finding about the code, not a licence to duplicate. Drift is the harness case of the principle below: prefer a structure that cannot diverge over a check that notices divergence afterwards.
+
+The converse also holds: when production is correct and only the harness is awkward, fix the harness. Don't widen a component's API so a dev page can render.
+
 Within the Rust workspace, tests live next to the code in `#[cfg(test)] mod tests` blocks. Persistence tests use an in-memory SQLite database via `connection::init_db(":memory:")` — no fixtures or external DB needed. The server's HTTP-level tests live in `structure-server/tests/`, driving `router(Store::open(":memory:"))` through `tower::ServiceExt::oneshot` (API routes are under `/api`); shared request helpers are in `tests/common/mod.rs`.
 
 ## Git
@@ -64,6 +70,18 @@ Three crates, layered domain → persistence, with `structure-ffi` and `structur
 - **Errors use `thiserror`, one enum per persistence module** (`MesocycleError`, `SetGroupError`, …), each wrapping `rusqlite::Error` via `#[from]` and adding domain variants like `NotFound { id }`. Keep each error type in the module that produces it — don't recentralize them into a shared `error.rs`.
 - **The FFI layer is a thin DTO-mapping shell.** For each domain type `X` there's an `XDTO` in `dto/planning.rs` annotated `#[frb]`, with `From<&X> for XDTO` and (where input is needed) `From<XDTO> for X`. `api/` functions are `#[frb(sync)]`, open the DB (`connection::init_db("structure.db")`), call into `structure-core`, and map rows/domain types to DTOs. Put no business logic here.
 - **The server is a thin HTTP layer; logic stays in `structure-core`.** Handlers take `State<Store>`, run queries via `store.with_conn(|conn| …)`, and return `Result<Json<…>, ApiError>`. Request bodies are `Deserialize` structs in `dto.rs`; `error.rs` maps each persistence error to a status code via `From<…Error> for ApiError`. Add an endpoint by extending an entity's `routes()`, not by adding logic in the handler.
+
+## Make illegal states unrepresentable, not merely detected
+
+When something must not happen, prefer a structure in which it *cannot be expressed* over a check that notices it afterwards. A check fires late, and only for the cases someone thought to write; a structure removes the possibility, so nobody has to remember it. Reach for the check when the structure genuinely isn't available — and say which one you settled for, so the next reader knows.
+
+What that has meant here:
+
+- An invariant enforced in a constructor rather than validated by callers — `Set::new` rejects a `Load` that doesn't match its `ExerciseType`.
+- A value derived where it is used rather than passed in, so no caller can disagree with another — `gridColumnCount`, after a `columnCount` prop that every caller computed identically and one computed wrongly.
+- One shared component rather than a copy kept in step by convention — `GridFrame`, which owns the header row *because* `table-layout: fixed` makes it size every column beneath it, and hands that same week list down to the row groups, so none can lay out against a different one.
+- A dependency substituted at a seam rather than a sentinel value hoping to neutralise it — `ApiProvider`, after an id that only made two of eight mutations harmless.
+- A guard on an import rather than inside the component it guards, so a dev-only module never compiles into a production build at all.
 
 ## Code style
 

@@ -8,7 +8,8 @@ import { GridFrame } from "../mesocycles/GridFrame";
 import { PlanErrors, usePlanErrorSink } from "../mesocycles/PlanErrors";
 import { WorkoutBand } from "../mesocycles/WorkoutBand";
 import { libraryExercisesKey } from "../mesocycles/usePlanMutations";
-import { benchPress, longNamedWorkout, pushWorkout, squat, weeks } from "./fixtures";
+import { benchPress, pushWorkout, squat, weeks } from "../../fixtures/plan";
+import { longNamedWorkout } from "./fixtures";
 import { offlineApi } from "./offlineApi";
 import styles from "./Workbench.module.css";
 

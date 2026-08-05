@@ -3,7 +3,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithClient } from "../../test/renderWithClient";
 import { ApiError } from "../../api/client";
-import { pushWorkout, weeks } from "../../test/planFixtures";
+import { pushWorkout, weeks } from "../../fixtures/plan";
 import { MesocycleGrid } from "./MesocycleGrid";
 
 vi.mock("../../lib/apiClient", async () => (await import("../../test/apiMock")).mockApiModule());

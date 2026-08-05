@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithClient } from "../../test/renderWithClient";
-import { benchPress, pushWorkout, squat } from "../../test/planFixtures";
+import { benchPress, pushWorkout, squat } from "../../fixtures/plan";
 import { ApiError } from "../../api/client";
 import { PlanErrors } from "./PlanErrors";
 import { AddExercise } from "./AddExercise";

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithClient } from "../../test/renderWithClient";
-import { pushWorkout, weeks } from "../../test/planFixtures";
+import { pushWorkout, weeks } from "../../fixtures/plan";
 import type { FullWorkout } from "../../api/types";
 import { ApiError } from "../../api/client";
 import { GridFrame } from "./GridFrame";

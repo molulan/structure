@@ -14,12 +14,8 @@ export default defineConfig({
     include: ["src/**/*.component.test.tsx"],
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
-    // A `vi.spyOn` restored on the last line of a test is not restored when an
-    // assertion above it throws, and `vi.clearAllMocks` only clears call
-    // history. One failure would then leave `window.confirm` stubbed for every
-    // test after it — passing a later "does it ask before deleting?" against a
-    // stub left by an unrelated break. Restoring between tests removes the
-    // possibility rather than asking everyone to remember the cleanup line.
+    // Restores spies between tests, so a failure can't leak one into the next.
+    // Implementations go too, so arrange mocks per test, never in `beforeAll`.
     restoreMocks: true,
   },
 });

@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { renderWithClient } from "../../test/renderWithClient";
+import { renderWithClient, testClient } from "../../test/renderWithClient";
+import { libraryExercisesKey } from "./usePlanMutations";
 import { benchPress, pushWorkout, squat } from "../../test/planFixtures";
 import { ApiError } from "../../api/client";
 import { PlanErrors } from "./PlanErrors";
@@ -63,6 +64,22 @@ describe("AddExercise", () => {
 
     await screen.findByRole("option", { name: "Squat" });
     expect(screen.queryByRole("option", { name: "Bench Press" })).not.toBeInTheDocument();
+  });
+
+  // A first-run account has nowhere to go but "New exercise…", so the picker
+  // must not report the state that means the opposite.
+  it("tells an empty library apart from a used-up one", async () => {
+    mockApi.listLibraryExercises.mockResolvedValue([]);
+    renderAddExercise();
+
+    expect(await screen.findByRole("option", { name: "No exercises yet — create one" })).toBeInTheDocument();
+  });
+
+  it("says the library is used up when the workout already holds all of it", async () => {
+    mockApi.listLibraryExercises.mockResolvedValue([benchPress]);
+    renderAddExercise();
+
+    expect(await screen.findByRole("option", { name: "All exercises added" })).toBeInTheDocument();
   });
 
   it("cannot be submitted until an exercise is picked", async () => {
@@ -141,6 +158,27 @@ describe("AddExercise", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create and add" }));
 
     expect(await screen.findByText("Failed to fetch")).toBeInTheDocument();
+  });
+
+  // Only reachable with data already cached: a refetch that fails keeps the last
+  // good data, so `data` is populated while the query sits in error. A fresh
+  // client cannot produce that, which is why this one is primed by hand.
+  it("does not claim the library is used up when the load failed", async () => {
+    const client = testClient();
+    client.setQueryData(libraryExercisesKey, [benchPress]);
+    mockApi.listLibraryExercises.mockRejectedValue(new ApiError(500, "boom"));
+
+    renderWithClient(
+      <PlanErrors>
+        <AddExercise mesocycleId={MESOCYCLE_ID} workout={pushWorkout} />
+      </PlanErrors>,
+      client,
+    );
+
+    // The seed is stale, so mounting refetches; awaiting the error line is what
+    // proves the failed-refetch state has actually been reached.
+    expect(await screen.findByText("Could not load the exercise library.")).toBeInTheDocument();
+    expect(screen.getByRole("option", { name: "Pick an exercise…" })).toBeInTheDocument();
   });
 
   it("reports a library that will not load", async () => {

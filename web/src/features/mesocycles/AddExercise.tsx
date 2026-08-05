@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ExerciseType, FullWorkout, MuscleGroup } from "../../api/types";
+import type { ExerciseType, FullWorkout, LibraryExercise, MuscleGroup } from "../../api/types";
 import { EXERCISE_TYPES, MUSCLE_GROUPS } from "../../api/enums";
 import { describeError } from "../../api/client";
 import {
@@ -71,8 +71,12 @@ export function AddExercise({ mesocycleId, workout }: Props) {
         onChange={(event) => setSelectedId(event.target.value)}
         disabled={library.isPending}
       >
+        {/* Only a library the server confirmed is described here: while pending
+            the select is disabled, and a failed load has its own message below.
+            A refetch that fails keeps the last good data, so passing `data`
+            unguarded would report on a library that was just refused. */}
         <option value="">
-          {library.isSuccess && available.length === 0 ? "All exercises added" : "Pick an exercise…"}
+          {pickerPlaceholder(library.isSuccess ? library.data : undefined, available.length)}
         </option>
         {available.map((exercise) => (
           <option key={exercise.id} value={exercise.id}>
@@ -93,6 +97,23 @@ export function AddExercise({ mesocycleId, workout }: Props) {
       {library.isError && <span className={styles.error}>Could not load the exercise library.</span>}
     </form>
   );
+}
+
+/**
+ * Having nothing to offer has two causes that need different answers. A library
+ * with nothing in it is a first-run account, whose only way forward is the
+ * "New exercise…" button beside this — telling it "All exercises added" is both
+ * false and a signal to look elsewhere. A library that is merely used up means
+ * this workout already holds everything there is.
+ */
+function pickerPlaceholder(
+  confirmed: LibraryExercise[] | undefined,
+  availableCount: number,
+): string {
+  if (confirmed === undefined) return "Pick an exercise…";
+  if (confirmed.length === 0) return "No exercises yet — create one";
+  if (availableCount === 0) return "All exercises added";
+  return "Pick an exercise…";
 }
 
 /** Adds an exercise to the library and hands its id back to be placed. */

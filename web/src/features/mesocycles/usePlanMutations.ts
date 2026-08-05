@@ -71,7 +71,7 @@ export function useDeletePlannedExercise(mesocycleId: number) {
   );
 }
 
-const libraryExercisesKey = ["library-exercises"] as const;
+export const libraryExercisesKey = ["library-exercises"] as const;
 
 export function useLibraryExercises() {
   return useQuery({

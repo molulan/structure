@@ -51,15 +51,11 @@ export function Workbench() {
 
       <Group name="PlanErrors">
         <Stage title="Request failed" note="What a rejected edit leaves on the grid.">
-          <PlanErrors>
-            <Report error={conflict} />
-          </PlanErrors>
+          <Report error={conflict} />
         </Stage>
 
         <Stage title="Transport failed" note="Offline: `fetch` rejects before there is a status.">
-          <PlanErrors>
-            <Report error={offline} />
-          </PlanErrors>
+          <Report error={offline} />
         </Stage>
       </Group>
 
@@ -156,9 +152,16 @@ function Stage({
         <p className={styles.stageTitle}>{title}</p>
         <p className={styles.stageNote}>{note}</p>
       </div>
+      {/* The three things a plan component expects around it: a cache, a client,
+          and somewhere to report failure. Provided here rather than by each
+          stage, because `usePlanErrorSink` falls back to a no-op — a specimen
+          mounted without a sink swallows its failures, on the page that exists
+          to show them. */}
       <div className={styles.frame}>
         <QueryClientProvider client={client}>
-          <ApiProvider client={offlineApi}>{children}</ApiProvider>
+          <ApiProvider client={offlineApi}>
+            <PlanErrors>{children}</PlanErrors>
+          </ApiProvider>
         </QueryClientProvider>
       </div>
     </article>
@@ -192,11 +195,9 @@ function Report({ error }: { error: unknown }) {
  */
 function Band({ workout }: { workout: FullWorkout }) {
   return (
-    <PlanErrors>
-      <GridFrame mesocycleId={NOWHERE} microcycles={weeks}>
-        <WorkoutBand mesocycleId={NOWHERE} workout={workout} microcycles={weeks} />
-      </GridFrame>
-    </PlanErrors>
+    <GridFrame mesocycleId={NOWHERE} microcycles={weeks}>
+      <WorkoutBand mesocycleId={NOWHERE} workout={workout} microcycles={weeks} />
+    </GridFrame>
   );
 }
 
@@ -206,9 +207,5 @@ function Band({ workout }: { workout: FullWorkout }) {
  * alone leaves none, and an empty library leaves nothing to have offered.
  */
 function Picker() {
-  return (
-    <PlanErrors>
-      <AddExercise mesocycleId={NOWHERE} workout={pushWorkout} />
-    </PlanErrors>
-  );
+  return <AddExercise mesocycleId={NOWHERE} workout={pushWorkout} />;
 }

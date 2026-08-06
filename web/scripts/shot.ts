@@ -21,13 +21,19 @@ import { PNG } from "pngjs";
 // problem. A silent console is half of "does this work".
 //
 // Each route's last frame is kept, so a capture can be compared with the one it
-// replaced and report how much of the page actually moved.
+// replaced and say how much of the page actually moved.
 
 const WEB_URL = process.env.STRUCTURE_WEB_URL ?? "http://127.0.0.1:5173";
 const DEFAULT_VIEWPORT = { width: 1280, height: 900 };
 const OUT_DIR = ".shots";
 const PREV_DIR = `${OUT_DIR}/prev`;
 const DIFF_DIR = `${OUT_DIR}/diff`;
+
+// Well below pixelmatch's 0.1 default, which is tuned to swallow rendering noise
+// in a regression suite and takes `#ffffff` → `#e6e6e6` with it — a shade change
+// anyone can see, reported as no change at all. At 0.02 that reads as changed
+// while a 1/255 drift still doesn't.
+const COLOUR_TOLERANCE = 0.02;
 
 interface Options {
   paths: string[];
@@ -65,6 +71,20 @@ function slug(path: string): string {
   return trimmed === "" ? "home" : trimmed.replace(/[^a-zA-Z0-9]+/g, "-");
 }
 
+/**
+ * The output name for a capture, which is the slug alone at the default size.
+ *
+ * A narrower or viewport-only capture gets its own name because it is its own
+ * baseline: sharing one would have a mobile check overwrite the desktop frame,
+ * and every run after it could only report that the size had changed.
+ */
+function outputName(path: string, { viewport, fullPage }: Options): string {
+  const base = slug(path);
+  const sized = viewport.width !== DEFAULT_VIEWPORT.width || viewport.height !== DEFAULT_VIEWPORT.height;
+  if (!sized && fullPage) return base;
+  return `${base}@${viewport.width}x${viewport.height}${fullPage ? "" : "-viewport"}`;
+}
+
 /** First line only — Playwright appends a call log that buries the message. */
 function describe(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).split("\n")[0];
@@ -73,9 +93,9 @@ function describe(error: unknown): string {
 /**
  * How old the frame being compared against is.
  *
- * A verdict is only about the last edit if the frame it is measured against is
- * from just before it, and nothing else says which is the case — a week-old
- * baseline reports a week of commits in exactly the same words.
+ * A verdict is only about the last edit if the frame behind it is from just
+ * before that edit, and nothing else says whether it is — a week-old baseline
+ * reports a week of commits in exactly the same words.
  */
 function age(file: string): string {
   const seconds = Math.max(0, Math.round((Date.now() - statSync(file).mtimeMs) / 1000));
@@ -87,9 +107,23 @@ function age(file: string): string {
   return `${Math.round(hours / 24)}d old`;
 }
 
+/**
+ * The changed pixels as a share of the page.
+ *
+ * Reported to whatever precision keeps it non-zero, because a single-element
+ * edit is a few hundred pixels of a million and rounds to `0.0%` — a figure
+ * that flatly contradicts the word "changed" next to it.
+ */
+function share(pixels: number, total: number): string {
+  const percent = (pixels / total) * 100;
+  if (percent >= 1) return `${percent.toFixed(1)}%`;
+  if (percent >= 0.1) return `${percent.toFixed(2)}%`;
+  return "<0.1%";
+}
+
 type Comparison =
   | { kind: "identical" }
-  | { kind: "changed"; pixels: number; percent: number }
+  | { kind: "changed"; pixels: number; total: number }
   | { kind: "resized"; from: string; to: string };
 
 /**
@@ -99,12 +133,9 @@ type Comparison =
  * the screen — wrong selector, a class nothing uses, a hot reload that didn't
  * take — renders exactly like one that worked, and only a pixel count tells
  * those apart without someone looking.
- *
- * The only writer of the diff file, so a run that does not reach here leaves
- * none behind.
  */
-function compare(previousFile: string, current: Buffer, diffFile: string): Comparison {
-  const previous = PNG.sync.read(readFileSync(previousFile));
+function compare(previousBytes: Buffer, current: Buffer, diffFile: string): Comparison {
+  const previous = PNG.sync.read(previousBytes);
   const currentPng = PNG.sync.read(current);
 
   // A full-page capture grows with its content, so two runs can disagree on
@@ -118,19 +149,11 @@ function compare(previousFile: string, current: Buffer, diffFile: string): Compa
     };
   }
 
+  const total = currentPng.width * currentPng.height;
   const diff = new PNG({ width: currentPng.width, height: currentPng.height });
-  const pixels = pixelmatch(
-    previous.data,
-    currentPng.data,
-    diff.data,
-    currentPng.width,
-    currentPng.height,
-    // How far a pixel's colour may drift before it counts as changed. Stated
-    // rather than left implicit because it is the knob to turn for a more or
-    // less sensitive diff; antialiased pixels are a separate matter, and
-    // pixelmatch already leaves those uncounted unless asked not to.
-    { threshold: 0.1 },
-  );
+  const pixels = pixelmatch(previous.data, currentPng.data, diff.data, currentPng.width, currentPng.height, {
+    threshold: COLOUR_TOLERANCE,
+  });
 
   if (pixels === 0) {
     return { kind: "identical" };
@@ -138,11 +161,7 @@ function compare(previousFile: string, current: Buffer, diffFile: string): Compa
 
   mkdirSync(DIFF_DIR, { recursive: true });
   writeFileSync(diffFile, PNG.sync.write(diff));
-  return {
-    kind: "changed",
-    pixels,
-    percent: (pixels / (currentPng.width * currentPng.height)) * 100,
-  };
+  return { kind: "changed", pixels, total };
 }
 
 async function reachable(url: string): Promise<boolean> {
@@ -153,7 +172,8 @@ async function reachable(url: string): Promise<boolean> {
   }
 }
 
-const { paths, viewport, fullPage } = parseArgs(process.argv.slice(2));
+const options = parseArgs(process.argv.slice(2));
+const { viewport, fullPage } = options;
 
 if (!(await reachable(WEB_URL))) {
   console.error(`nothing is serving ${WEB_URL} — start the stack first with: npm run app`);
@@ -162,24 +182,17 @@ if (!(await reachable(WEB_URL))) {
 
 mkdirSync(OUT_DIR, { recursive: true });
 
-let complaints = 0;
-
-// One capture per output name. Two paths that slug alike would have the second
-// keep the first's fresh capture as the frame to compare against, so the route
-// would be measured against itself and the real previous frame lost.
+// One capture per output name. A route asked for twice is redundant rather than
+// wrong, but capturing it twice would leave the second run comparing the page
+// with itself and the real previous frame gone.
 const shots = new Map<string, string>();
-for (const path of paths) {
-  const name = slug(path);
-  const claimed = shots.get(name);
-  if (claimed === undefined) {
-    shots.set(name, path);
-  } else {
-    console.log(`  ! ${path} and ${claimed} are both ${name}.png — skipping ${path}`);
-    complaints += 1;
-  }
+for (const path of options.paths) {
+  const name = outputName(path, options);
+  if (!shots.has(name)) shots.set(name, path);
 }
 
 const browser = await chromium.launch();
+let complaints = 0;
 
 try {
   for (const [name, path] of shots) {
@@ -201,6 +214,7 @@ try {
 
     const url = `${WEB_URL}/${path.replace(/^\/+/, "")}`;
     const file = `${OUT_DIR}/${name}.png`;
+    const pendingFile = `${file}.pending`;
     const previousFile = `${PREV_DIR}/${name}.png`;
     const diffFile = `${DIFF_DIR}/${name}.png`;
 
@@ -218,9 +232,6 @@ try {
         .then(() => true)
         .catch(() => false);
 
-      // Held in memory rather than written straight through: nothing on disk
-      // moves until there is a frame to put in its place, so a capture that
-      // fails leaves the last good screenshot where its reader expects it.
       captured = await page.screenshot({ fullPage, timeout: 15_000 });
     } catch (error) {
       // One route that cannot be captured must not abort the others or leave
@@ -233,47 +244,62 @@ try {
     }
 
     if (captured !== undefined) {
-      if (existsSync(file)) {
-        mkdirSync(PREV_DIR, { recursive: true });
-        renameSync(file, previousFile);
-      } else {
-        // Nothing was replaced, so whatever sits in prev/ is not the frame
-        // before this one, and a verdict against it would describe some older
-        // stretch of edits as if it described this one.
-        rmSync(previousFile, { force: true });
-      }
-      // Cleared for every capture, not only the ones that reach a verdict, so
-      // no run can leave a diff behind describing a comparison it never made.
-      rmSync(diffFile, { force: true });
-
-      writeFileSync(file, captured);
-      console.log(`${file}  ←  ${url}`);
-      if (!settled) {
-        console.log("  · network never went idle — captured after 5s anyway");
-      }
-
-      if (existsSync(previousFile)) {
-        const against = age(previousFile);
-        try {
-          const comparison = compare(previousFile, captured, diffFile);
-          if (comparison.kind === "changed") {
-            console.log(
-              `  · changed ${comparison.percent.toFixed(1)}% of pixels (${comparison.pixels}) vs a frame ${against} → ${diffFile}`,
-            );
-          } else if (comparison.kind === "identical") {
-            console.log(`  · identical to the previous frame (${against})`);
-          } else {
-            console.log(
-              `  · size changed ${comparison.from} → ${comparison.to} vs a frame ${against}, not compared`,
-            );
-          }
-        } catch (error) {
-          // A comparison that cannot be made says nothing about the capture,
-          // which has already succeeded and is on disk under the name printed
-          // above. Reporting this as a capture failure would contradict that.
-          console.log(`  ! could not compare with the previous frame: ${describe(error)}`);
-          complaints += 1;
+      // Everything below touches the disk, and a disk that refuses one route
+      // must not abort the rest either.
+      try {
+        // Written aside and moved into place, so a write that fails partway
+        // leaves the frame its reader has open untouched.
+        writeFileSync(pendingFile, captured);
+        if (existsSync(file)) {
+          mkdirSync(PREV_DIR, { recursive: true });
+          renameSync(file, previousFile);
+        } else {
+          // Nothing was replaced, so whatever sits in prev/ is not the frame
+          // before this one, and a verdict against it would describe some
+          // older stretch of edits as if it described this one.
+          rmSync(previousFile, { force: true });
         }
+        // Unconditional, so no run can leave a diff behind describing a
+        // comparison it never made.
+        rmSync(diffFile, { force: true });
+        renameSync(pendingFile, file);
+
+        console.log(`${file}  ←  ${url}`);
+        if (!settled) {
+          console.log("  · network never went idle — captured after 5s anyway");
+        }
+
+        if (existsSync(previousFile)) {
+          try {
+            const against = age(previousFile);
+            const previousBytes = readFileSync(previousFile);
+            const comparison: Comparison = captured.equals(previousBytes)
+              ? { kind: "identical" }
+              : compare(previousBytes, captured, diffFile);
+
+            if (comparison.kind === "changed") {
+              console.log(
+                `  · changed ${comparison.pixels} pixels (${share(comparison.pixels, comparison.total)}) vs a frame ${against} → ${diffFile}`,
+              );
+            } else if (comparison.kind === "identical") {
+              console.log(`  · identical to the previous frame (${against})`);
+            } else {
+              console.log(
+                `  · size changed ${comparison.from} → ${comparison.to} vs a frame ${against}, not compared`,
+              );
+            }
+          } catch (error) {
+            // A comparison that cannot be made says nothing about the capture,
+            // which has already succeeded and is on disk under the name printed
+            // above. Reporting this as a capture failure would contradict that.
+            console.log(`  ! could not compare with the previous frame: ${describe(error)}`);
+            complaints += 1;
+          }
+        }
+      } catch (error) {
+        rmSync(pendingFile, { force: true });
+        console.log(`  ! could not store ${file}: ${describe(error)}`);
+        complaints += 1;
       }
     }
 

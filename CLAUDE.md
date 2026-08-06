@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-A strength-training app for building long-term training plans and tracking workouts. Active development, not a finished product. The Rust workspace holds the core logic and HTTP server. `web/` is a Vite + React + TypeScript SPA, served by the Axum server in production; `mobile/` is still an empty placeholder (Flutter, via `structure-ffi`).
+A strength-training app for building long-term training plans and tracking workouts. Active development, not a finished product. The Rust workspace holds the core logic and HTTP server. `web/` is a Vite + React + TypeScript SPA, served by the Axum server in production; `structure-ffi` holds the Flutter bindings a mobile app will consume.
 
 ## Commands
 
@@ -59,7 +59,7 @@ Three crates, layered domain → persistence, with `structure-ffi` and `structur
   - `domain/planning.rs` — the plan domain types: `Mesocycle`, `Microcycle` (`position`, `phase`), `Workout` (`name`, `position`), `PlannedExercise` (references a `LibraryExercise`), and `SetGroup` (`number_of_sets` plus a `SetGroupType` — `Prescribed { set_type, reps: RepTarget, intensity: Intensity }` or `MyorepMatch`), alongside `LibraryExercise`, `Phase`, `Weight`, `MuscleGroup`, `ExerciseType`. These are **content-only** — each carries its own fields and invariants but no parent reference; how the entities relate lives in the persistence FKs, not the domain types.
   - `domain/tracking.rs` — the performed-workout layer: `LoggedSession` → `LoggedExercise` → `LoggedSet`, with nullable links back to the plan.
   - `persistence/` — one module per entity (`mesocycles`, `microcycles`, `workouts`, `library_exercises`, `planned_exercises`, `set_groups`, plus the tracking modules `logged_sessions`, `logged_exercises`, `logged_sets`). The plan is a **template model** enforced here by the FKs: structure is defined once per mesocycle — a `workout` belongs to the mesocycle, not a microcycle — and prescription varies per week — a `set_group` is keyed by `(planned_exercise, microcycle)`, a grid cell. `connection.rs` opens connections and builds the schema (`init_db`); `store.rs` wraps one in `Store`, a cloneable `Arc<Mutex<Connection>>` handle (`open`, `with_conn`); `aggregates.rs` assembles the full `Mesocycle` grid (workouts × microcycles, each planned exercise carrying a `Prescription` per week) and the full logged session; `positions.rs` is the shared multi-column-scoped `reorder` helper.
-- **`structure-ffi`** — `flutter_rust_bridge` bindings (pinned `=2.11.1`) over `structure-core`. Compiled as `cdylib`/`staticlib`/`rlib` for consumption by the Flutter app. `api/` holds `#[frb(sync)]` wrappers per entity; `dto/planning.rs` holds the wire types.
+- **`structure-ffi`** — `flutter_rust_bridge` bindings (pinned `=2.11.1`) over `structure-core`. Compiled as `cdylib`/`staticlib`/`rlib` for consumption by a Flutter app. `api/` holds `#[frb(sync)]` wrappers per entity; `dto/planning.rs` holds the wire types.
 - **`structure-server`** — an Axum 0.8 HTTP server over `structure-core`. `lib.rs` exposes `router(store)` — `/health` at the root and the API under `/api` (one route module per entity, nested) — and `app(store, web_dir)`, which wraps `router` to also serve the built `web/` SPA with an SPA history-fallback when a web dir is present. See the server conventions below.
 
 ### Conventions to follow when extending

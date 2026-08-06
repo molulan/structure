@@ -1,5 +1,7 @@
 import { chromium, type ConsoleMessage } from "@playwright/test";
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import pixelmatch from "pixelmatch";
+import { PNG } from "pngjs";
 
 // A camera pointed at the running dev stack. Because it drives the server that is
 // already up, a change is on screen as fast as Vite can hot-reload it — where the
@@ -13,6 +15,8 @@ import { mkdirSync } from "node:fs";
 const WEB_URL = process.env.STRUCTURE_WEB_URL ?? "http://127.0.0.1:5173";
 const DEFAULT_VIEWPORT = { width: 1280, height: 900 };
 const OUT_DIR = ".shots";
+const PREV_DIR = `${OUT_DIR}/prev`;
+const DIFF_DIR = `${OUT_DIR}/diff`;
 
 interface Options {
   paths: string[];
@@ -53,6 +57,59 @@ function slug(path: string): string {
 /** First line only — Playwright appends a call log that buries the message. */
 function describe(error: unknown): string {
   return (error instanceof Error ? error.message : String(error)).split("\n")[0];
+}
+
+type Comparison =
+  | { kind: "identical" }
+  | { kind: "changed"; pixels: number; percent: number }
+  | { kind: "resized"; from: string; to: string };
+
+/**
+ * The frame this route rendered last time, against the one just captured.
+ *
+ * The count is the point rather than the diff image: an edit that never reached
+ * the screen — wrong selector, a class nothing uses, a hot reload that didn't
+ * take — renders exactly like one that worked, and only a pixel count tells
+ * those apart without someone looking.
+ */
+function compare(previousFile: string, currentFile: string, diffFile: string): Comparison {
+  const previous = PNG.sync.read(readFileSync(previousFile));
+  const current = PNG.sync.read(readFileSync(currentFile));
+
+  // A full-page capture grows with its content, so two runs can disagree on
+  // height. There is no per-pixel correspondence to compare then — the size
+  // change is itself the finding.
+  if (previous.width !== current.width || previous.height !== current.height) {
+    return {
+      kind: "resized",
+      from: `${previous.width}×${previous.height}`,
+      to: `${current.width}×${current.height}`,
+    };
+  }
+
+  const diff = new PNG({ width: current.width, height: current.height });
+  const pixels = pixelmatch(
+    previous.data,
+    current.data,
+    diff.data,
+    current.width,
+    current.height,
+    // Leaves antialiasing uncounted, so a re-render that shifts nothing reads
+    // as identical rather than as a few hundred stray pixels.
+    { threshold: 0.1 },
+  );
+
+  if (pixels === 0) {
+    return { kind: "identical" };
+  }
+
+  mkdirSync(DIFF_DIR, { recursive: true });
+  writeFileSync(diffFile, PNG.sync.write(diff));
+  return {
+    kind: "changed",
+    pixels,
+    percent: (pixels / (current.width * current.height)) * 100,
+  };
 }
 
 async function reachable(url: string): Promise<boolean> {
@@ -105,11 +162,41 @@ try {
         .then(() => true)
         .catch(() => false);
 
-      const file = `${OUT_DIR}/${slug(path)}.png`;
+      const name = slug(path);
+      const file = `${OUT_DIR}/${name}.png`;
+      const previousFile = `${PREV_DIR}/${name}.png`;
+      const diffFile = `${DIFF_DIR}/${name}.png`;
+
+      // Moved aside before the capture overwrites it, so "shoot, change, shoot
+      // again" always has a before-frame — without the caller having to
+      // remember to keep one, which is the point at which the loop breaks.
+      if (existsSync(file)) {
+        mkdirSync(PREV_DIR, { recursive: true });
+        renameSync(file, previousFile);
+      }
+
       await page.screenshot({ path: file, fullPage, timeout: 15_000 });
       console.log(`${file}  ←  ${url}`);
       if (!settled) {
         console.log("  · network never went idle — captured after 5s anyway");
+      }
+
+      if (existsSync(previousFile)) {
+        const comparison = compare(previousFile, file, diffFile);
+        if (comparison.kind === "changed") {
+          console.log(
+            `  · changed ${comparison.percent.toFixed(1)}% of pixels (${comparison.pixels}) → ${diffFile}`,
+          );
+        } else {
+          // A diff left from an earlier run would describe a comparison this
+          // one didn't make.
+          rmSync(diffFile, { force: true });
+          console.log(
+            comparison.kind === "identical"
+              ? "  · identical to the previous frame"
+              : `  · size changed ${comparison.from} → ${comparison.to}, not compared`,
+          );
+        }
       }
 
       for (const problem of problems) {

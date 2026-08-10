@@ -1,24 +1,10 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
 ## What this is
 
 A strength-training app for building long-term training plans and tracking workouts. Active development, not a finished product. The Rust workspace holds the core logic and HTTP server. `web/` is a Vite + React + TypeScript SPA, served by the Axum server in production; `structure-ffi` holds the Flutter bindings a mobile app will consume.
 
 ## Commands
-
-Rust workspace (edition 2024, resolver 3):
-
-```bash
-cargo build                       # build all crates
-cargo test --workspace            # run all tests
-cargo test -p structure-core      # test a single crate
-cargo test mesocycle              # run tests matching a substring
-cargo test created_mesocycle_appears_in_list_with_correct_id_name_and_mode  # single test
-cargo fmt
-cargo clippy --workspace
-```
 
 Web frontend (`web/`, an npm project):
 
@@ -30,11 +16,7 @@ npm run dev        # Vite alone; proxies /api to a backend you started yourself 
 npm run verify     # the required pre-merge gate: typecheck + lint + unit + component + contract + e2e
 ```
 
-### Verifying frontend changes
-
-Every change under `web/` ends with a look at the running app, not just green tests. Leave `npm run app` up — it serves a seeded four-week plan, so no screen is empty — and take a `npm run shot -- <route>` after each edit: Vite hot-reloads, so the screenshot is current within a second or two, and the script fails on console errors and 4xx/5xx responses — and on a capture or comparison it could not complete — which a screenshot alone would hide. It keeps each route's last frame in `.shots/prev/` and reports how much of the page moved — `changed 240 pixels (<0.1%) vs a frame 40s old`, with the changed regions in `.shots/diff/`. Read the count before the image: an edit that never reached the screen renders exactly like one that worked, and `identical to the previous frame` is what tells them apart. An edit that changes the page's height reports the size alongside the count for the area both frames share. Any framing but the default — `--viewport` or `--viewport-only` — writes under its own name, so a mobile check doesn't become the baseline the next desktop capture is judged against. Iterate against that; save the full `npm run verify` for before the commit rather than between edits. The dev data lives in `web/scripts/seedDev.ts` — extend it when a screen needs something the block doesn't cover yet, and keep it distinct from `tests/support/seed.ts`, which is shaped for assertions rather than for looking at.
-
-For the times a still frame isn't enough — clicking into a cell, hovering, filling a form, reading the console or network log — `.mcp.json` configures a headless Playwright MCP server against the same running stack. Reach for `npm run shot` first: it answers "does this look right" in one command, where the MCP server costs tool-schema overhead in every session. On `browser_take_screenshot`, omit `filename` so output lands in the gitignored `web/.shots/mcp/`; a relative filename resolves against the repo root instead and leaves junk in the working tree.
+Frontend verification workflow (screenshots, seeded dev data, the Playwright MCP fallback): see `web/CLAUDE.md`.
 
 ### Test harnesses mirror, never reconstruct
 
@@ -59,7 +41,7 @@ Three crates, layered domain → persistence, with `structure-ffi` and `structur
   - `domain/planning.rs` — the plan domain types: `Mesocycle`, `Microcycle` (`position`, `phase`), `Workout` (`name`, `position`), `PlannedExercise` (references a `LibraryExercise`), and `SetGroup` (`number_of_sets` plus a `SetGroupType` — `Prescribed { set_type, reps: RepTarget, intensity: Intensity }` or `MyorepMatch`), alongside `LibraryExercise`, `Phase`, `Weight`, `MuscleGroup`, `ExerciseType`. These are **content-only** — each carries its own fields and invariants but no parent reference; how the entities relate lives in the persistence FKs, not the domain types.
   - `domain/tracking.rs` — the performed-workout layer: `LoggedSession` → `LoggedExercise` → `LoggedSet`, with nullable links back to the plan.
   - `persistence/` — one module per entity (`mesocycles`, `microcycles`, `workouts`, `library_exercises`, `planned_exercises`, `set_groups`, plus the tracking modules `logged_sessions`, `logged_exercises`, `logged_sets`). The plan is a **template model** enforced here by the FKs: structure is defined once per mesocycle — a `workout` belongs to the mesocycle, not a microcycle — and prescription varies per week — a `set_group` is keyed by `(planned_exercise, microcycle)`, a grid cell. `connection.rs` opens connections and builds the schema (`init_db`); `store.rs` wraps one in `Store`, a cloneable `Arc<Mutex<Connection>>` handle (`open`, `with_conn`); `aggregates.rs` assembles the full `Mesocycle` grid (workouts × microcycles, each planned exercise carrying a `Prescription` per week) and the full logged session; `positions.rs` is the shared multi-column-scoped `reorder` helper.
-- **`structure-ffi`** — `flutter_rust_bridge` bindings (pinned `=2.11.1`) over `structure-core`. Compiled as `cdylib`/`staticlib`/`rlib` for consumption by a Flutter app. `api/` holds `#[frb(sync)]` wrappers per entity; `dto/planning.rs` holds the wire types.
+- **`structure-ffi`** — `flutter_rust_bridge` bindings (pinned `=2.11.1`) over `structure-core`.
 - **`structure-server`** — an Axum 0.8 HTTP server over `structure-core`. `lib.rs` exposes `router(store)` — `/health` at the root and the API under `/api` (one route module per entity, nested) — and `app(store, web_dir)`, which wraps `router` to also serve the built `web/` SPA with an SPA history-fallback when a web dir is present. See the server conventions below.
 
 ### Conventions to follow when extending

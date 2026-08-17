@@ -68,6 +68,7 @@ What that has meant here:
 ## Code style
 
 - Comments are rare and explain *why*, not *what* — reserve them for non-obvious rationale (a constraint, a subtle invariant). Let names carry the meaning.
+- A comment describes the code as it stands, never the change that produced it. No "this used to…", "no longer…", "now that X is generated" — the reader months from now never saw the previous state, and a commit message is where a change gets explained. When a change makes a comment wrong, rewrite it to say what the code does now rather than appending a contrast.
 - Consult the `rust-best-practices` skill when writing or reviewing Rust.
 
 ### Function ordering

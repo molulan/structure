@@ -1,10 +1,10 @@
 import { createApiClient, type ApiClient } from "../src/api/client";
 import type {
-  CreateLibraryExercise,
   Intensity,
+  LibraryExerciseRequest,
   RepTarget,
   SetGroupType,
-} from "../src/api/types";
+} from "../src/api/wire";
 
 // The dev database's contents: one plausible four-week block plus three plans
 // caught mid-build, all created over HTTP so they go through the same validation
@@ -39,7 +39,7 @@ interface SetGroupSpec {
 }
 
 interface ExercisePlan {
-  exercise: CreateLibraryExercise;
+  exercise: LibraryExerciseRequest;
   /** One cell per week, in week order. An empty array leaves that week unprescribed. */
   weeks: SetGroupSpec[][];
 }
@@ -382,7 +382,7 @@ async function deleteMesocycle(baseUrl: string, id: number): Promise<void> {
 async function libraryIdFor(
   api: ApiClient,
   library: Map<string, number>,
-  exercise: CreateLibraryExercise,
+  exercise: LibraryExerciseRequest,
 ): Promise<number> {
   const known = library.get(exercise.name);
   if (known !== undefined) return known;

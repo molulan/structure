@@ -1,6 +1,7 @@
-// Runtime companions to the enum unions in types.ts, for rendering option lists.
-// Kept beside the types so a backend enum gaining a variant is a one-file change.
-import type { ExerciseType, MuscleGroup, Phase } from "./types";
+// Runtime companions to the enum unions in wire.ts, for rendering option lists.
+// Those unions are generated from Rust, so a variant added to a backend enum
+// reaches this file as a compile error rather than as a silently short list.
+import type { ExerciseType, MuscleGroup, Phase } from "./wire";
 
 /**
  * The union's values in the given order. The `Record<T, true>` argument is what

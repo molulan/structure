@@ -1,15 +1,15 @@
 import type {
-  CreateLibraryExercise,
-  CreateMesocycle,
+  CreateMesocycleRequest,
   FullMesocycle,
   LibraryExercise,
+  LibraryExerciseRequest,
   Mesocycle,
   MesocycleRow,
   Microcycle,
   Phase,
   PlannedExercise,
   Workout,
-} from "./types";
+} from "./wire";
 
 /** A non-2xx response from the API, carrying the status and the server's message. */
 export class ApiError extends Error {
@@ -70,7 +70,7 @@ async function request<T>(
 export function createApiClient(baseUrl: string) {
   return {
     listMesocycles: () => request<MesocycleRow[]>(baseUrl, "/mesocycles"),
-    createMesocycle: (body: CreateMesocycle) =>
+    createMesocycle: (body: CreateMesocycleRequest) =>
       request<Mesocycle>(baseUrl, "/mesocycles", {
         method: "POST",
         body: JSON.stringify(body),
@@ -111,7 +111,7 @@ export function createApiClient(baseUrl: string) {
       request<void>(baseUrl, `/planned-exercises/${plannedExerciseId}`, { method: "DELETE" }),
 
     listLibraryExercises: () => request<LibraryExercise[]>(baseUrl, "/library-exercises"),
-    createLibraryExercise: (body: CreateLibraryExercise) =>
+    createLibraryExercise: (body: LibraryExerciseRequest) =>
       request<LibraryExercise>(baseUrl, "/library-exercises", {
         method: "POST",
         body: JSON.stringify(body),

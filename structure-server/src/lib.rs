@@ -5,6 +5,8 @@ mod mesocycles;
 mod microcycles;
 mod planned_exercises;
 mod set_groups;
+#[cfg(test)]
+mod wire;
 mod workouts;
 
 use std::path::PathBuf;

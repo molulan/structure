@@ -10,3 +10,4 @@ crate-type = ["rlib"]
 serde = { version = "1.0", features = ["derive"] }
 rusqlite = {version = "0.39.0", features = ["bundled"] }
 thiserror = "2.0.18"
+ts-rs = "12"

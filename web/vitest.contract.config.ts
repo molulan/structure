@@ -1,11 +1,9 @@
 import { defineConfig } from "vitest/config";
 
 // Contract tests: exercise the typed API client against a real, freshly-booted
-// structure-server. The wire shapes are generated from Rust into src/api/wire.ts,
-// so these cover what a shape cannot state — status codes, error bodies, the
-// trees the server assembles — plus the encodings themselves, since ts-rs
-// re-implements serde's attributes rather than calling serde. The global setup
-// boots the server.
+// structure-server, for what a type cannot carry — status codes, error bodies,
+// the trees the server assembles — and for the encodings, which ts-rs
+// re-implements rather than calling serde. The global setup boots the server.
 export default defineConfig({
   test: {
     include: ["tests/contract/**/*.test.ts"],

@@ -3,13 +3,10 @@ import { readFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-// src/api/wire.ts is written by a Rust test from the types the server serializes,
-// and committed so the frontend typechecks without a cargo run. Committing a
-// generated file is the one thing that can drift, so this regenerates it and
-// fails if the contents moved: a Rust wire type changed without its bindings.
-//
-// The comparison is against the file's contents rather than against git, so a
-// working tree that has legitimately regenerated but not yet committed passes.
+// src/api/wire.ts is committed so the frontend typechecks without a cargo run,
+// which leaves it free to fall behind the Rust types it is generated from. This
+// regenerates it and fails if the contents moved. The comparison is against the
+// file rather than against git, so a regenerated but uncommitted tree passes.
 
 const WEB_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const BINDINGS = join(WEB_DIR, "src/api/wire.ts");

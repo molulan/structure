@@ -3,12 +3,10 @@ import { createApiClient, type ApiClient } from "../../src/api/client";
 import { buildFullMesocycle } from "../support/seed";
 
 // Builds a full mesocycle grid via the API, then asserts GET /mesocycles/{id}/full
-// returns it. Two jobs, both still real now that src/api/wire.ts is generated:
-// that the grid is assembled from the parts we posted — one cell per week in
-// column order, including the week with nothing in it — and that the encodings
-// spelled out below are what serde actually writes. ts-rs re-implements serde's
-// attributes rather than calling it, so these leaves are what keeps the
-// generator honest about externally-tagged enums and bare-string variants.
+// returns it: one cell per week in column order, the empty week included, and the
+// leaf encodings themselves. ts-rs re-implements serde's attributes rather than
+// calling serde, so the shapes spelled out below are what hold the generated
+// src/api/wire.ts to what the server actually writes.
 let base: string;
 let api: ApiClient;
 

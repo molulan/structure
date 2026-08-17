@@ -45,9 +45,6 @@ describe("dev seed contract", () => {
     expect(exercises).toHaveLength(SEEDED_EXERCISE_COUNT);
   });
 
-  // A statement about the seed, not about the encodings — those come from the
-  // Rust types now. A block where every cell reads the same is a poor thing to
-  // develop against, since the renderings that differ are never on screen.
   it("prescribes cells covering every set-group kind the grid can render", async () => {
     const plan = await api.getFullMesocycle(planId);
     const groups = plan.workouts

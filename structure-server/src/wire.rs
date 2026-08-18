@@ -4,6 +4,8 @@
 //! The list below is the wire surface: the types a route names, each a root whose
 //! fields `export_all` follows into their dependencies.
 
+use std::path::PathBuf;
+
 use structure_core::domain::planning::{
     LibraryExercise, Mesocycle, Microcycle, PlannedExercise, SetGroup, Workout,
 };
@@ -20,13 +22,21 @@ use crate::dto::{
 /// as the numbers `serde_json` writes.
 const LARGE_INT: &str = "number";
 
-const OUT_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../web/src/api");
+const DEFAULT_OUT_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../web/src/api");
+
+/// Where the bindings are written. `npm run wire` points this elsewhere to
+/// compare a fresh export against the committed one without disturbing it.
+fn out_dir() -> PathBuf {
+    std::env::var_os("STRUCTURE_WIRE_OUT_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| PathBuf::from(DEFAULT_OUT_DIR))
+}
 
 #[test]
 fn writes_the_web_clients_wire_types() {
     let config = Config::new()
         .with_large_int(LARGE_INT)
-        .with_out_dir(OUT_DIR);
+        .with_out_dir(out_dir());
 
     export::<MesocycleRow>(&config);
     export::<Mesocycle>(&config);

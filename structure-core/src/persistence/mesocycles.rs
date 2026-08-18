@@ -1,5 +1,6 @@
 use rusqlite::{Connection, OptionalExtension, params};
 use serde::Serialize;
+#[cfg(feature = "ts")]
 use ts_rs::TS;
 
 use crate::domain::planning::{Mesocycle, MesocycleMode, Name, NameError};
@@ -14,8 +15,8 @@ pub enum MesocycleError {
     InvalidName(#[from] NameError),
 }
 
-#[derive(Serialize, TS)]
-#[ts(export_to = "wire.ts")]
+#[derive(Serialize)]
+#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
 pub struct MesocycleRow {
     pub id: i64,
     pub name: String,

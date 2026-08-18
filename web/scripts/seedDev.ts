@@ -44,23 +44,6 @@ interface WorkoutPlan {
   exercises: ExercisePlan[];
 }
 
-/**
- * A four-week progression for one exercise: a set added each week at one less
- * rep in reserve, then a deload back to the starting volume at RIR 4. Enough
- * variation across the grid that a change to cell rendering is visible.
- */
-function ramp(startingSets: number, reps: RepTargetInput): SetGroupRequest[][] {
-  const prescribed = (number_of_sets: number, intensity: IntensityInput): SetGroupRequest[] => [
-    { number_of_sets, set_group_type: { Prescribed: { set_type: "Regular", reps, intensity } } },
-  ];
-  return [
-    prescribed(startingSets, { Rir: 3 }),
-    prescribed(startingSets + 1, { Rir: 2 }),
-    prescribed(startingSets + 2, { Rir: 1 }),
-    prescribed(startingSets, { Rir: 4 }),
-  ];
-}
-
 const REGULAR = (reps: RepTargetInput, intensity: IntensityInput, number_of_sets: number): SetGroupRequest => ({
   number_of_sets,
   set_group_type: { Prescribed: { set_type: "Regular", reps, intensity } },
@@ -70,6 +53,23 @@ const MYOREP_MATCH = (number_of_sets: number): SetGroupRequest => ({
   number_of_sets,
   set_group_type: "MyorepMatch",
 });
+
+/**
+ * A four-week progression for one exercise: a set added each week at one less
+ * rep in reserve, then a deload back to the starting volume at RIR 4. Enough
+ * variation across the grid that a change to cell rendering is visible.
+ */
+function ramp(startingSets: number, reps: RepTargetInput): SetGroupRequest[][] {
+  const week = (number_of_sets: number, intensity: IntensityInput): SetGroupRequest[] => [
+    REGULAR(reps, intensity, number_of_sets),
+  ];
+  return [
+    week(startingSets, { Rir: 3 }),
+    week(startingSets + 1, { Rir: 2 }),
+    week(startingSets + 2, { Rir: 1 }),
+    week(startingSets, { Rir: 4 }),
+  ];
+}
 
 const PLAN: WorkoutPlan[] = [
   {

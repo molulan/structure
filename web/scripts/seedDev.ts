@@ -1,9 +1,9 @@
 import { createApiClient, type ApiClient } from "../src/api/client";
 import type {
-  Intensity,
+  IntensityInput,
   LibraryExerciseRequest,
-  RepTarget,
-  SetGroupType,
+  RepTargetInput,
+  SetGroupRequest,
 } from "../src/api/wire";
 
 // The dev database's contents: one plausible four-week block plus three plans
@@ -33,15 +33,10 @@ export const FIXTURE_PLAN_NAMES = {
 
 export type FixturePlanName = (typeof FIXTURE_PLAN_NAMES)[keyof typeof FIXTURE_PLAN_NAMES];
 
-interface SetGroupSpec {
-  number_of_sets: number;
-  set_group_type: SetGroupType;
-}
-
 interface ExercisePlan {
   exercise: LibraryExerciseRequest;
   /** One cell per week, in week order. An empty array leaves that week unprescribed. */
-  weeks: SetGroupSpec[][];
+  weeks: SetGroupRequest[][];
 }
 
 interface WorkoutPlan {
@@ -54,8 +49,8 @@ interface WorkoutPlan {
  * rep in reserve, then a deload back to the starting volume at RIR 4. Enough
  * variation across the grid that a change to cell rendering is visible.
  */
-function ramp(startingSets: number, reps: RepTarget): SetGroupSpec[][] {
-  const prescribed = (number_of_sets: number, intensity: Intensity): SetGroupSpec[] => [
+function ramp(startingSets: number, reps: RepTargetInput): SetGroupRequest[][] {
+  const prescribed = (number_of_sets: number, intensity: IntensityInput): SetGroupRequest[] => [
     { number_of_sets, set_group_type: { Prescribed: { set_type: "Regular", reps, intensity } } },
   ];
   return [
@@ -66,12 +61,12 @@ function ramp(startingSets: number, reps: RepTarget): SetGroupSpec[][] {
   ];
 }
 
-const REGULAR = (reps: RepTarget, intensity: Intensity, number_of_sets: number): SetGroupSpec => ({
+const REGULAR = (reps: RepTargetInput, intensity: IntensityInput, number_of_sets: number): SetGroupRequest => ({
   number_of_sets,
   set_group_type: { Prescribed: { set_type: "Regular", reps, intensity } },
 });
 
-const MYOREP_MATCH = (number_of_sets: number): SetGroupSpec => ({
+const MYOREP_MATCH = (number_of_sets: number): SetGroupRequest => ({
   number_of_sets,
   set_group_type: "MyorepMatch",
 });
@@ -399,7 +394,7 @@ async function addSetGroup(
   baseUrl: string,
   plannedExerciseId: number,
   microcycleId: number,
-  spec: SetGroupSpec,
+  spec: SetGroupRequest,
 ): Promise<void> {
   const path = `/planned-exercises/${plannedExerciseId}/microcycles/${microcycleId}/set-groups`;
   const response = await fetch(`${baseUrl}${path}`, {

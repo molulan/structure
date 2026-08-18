@@ -51,11 +51,15 @@ try {
         "It has just been regenerated in place — review the diff and commit it.",
     );
   }
+} catch (error) {
+  console.error(`\n${error instanceof Error ? error.message : String(error)}`);
+  process.exitCode = 1;
 } finally {
   rmSync(outDir, { recursive: true, force: true });
 }
 
+// Thrown rather than exited, so the temp directory is still cleaned up on the
+// way out: `process.exit` would skip the `finally` above.
 function fail(message: string): never {
-  console.error(`\n${message}`);
-  process.exit(1);
+  throw new Error(message);
 }

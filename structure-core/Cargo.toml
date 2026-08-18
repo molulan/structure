@@ -14,5 +14,6 @@ ts-rs = { version = "12", optional = true }
 
 [features]
 # Derives the TypeScript bindings on the wire types. Enabled by structure-server,
-# which exports them; structure-ffi builds without ts-rs in its graph at all.
+# which exports them; built on its own, structure-ffi has no ts-rs in its graph.
+# A workspace-wide build unifies features, so there the server's request wins.
 ts = ["dep:ts-rs"]

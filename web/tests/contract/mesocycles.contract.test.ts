@@ -1,9 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createApiClient, type ApiClient } from "../../src/api/client";
 
-// Drives the typed client against a real server for the things a type cannot
-// carry: that a created mesocycle comes back with what was asked for, that the
-// list's week count is computed, and that a rejected name is a 422.
 let api: ApiClient;
 
 beforeAll(() => {

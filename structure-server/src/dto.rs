@@ -139,7 +139,7 @@ pub struct LibraryExerciseRequest {
     pub name: String,
     pub exercise_type: ExerciseTypeInput,
     pub primary_muscle_group: MuscleGroupInput,
-    // ts-rs does not read `serde(default)`, so the generated type is told
+    // `serde(default)` is invisible to ts-rs, so the generated type is told
     // separately that this field may be omitted.
     #[serde(default)]
     #[ts(as = "Option<_>", optional)]

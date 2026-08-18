@@ -3,7 +3,7 @@ import { defineConfig } from "vitest/config";
 // Contract tests: exercise the typed API client against a real, freshly-booted
 // structure-server, for what a type cannot carry — status codes, error bodies,
 // the trees the server assembles — and for the encodings, which ts-rs
-// re-implements rather than calling serde. The global setup boots the server.
+// re-implements rather than calling serde.
 export default defineConfig({
   test: {
     include: ["tests/contract/**/*.test.ts"],

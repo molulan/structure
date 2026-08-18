@@ -1,6 +1,4 @@
 // Runtime companions to the enum unions in wire.ts, for rendering option lists.
-// The unions are generated from Rust, so a new backend variant arrives here as a
-// compile error rather than as a silently short list.
 import type { ExerciseType, MuscleGroup, Phase } from "./wire";
 
 /**

@@ -2,11 +2,9 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createApiClient, type ApiClient } from "../../src/api/client";
 import { buildFullMesocycle } from "../support/seed";
 
-// Builds a full mesocycle grid via the API, then asserts GET /mesocycles/{id}/full
-// returns it: one cell per week in column order, the empty week included, and the
-// leaf encodings themselves. ts-rs re-implements serde's attributes rather than
-// calling serde, so the shapes spelled out below are what hold the generated
-// src/api/wire.ts to what the server actually writes.
+// The leaf encodings spelled out below are what hold the generated src/api/wire.ts
+// to what the server writes: ts-rs re-implements serde's attributes rather than
+// calling serde.
 let base: string;
 let api: ApiClient;
 

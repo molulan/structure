@@ -31,7 +31,7 @@ Within the Rust workspace, tests live next to the code in `#[cfg(test)] mod test
 - Branch per change off `main` with a descriptive kebab-case name (e.g. `split-exercises-module`); land it through a GitHub PR rather than committing to `main` directly.
 - Keep PRs small and focused — ideally under 500 lines of diff. Split larger work into a sequence of PRs.
 - Write a short commit subject line phrased as a command — e.g. "Add set validation", "Split exercises module" (not "Added…" or "Splitting…").
-- Run `cargo fmt` and `cargo clippy --workspace` before committing.
+- Run `cargo fmt` and `cargo clippy --workspace --all-targets` before committing. `--all-targets` is what reaches the test code, including the `#[cfg(test)]` module that exports the web client's types.
 
 ## Architecture
 

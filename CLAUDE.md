@@ -31,7 +31,9 @@ Within the Rust workspace, tests live next to the code in `#[cfg(test)] mod test
 - Branch per change off `main` with a descriptive kebab-case name (e.g. `split-exercises-module`); land it through a GitHub PR rather than committing to `main` directly.
 - Keep PRs small and focused — ideally under 500 lines of diff. Split larger work into a sequence of PRs.
 - Write a short commit subject line phrased as a command — e.g. "Add set validation", "Split exercises module" (not "Added…" or "Splitting…").
-- Run `cargo fmt` and `cargo clippy --workspace --all-targets` before committing. `--all-targets` is what reaches the test code, including the `#[cfg(test)]` module that exports the web client's types.
+- The checks are a hook, not a habit: `git config core.hooksPath .githooks` installs `.githooks/pre-commit`, which runs everything `npm run verify` runs bar the e2e suite, picking its legs from what the commit touches. `git commit --no-verify` skips it for a WIP commit; CI still has the final say. `--all-targets` on clippy is what reaches the test code, including the `#[cfg(test)]` module that exports the web client's types.
+- `.github/workflows/ci.yml` runs the whole gate — both crates and the full `npm run verify`, e2e included — on every PR and on pushes to `main`, unconditionally, so a green tick means the same thing on every commit.
+- Warnings block. Clippy runs with `-D warnings` and ESLint with `--max-warnings 0`, in the hook and in CI alike.
 
 ## Architecture
 

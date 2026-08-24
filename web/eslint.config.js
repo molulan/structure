@@ -19,10 +19,11 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      "react-refresh/only-export-components": [
-        "warn",
-        { allowConstantExport: true },
-      ],
+      // A context module exports its own `use*` hook — `ApiProvider`/`useApi`,
+      // `GridFrame`/`useGridScope`/`gridColumnCount` — so the seam and the way
+      // to read it cannot drift apart. The rule objects to exactly that shape,
+      // and what it protects is dev-time fast refresh, not correctness.
+      "react-refresh/only-export-components": "off",
     },
   },
 );

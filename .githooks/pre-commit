@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# Everything `npm run verify` runs except the e2e suite, which boots a server and
+# a Vite dev server per run and belongs in CI. Legs are selected by what the
+# commit touches; the two that span the Rust/TypeScript boundary — the wire-type
+# check and the contract suite — run whenever either side changes.
+#
+# Install with `git config core.hooksPath .githooks`; bypass one commit with
+# `git commit --no-verify`.
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+staged=$(git diff --cached --name-only --diff-filter=ACMR)
+rust=false
+web=false
+if grep -qE '^(structure-[^/]+/|Cargo\.(toml|lock)$)' <<<"$staged"; then rust=true; fi
+if grep -q '^web/' <<<"$staged"; then web=true; fi
+
+if ! $rust && ! $web; then
+  exit 0
+fi
+
+# The checks read the working tree, which is what the tools take as input. Where
+# that differs from what is being committed, say so rather than let a pass be
+# read as a pass on the commit.
+if ! git diff --quiet; then
+  echo "pre-commit: unstaged changes present — these checks ran against the working tree, not the staged snapshot."
+fi
+
+step() {
+  printf '\npre-commit: %s\n' "$*"
+  "$@"
+}
+
+if $rust; then
+  step cargo fmt --all -- --check
+  step cargo clippy --workspace --all-targets -- -D warnings
+  step cargo test --workspace
+fi
+
+# The remaining legs are npm scripts, and `web/` is the npm project they are
+# defined in — `npm run` from anywhere else resolves their relative paths wrong.
+cd web
+
+if $web; then
+  step npm run verify:local
+elif $rust; then
+  # A Rust-only change can still move the wire types or the HTTP contract the
+  # typed client is written against.
+  step npm run verify:contract
+fi

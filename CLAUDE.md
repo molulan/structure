@@ -31,7 +31,7 @@ Within the Rust workspace, tests live next to the code in `#[cfg(test)] mod test
 - Branch per change off `main` with a descriptive kebab-case name (e.g. `split-exercises-module`); land it through a GitHub PR rather than committing to `main` directly.
 - Keep PRs small and focused — ideally under 500 lines of diff. Split larger work into a sequence of PRs.
 - Write a short commit subject line phrased as a command — e.g. "Add set validation", "Split exercises module" (not "Added…" or "Splitting…").
-- Run `cargo fmt` and `cargo clippy --workspace` before committing.
+- Run `cargo fmt` and `cargo clippy --workspace --all-targets` before committing. `--all-targets` is what reaches the test code, including the `#[cfg(test)]` module that exports the web client's types.
 
 ## Architecture
 
@@ -42,7 +42,7 @@ Three crates, layered domain → persistence, with `structure-ffi` and `structur
   - `domain/tracking.rs` — the performed-workout layer: `LoggedSession` → `LoggedExercise` → `LoggedSet`, with nullable links back to the plan.
   - `persistence/` — one module per entity (`mesocycles`, `microcycles`, `workouts`, `library_exercises`, `planned_exercises`, `set_groups`, plus the tracking modules `logged_sessions`, `logged_exercises`, `logged_sets`). The plan is a **template model** enforced here by the FKs: structure is defined once per mesocycle — a `workout` belongs to the mesocycle, not a microcycle — and prescription varies per week — a `set_group` is keyed by `(planned_exercise, microcycle)`, a grid cell. `connection.rs` opens connections and builds the schema (`init_db`); `store.rs` wraps one in `Store`, a cloneable `Arc<Mutex<Connection>>` handle (`open`, `with_conn`); `aggregates.rs` assembles the full `Mesocycle` grid (workouts × microcycles, each planned exercise carrying a `Prescription` per week) and the full logged session; `positions.rs` is the shared multi-column-scoped `reorder` helper.
 - **`structure-ffi`** — `flutter_rust_bridge` bindings (pinned `=2.11.1`) over `structure-core`.
-- **`structure-server`** — an Axum 0.8 HTTP server over `structure-core`. `lib.rs` exposes `router(store)` — `/health` at the root and the API under `/api` (one route module per entity, nested) — and `app(store, web_dir)`, which wraps `router` to also serve the built `web/` SPA with an SPA history-fallback when a web dir is present. See the server conventions below.
+- **`structure-server`** — an Axum 0.8 HTTP server over `structure-core`. `lib.rs` exposes `router(store)` — `/health` at the root and the API under `/api` (one route module per entity, nested) — and `app(store, web_dir)`, which wraps `router` to also serve the built `web/` SPA with an SPA history-fallback when a web dir is present. `wire.rs` writes the web client's TypeScript types from the Rust types the routes name, so the frontend cannot hold a different idea of the contract. See the server conventions below.
 
 ### Conventions to follow when extending
 
@@ -52,6 +52,7 @@ Three crates, layered domain → persistence, with `structure-ffi` and `structur
 - **Errors use `thiserror`, one enum per persistence module** (`MesocycleError`, `SetGroupError`, …), each wrapping `rusqlite::Error` via `#[from]` and adding domain variants like `NotFound { id }`. Keep each error type in the module that produces it — don't recentralize them into a shared `error.rs`.
 - **The FFI layer is a thin DTO-mapping shell.** For each domain type `X` there's an `XDTO` in `dto/planning.rs` annotated `#[frb]`, with `From<&X> for XDTO` and (where input is needed) `From<XDTO> for X`. `api/` functions are `#[frb(sync)]`, open the DB (`connection::init_db("structure.db")`), call into `structure-core`, and map rows/domain types to DTOs. Put no business logic here.
 - **The server is a thin HTTP layer; logic stays in `structure-core`.** Handlers take `State<Store>`, run queries via `store.with_conn(|conn| …)`, and return `Result<Json<…>, ApiError>`. Request bodies are `Deserialize` structs in `dto.rs`; `error.rs` maps each persistence error to a status code via `From<…Error> for ApiError`. Add an endpoint by extending an entity's `routes()`, not by adding logic in the handler.
+- **A type a route names is a wire type.** In `structure-core`, add `#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]` beside its `Serialize`; in `structure-server`, where ts-rs is unconditional, `derive(TS)` and `#[ts(export_to = "wire.ts")]` directly. Then add it to the root list in `wire.rs` — its dependencies follow on their own. `npm run wire` regenerates `web/src/api/wire.ts` and fails if what is on disk is out of date; `npm run verify` runs it first. The web client has no other description of the contract to fall out of step.
 
 ## Make illegal states unrepresentable, not merely detected
 

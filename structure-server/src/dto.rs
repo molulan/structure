@@ -3,9 +3,11 @@ use structure_core::domain::planning::{
     ExerciseType, Intensity, IntensityError, MesocycleMode, MuscleGroup, PercentOneRepMax, Phase,
     PrescribedSetType, RepTarget, RepTargetError, Rir, Rpe, SetGroupType, Weight, WeightUnit,
 };
+use ts_rs::TS;
 
 /// Input enum mirroring [`MesocycleMode`].
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub enum MesocycleModeInput {
     Algorithmic,
     Manual,
@@ -20,13 +22,15 @@ impl From<MesocycleModeInput> for MesocycleMode {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub struct CreateMesocycleRequest {
     pub name: String,
     pub mode: MesocycleModeInput,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub struct UpdateMesocycleRequest {
     pub name: String,
     pub mode: MesocycleModeInput,
@@ -34,13 +38,15 @@ pub struct UpdateMesocycleRequest {
 
 /// The desired ordering of a parent's children, by id. Shared by every reorder
 /// endpoint.
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub struct ReorderRequest {
     pub ordered_ids: Vec<i64>,
 }
 
 /// Input enum mirroring [`Phase`].
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub enum PhaseInput {
     Accumulation,
     Intensification,
@@ -58,19 +64,22 @@ impl From<PhaseInput> for Phase {
 }
 
 /// A microcycle's phase. `null` clears it.
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub struct UpdatePhaseRequest {
     pub phase: Option<PhaseInput>,
 }
 
 /// A workout's name, used for both creating and renaming.
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub struct WorkoutNameRequest {
     pub name: String,
 }
 
 /// Input enum mirroring [`ExerciseType`].
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize, TS, Clone, Copy)]
+#[ts(export_to = "wire.ts")]
 pub enum ExerciseTypeInput {
     Bodyweight,
     WeightedBodyweight,
@@ -90,7 +99,8 @@ impl From<ExerciseTypeInput> for ExerciseType {
 }
 
 /// Input enum mirroring [`MuscleGroup`].
-#[derive(Deserialize, Clone, Copy)]
+#[derive(Deserialize, TS, Clone, Copy)]
+#[ts(export_to = "wire.ts")]
 pub enum MuscleGroupInput {
     Chest,
     Back,
@@ -123,12 +133,16 @@ impl From<MuscleGroupInput> for MuscleGroup {
 
 /// A library exercise's fields, used for both creating and updating. Secondary
 /// muscle groups default to empty when the field is omitted.
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub struct LibraryExerciseRequest {
     pub name: String,
     pub exercise_type: ExerciseTypeInput,
     pub primary_muscle_group: MuscleGroupInput,
+    // `serde(default)` is invisible to ts-rs, so the generated type is told
+    // separately that this field may be omitted.
     #[serde(default)]
+    #[ts(as = "Option<_>", optional)]
     pub secondary_muscle_groups: Vec<MuscleGroupInput>,
 }
 
@@ -143,12 +157,14 @@ impl LibraryExerciseRequest {
 }
 
 /// Which library exercise to place into a workout.
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub struct PlannedExerciseRequest {
     pub library_exercise_id: i64,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub enum WeightUnitInput {
     Kg,
     Lbs,
@@ -163,7 +179,8 @@ impl From<WeightUnitInput> for WeightUnit {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub struct WeightInput {
     pub value: f64,
     pub unit: WeightUnitInput,
@@ -176,7 +193,8 @@ impl From<WeightInput> for Weight {
 }
 
 /// Input enum mirroring [`RepTarget`].
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub enum RepTargetInput {
     Exact(u32),
     Range { min: u32, max: u32 },
@@ -196,7 +214,8 @@ impl TryFrom<RepTargetInput> for RepTarget {
 }
 
 /// Input enum mirroring [`Intensity`].
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub enum IntensityInput {
     Rir(i8),
     Rpe(u8),
@@ -222,7 +241,8 @@ impl TryFrom<IntensityInput> for Intensity {
 }
 
 /// Input enum mirroring [`PrescribedSetType`].
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub enum PrescribedSetTypeInput {
     Regular,
     Myorep,
@@ -240,7 +260,8 @@ impl From<PrescribedSetTypeInput> for PrescribedSetType {
 }
 
 /// Input enum mirroring [`SetGroupType`].
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub enum SetGroupTypeInput {
     Prescribed {
         set_type: PrescribedSetTypeInput,
@@ -280,7 +301,8 @@ impl TryFrom<SetGroupTypeInput> for SetGroupType {
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, TS)]
+#[ts(export_to = "wire.ts")]
 pub struct SetGroupRequest {
     pub number_of_sets: u32,
     pub set_group_type: SetGroupTypeInput,

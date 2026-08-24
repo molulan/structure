@@ -9,10 +9,10 @@ import {
   SEEDED_WORKOUT_COUNT,
 } from "../../scripts/seedDev";
 
-// The dev stack's seed runs against a real server, so an endpoint or body-shape
-// change breaks it — and the symptom would be `npm run app` quietly serving an
-// empty app, which is a bad way to find out. Building the block here means the
-// same gate that guards the client's types guards the data we develop against.
+// The dev stack's seed runs against a real server, so an endpoint change breaks
+// it — and the symptom would be `npm run app` quietly serving an empty app,
+// which is a bad way to find out. Building the block here puts the data we
+// develop against behind the same gate as the app.
 
 let api: ApiClient;
 let baseUrl: string;
@@ -45,7 +45,7 @@ describe("dev seed contract", () => {
     expect(exercises).toHaveLength(SEEDED_EXERCISE_COUNT);
   });
 
-  it("prescribes cells covering every set-group encoding the grid can render", async () => {
+  it("prescribes cells covering every set-group kind the grid can render", async () => {
     const plan = await api.getFullMesocycle(planId);
     const groups = plan.workouts
       .flatMap((w) => w.planned_exercises)

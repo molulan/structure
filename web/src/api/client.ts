@@ -1,15 +1,18 @@
 import type {
-  CreateLibraryExercise,
-  CreateMesocycle,
+  CreateMesocycleRequest,
   FullMesocycle,
   LibraryExercise,
+  LibraryExerciseRequest,
   Mesocycle,
   MesocycleRow,
   Microcycle,
   Phase,
   PlannedExercise,
+  PlannedExerciseRequest,
+  UpdatePhaseRequest,
   Workout,
-} from "./types";
+  WorkoutNameRequest,
+} from "./wire";
 
 /** A non-2xx response from the API, carrying the status and the server's message. */
 export class ApiError extends Error {
@@ -70,7 +73,7 @@ async function request<T>(
 export function createApiClient(baseUrl: string) {
   return {
     listMesocycles: () => request<MesocycleRow[]>(baseUrl, "/mesocycles"),
-    createMesocycle: (body: CreateMesocycle) =>
+    createMesocycle: (body: CreateMesocycleRequest) =>
       request<Mesocycle>(baseUrl, "/mesocycles", {
         method: "POST",
         body: JSON.stringify(body),
@@ -86,18 +89,18 @@ export function createApiClient(baseUrl: string) {
     setMicrocyclePhase: (microcycleId: number, phase: Phase | null) =>
       request<void>(baseUrl, `/microcycles/${microcycleId}/phase`, {
         method: "PUT",
-        body: JSON.stringify({ phase }),
+        body: JSON.stringify({ phase } satisfies UpdatePhaseRequest),
       }),
 
     addWorkout: (mesocycleId: number, name: string) =>
       request<Workout>(baseUrl, `/mesocycles/${mesocycleId}/workouts`, {
         method: "POST",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name } satisfies WorkoutNameRequest),
       }),
     renameWorkout: (workoutId: number, name: string) =>
       request<Workout>(baseUrl, `/workouts/${workoutId}`, {
         method: "PUT",
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name } satisfies WorkoutNameRequest),
       }),
     deleteWorkout: (workoutId: number) =>
       request<void>(baseUrl, `/workouts/${workoutId}`, { method: "DELETE" }),
@@ -105,13 +108,15 @@ export function createApiClient(baseUrl: string) {
     addPlannedExercise: (workoutId: number, libraryExerciseId: number) =>
       request<PlannedExercise>(baseUrl, `/workouts/${workoutId}/planned-exercises`, {
         method: "POST",
-        body: JSON.stringify({ library_exercise_id: libraryExerciseId }),
+        body: JSON.stringify(
+          { library_exercise_id: libraryExerciseId } satisfies PlannedExerciseRequest,
+        ),
       }),
     deletePlannedExercise: (plannedExerciseId: number) =>
       request<void>(baseUrl, `/planned-exercises/${plannedExerciseId}`, { method: "DELETE" }),
 
     listLibraryExercises: () => request<LibraryExercise[]>(baseUrl, "/library-exercises"),
-    createLibraryExercise: (body: CreateLibraryExercise) =>
+    createLibraryExercise: (body: LibraryExerciseRequest) =>
       request<LibraryExercise>(baseUrl, "/library-exercises", {
         method: "POST",
         body: JSON.stringify(body),

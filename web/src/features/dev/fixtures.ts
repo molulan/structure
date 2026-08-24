@@ -1,4 +1,4 @@
-import type { FullPlannedExercise, FullWorkout, LibraryExercise } from "../../api/types";
+import type { FullPlannedExercise, FullWorkout, LibraryExercise } from "../../api/wire";
 import { weeks } from "../../fixtures/plan";
 
 /*

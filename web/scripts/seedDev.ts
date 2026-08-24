@@ -1,10 +1,10 @@
 import { createApiClient, type ApiClient } from "../src/api/client";
 import type {
-  CreateLibraryExercise,
-  Intensity,
-  RepTarget,
-  SetGroupType,
-} from "../src/api/types";
+  IntensityInput,
+  LibraryExerciseRequest,
+  RepTargetInput,
+  SetGroupRequest,
+} from "../src/api/wire";
 
 // The dev database's contents: one plausible four-week block plus three plans
 // caught mid-build, all created over HTTP so they go through the same validation
@@ -33,15 +33,10 @@ export const FIXTURE_PLAN_NAMES = {
 
 export type FixturePlanName = (typeof FIXTURE_PLAN_NAMES)[keyof typeof FIXTURE_PLAN_NAMES];
 
-interface SetGroupSpec {
-  number_of_sets: number;
-  set_group_type: SetGroupType;
-}
-
 interface ExercisePlan {
-  exercise: CreateLibraryExercise;
+  exercise: LibraryExerciseRequest;
   /** One cell per week, in week order. An empty array leaves that week unprescribed. */
-  weeks: SetGroupSpec[][];
+  weeks: SetGroupRequest[][];
 }
 
 interface WorkoutPlan {
@@ -49,32 +44,32 @@ interface WorkoutPlan {
   exercises: ExercisePlan[];
 }
 
+const REGULAR = (reps: RepTargetInput, intensity: IntensityInput, number_of_sets: number): SetGroupRequest => ({
+  number_of_sets,
+  set_group_type: { Prescribed: { set_type: "Regular", reps, intensity } },
+});
+
+const MYOREP_MATCH = (number_of_sets: number): SetGroupRequest => ({
+  number_of_sets,
+  set_group_type: "MyorepMatch",
+});
+
 /**
  * A four-week progression for one exercise: a set added each week at one less
  * rep in reserve, then a deload back to the starting volume at RIR 4. Enough
  * variation across the grid that a change to cell rendering is visible.
  */
-function ramp(startingSets: number, reps: RepTarget): SetGroupSpec[][] {
-  const prescribed = (number_of_sets: number, intensity: Intensity): SetGroupSpec[] => [
-    { number_of_sets, set_group_type: { Prescribed: { set_type: "Regular", reps, intensity } } },
+function ramp(startingSets: number, reps: RepTargetInput): SetGroupRequest[][] {
+  const week = (number_of_sets: number, intensity: IntensityInput): SetGroupRequest[] => [
+    REGULAR(reps, intensity, number_of_sets),
   ];
   return [
-    prescribed(startingSets, { Rir: 3 }),
-    prescribed(startingSets + 1, { Rir: 2 }),
-    prescribed(startingSets + 2, { Rir: 1 }),
-    prescribed(startingSets, { Rir: 4 }),
+    week(startingSets, { Rir: 3 }),
+    week(startingSets + 1, { Rir: 2 }),
+    week(startingSets + 2, { Rir: 1 }),
+    week(startingSets, { Rir: 4 }),
   ];
 }
-
-const REGULAR = (reps: RepTarget, intensity: Intensity, number_of_sets: number): SetGroupSpec => ({
-  number_of_sets,
-  set_group_type: { Prescribed: { set_type: "Regular", reps, intensity } },
-});
-
-const MYOREP_MATCH = (number_of_sets: number): SetGroupSpec => ({
-  number_of_sets,
-  set_group_type: "MyorepMatch",
-});
 
 const PLAN: WorkoutPlan[] = [
   {
@@ -382,7 +377,7 @@ async function deleteMesocycle(baseUrl: string, id: number): Promise<void> {
 async function libraryIdFor(
   api: ApiClient,
   library: Map<string, number>,
-  exercise: CreateLibraryExercise,
+  exercise: LibraryExerciseRequest,
 ): Promise<number> {
   const known = library.get(exercise.name);
   if (known !== undefined) return known;
@@ -399,7 +394,7 @@ async function addSetGroup(
   baseUrl: string,
   plannedExerciseId: number,
   microcycleId: number,
-  spec: SetGroupSpec,
+  spec: SetGroupRequest,
 ): Promise<void> {
   const path = `/planned-exercises/${plannedExerciseId}/microcycles/${microcycleId}/set-groups`;
   const response = await fetch(`${baseUrl}${path}`, {

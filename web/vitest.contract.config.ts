@@ -1,9 +1,9 @@
 import { defineConfig } from "vitest/config";
 
 // Contract tests: exercise the typed API client against a real, freshly-booted
-// structure-server. This is what verifies our hand-written TS types actually
-// match the server's wire format (snake_case keys, externally-tagged enums) —
-// something typechecking alone cannot catch. The global setup boots the server.
+// structure-server, for what a type cannot carry — status codes, error bodies,
+// the trees the server assembles — and for the encodings, which ts-rs
+// re-implements rather than calling serde.
 export default defineConfig({
   test: {
     include: ["tests/contract/**/*.test.ts"],

@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../../lib/ApiProvider";
 import type { ApiClient } from "../../api/client";
-import type { CreateLibraryExercise, Phase } from "../../api/types";
+import type { LibraryExerciseRequest, Phase } from "../../api/wire";
 import { fullMesocycleKey } from "./useFullMesocycle";
 import { mesocyclesKey } from "./useMesocycles";
 import { usePlanErrorSink } from "./PlanErrors";
@@ -99,7 +99,7 @@ export function useCreateLibraryExercise() {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: CreateLibraryExercise) => api.createLibraryExercise(body),
+    mutationFn: (body: LibraryExerciseRequest) => api.createLibraryExercise(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: libraryExercisesKey }),
   });
 }

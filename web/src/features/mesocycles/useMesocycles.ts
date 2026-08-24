@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../../lib/ApiProvider";
-import type { CreateMesocycle } from "../../api/types";
+import type { CreateMesocycleRequest } from "../../api/wire";
 
 export const mesocyclesKey = ["mesocycles"] as const;
 
@@ -16,7 +16,7 @@ export function useCreateMesocycle() {
   const api = useApi();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (body: CreateMesocycle) => api.createMesocycle(body),
+    mutationFn: (body: CreateMesocycleRequest) => api.createMesocycle(body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: mesocyclesKey }),
   });
 }

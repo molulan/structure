@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { FullMicrocycle, FullPlannedExercise, FullWorkout } from "../../api/types";
+import type { FullMicrocycle, FullPlannedExercise, FullWorkout } from "../../api/wire";
 import { describeSetGroup } from "./format";
 import { AddExercise } from "./AddExercise";
 import { gridColumnCount, useGridScope } from "./GridFrame";

@@ -1,5 +1,7 @@
 use rusqlite::Connection;
 use serde::Serialize;
+#[cfg(feature = "ts")]
+use ts_rs::TS;
 
 use crate::domain::planning::{LibraryExercise, MesocycleMode, Phase, SetGroup, Weight};
 use crate::domain::tracking::LoggedSet;
@@ -30,6 +32,7 @@ pub enum FullMesocycleError {
 /// (`microcycles` are the columns, `workouts` and their `planned_exercises` the
 /// rows) and prescription varies per week via each planned exercise's `prescriptions`.
 #[derive(Serialize)]
+#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
 pub struct FullMesocycle {
     pub id: i64,
     pub name: String,
@@ -39,6 +42,7 @@ pub struct FullMesocycle {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
 pub struct FullMicrocycle {
     pub id: i64,
     pub position: u32,
@@ -46,6 +50,7 @@ pub struct FullMicrocycle {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
 pub struct FullWorkout {
     pub id: i64,
     pub name: String,
@@ -54,6 +59,7 @@ pub struct FullWorkout {
 }
 
 #[derive(Serialize)]
+#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
 pub struct FullPlannedExercise {
     pub id: i64,
     pub exercise: LibraryExercise,
@@ -64,6 +70,7 @@ pub struct FullPlannedExercise {
 /// The set groups prescribed for one planned exercise in one microcycle — one
 /// cell of the plan grid.
 #[derive(Serialize)]
+#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
 pub struct Prescription {
     pub microcycle_id: i64,
     pub set_groups: Vec<SetGroup>,

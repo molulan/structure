@@ -2,10 +2,9 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createApiClient, type ApiClient } from "../../src/api/client";
 import { buildFullMesocycle } from "../support/seed";
 
-// Builds a full mesocycle grid via the API, then asserts GET /mesocycles/{id}/full
-// deserializes into our hand-written TS types with every leaf correctly encoded
-// (snake_case keys, externally-tagged enums, bare-string unit variants) and the
-// per-week cells keyed by microcycle.
+// The leaf encodings spelled out below are what hold the generated src/api/wire.ts
+// to what the server writes: ts-rs re-implements serde's attributes rather than
+// calling serde.
 let base: string;
 let api: ApiClient;
 

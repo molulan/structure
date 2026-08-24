@@ -1,9 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { createApiClient, type ApiClient } from "../../src/api/client";
 
-// Verifies the typed client against a real server: field names, enum encoding,
-// and status codes. If our TS types drift from the server's wire format, these
-// fail where typechecking would stay green.
 let api: ApiClient;
 
 beforeAll(() => {

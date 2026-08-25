@@ -1,0 +1,33 @@
+name: PR size
+
+# Its own workflow rather than a job in ci.yml: the label events that clear the
+# check would otherwise re-run the whole gate every time a label moves.
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, labeled, unlabeled]
+
+permissions:
+  pull-requests: read
+
+jobs:
+  size:
+    runs-on: ubuntu-latest
+    steps:
+      # Always runs to a real pass or fail. A job skipped by an `if` reports
+      # "skipped", which is a weaker thing for a required check to rest on.
+      - name: Measure the diff
+        env:
+          GH_TOKEN: ${{ github.token }}
+          LIMIT: 500
+          OVERRIDDEN: ${{ contains(github.event.pull_request.labels.*.name, 'oversize-ok') }}
+        run: |
+          total=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" \
+            --jq '.additions + .deletions')
+          echo "$total changed lines (limit $LIMIT)"
+          if [ "$total" -le "$LIMIT" ]; then exit 0; fi
+          if [ "$OVERRIDDEN" = true ]; then
+            echo "over the limit, and the oversize-ok label says that is deliberate"
+            exit 0
+          fi
+          echo "::error::$total changed lines, over the $LIMIT-line limit. Split the PR, or label it oversize-ok to say the size is deliberate."
+          exit 1

@@ -28,11 +28,13 @@ Within the Rust workspace, tests live next to the code in `#[cfg(test)] mod test
 
 ## Git
 
-- Branch per change off `main` with a descriptive kebab-case name (e.g. `split-exercises-module`); land it through a GitHub PR rather than committing to `main` directly.
-- Keep PRs small and focused — ideally under 500 lines of diff. Split larger work into a sequence of PRs.
+- Branch per change off `main` with a descriptive kebab-case name (e.g. `split-exercises-module`); land it through a GitHub PR rather than committing to `main` directly. The pre-commit hook refuses a commit on `main` outright.
 - Write a short commit subject line phrased as a command — e.g. "Add set validation", "Split exercises module" (not "Added…" or "Splitting…").
+- **The PR is the unit that is verified whole**, so it is the unit to bisect: `git bisect --first-parent` considers only the merge commits on `main`, every one of which is a state CI passed. PRs merge as merge commits and keep their individual commits, which stay a chronological record rather than a curated history — bisecting without `--first-parent` walks into them and can land mid-change.
+- Keep PRs small and focused — under 500 lines of diff. `.github/workflows/pr-size.yml` fails past that; an `oversize-ok` label says the size is deliberate and clears it.
 - The checks are a hook, not a habit: `git config core.hooksPath .githooks` installs `.githooks/pre-commit`, which runs everything `npm run verify` runs bar the e2e suite, picking its legs from what the commit touches. `git commit --no-verify` skips it for a WIP commit; CI still has the final say. `--all-targets` on clippy is what reaches the test code, including the `#[cfg(test)]` module that exports the web client's types.
-- `.github/workflows/ci.yml` runs the whole gate — both crates and the full `npm run verify`, e2e included — on every PR and on pushes to `main`, unconditionally, so a green tick means the same thing on every commit.
+- Scoping the legs by path is only safe because two of them span the Rust/TypeScript boundary and run from either side. A Rust change that moves the contract fails the wire-type check until the regenerated `web/src/api/wire.ts` is staged — and staging it brings the whole web gate with it — while the contract suite covers the behaviour the types don't carry. Narrow either leg and a Rust-only commit can start breaking the web silently.
+- `.github/workflows/ci.yml` runs the whole gate — both crates and the full `npm run verify`, e2e included — on every PR and on pushes to `main`, unconditionally, so a green tick means the same thing on every commit. It is a gate rather than a report only because `rust` and `web` are required status checks on `main`, alongside "require branches to be up to date before merging".
 - Warnings block. Clippy runs with `-D warnings` and ESLint with `--max-warnings 0`, in the hook and in CI alike.
 
 ## Architecture

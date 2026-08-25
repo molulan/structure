@@ -10,6 +10,13 @@ set -euo pipefail
 
 cd "$(git rev-parse --show-toplevel)"
 
+# `main` takes changes through a pull request, so a commit on it is a mistake
+# whatever it contains — refused before the legs, not merely discouraged in prose.
+if [ "$(git symbolic-ref --quiet --short HEAD || true)" = main ]; then
+  echo "pre-commit: main takes changes through a pull request. Branch first: git switch -c <kebab-case-name>" >&2
+  exit 1
+fi
+
 staged=$(git diff --cached --name-only --diff-filter=ACMR)
 rust=false
 web=false

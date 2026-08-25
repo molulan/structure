@@ -42,6 +42,13 @@ step() {
   "$@"
 }
 
+# `cargo test` regenerates the web client's bindings, and writes them over the
+# tracked file unless told otherwise. The wire check owns that file — and a leg
+# that fails should leave the working tree as it found it.
+STRUCTURE_WIRE_OUT_DIR=$(mktemp -d)
+export STRUCTURE_WIRE_OUT_DIR
+trap 'rm -rf "$STRUCTURE_WIRE_OUT_DIR"' EXIT
+
 if $rust; then
   step cargo fmt --all -- --check
   step cargo clippy --workspace --all-targets -- -D warnings

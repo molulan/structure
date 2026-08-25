@@ -16,6 +16,9 @@ jobs:
       # Always runs to a real pass or fail. A job skipped by an `if` reports
       # "skipped", which is a weaker thing for a required check to rest on.
       - name: Measure the diff
+        # `-o pipefail`, which the default shell for a `run:` step lacks: without
+        # it a failed `gh api` leaves the sum at 0 and the gate passes green.
+        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           LIMIT: 500
@@ -27,7 +30,7 @@ jobs:
           # `--jq` runs per page, so the sum is taken here rather than in jq.
           total=$(gh api --paginate \
             "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
-            --jq '.[] | select(.filename | test("^web/(package-lock\\.json|src/api/wire\\.ts)$") | not) | .additions + .deletions' \
+            --jq '.[] | select(.filename | test("^(Cargo\\.lock|web/(package-lock\\.json|src/api/wire\\.ts))$") | not) | .additions + .deletions' \
             | awk '{ sum += $1 } END { print sum + 0 }')
           echo "$total changed lines, generated files excluded (limit $LIMIT)"
           if [ "$total" -le "$LIMIT" ]; then exit 0; fi

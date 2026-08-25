@@ -21,9 +21,15 @@ jobs:
           LIMIT: 500
           OVERRIDDEN: ${{ contains(github.event.pull_request.labels.*.name, 'oversize-ok') }}
         run: |
-          total=$(gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}" \
-            --jq '.additions + .deletions')
-          echo "$total changed lines (limit $LIMIT)"
+          # Per file rather than the PR's own totals, so the generated ones can
+          # be left out: nobody reviews a lockfile bump or a wire.ts
+          # regeneration, and counting them trains the override into a reflex.
+          # `--jq` runs per page, so the sum is taken here rather than in jq.
+          total=$(gh api --paginate \
+            "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" \
+            --jq '.[] | select(.filename | test("^web/(package-lock\\.json|src/api/wire\\.ts)$") | not) | .additions + .deletions' \
+            | awk '{ sum += $1 } END { print sum + 0 }')
+          echo "$total changed lines, generated files excluded (limit $LIMIT)"
           if [ "$total" -le "$LIMIT" ]; then exit 0; fi
           if [ "$OVERRIDDEN" = true ]; then
             echo "over the limit, and the oversize-ok label says that is deliberate"

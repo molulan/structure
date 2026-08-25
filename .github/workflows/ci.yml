@@ -5,9 +5,11 @@ on:
   push:
     branches: [main]
 
-# A newer push to the same branch makes the previous run's result irrelevant.
+# A newer push to a pull request makes the previous run's result irrelevant, so
+# it cancels. Pushes to `main` key on the commit instead and never cancel each
+# other: a merge commit whose run was cancelled is not one bisect can trust.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.head_ref || github.sha }}
   cancel-in-progress: true
 
 env:

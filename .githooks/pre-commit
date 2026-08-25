@@ -8,7 +8,8 @@
 # `git commit --no-verify`.
 set -euo pipefail
 
-cd "$(git rev-parse --show-toplevel)"
+root=$(git rev-parse --show-toplevel)
+cd "$root"
 
 # `main` takes changes through a pull request, so a commit on it is a mistake
 # whatever it contains — refused before the legs, not merely discouraged in prose.
@@ -17,7 +18,9 @@ if [ "$(git symbolic-ref --quiet --short HEAD || true)" = main ]; then
   exit 1
 fi
 
-staged=$(git diff --cached --name-only --diff-filter=ACMR)
+# Every status, deletions included: removing a module is the change most likely
+# to leave the workspace not compiling.
+staged=$(git diff --cached --name-only)
 rust=false
 web=false
 if grep -qE '^(structure-[^/]+/|Cargo\.(toml|lock)$)' <<<"$staged"; then rust=true; fi
@@ -55,4 +58,12 @@ elif $rust; then
   # A Rust-only change can still move the wire types or the HTTP contract the
   # typed client is written against.
   step npm run verify:contract
+fi
+
+# The wire check reads the working tree and rewrites stale bindings in place, so
+# passing it says the file on disk is current — not the one being committed. A
+# second attempt would otherwise sail through carrying the old blob.
+if ! git -C "$root" diff --quiet -- web/src/api/wire.ts; then
+  echo "pre-commit: web/src/api/wire.ts has been regenerated but not staged — the commit would carry stale bindings. Stage it and commit again." >&2
+  exit 1
 fi

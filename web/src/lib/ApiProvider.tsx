@@ -16,6 +16,7 @@ export function ApiProvider({ client, children }: { client: ApiClient; children:
 }
 
 /** The client in scope: the app's own, unless a provider has substituted it. */
+// eslint-disable-next-line react-refresh/only-export-components -- the reader ships with the context it reads, which no other module can name
 export function useApi(): ApiClient {
   return useContext(ApiContext);
 }

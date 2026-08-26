@@ -19,6 +19,7 @@ const GridScopeContext = createContext<GridScope | null>(null);
  * edits belong to. Read rather than passed so a row group cannot lay out against
  * a different week list than the header above it.
  */
+// eslint-disable-next-line react-refresh/only-export-components -- the reader ships with the context it reads, which no other module can name
 export function useGridScope(): GridScope {
   const scope = useContext(GridScopeContext);
   if (scope === null) {
@@ -174,6 +175,7 @@ function WeekHeader({
  * the notice standing in for them when there are none. Derived by each row that
  * needs it rather than passed down, so no caller can disagree with the header.
  */
+// eslint-disable-next-line react-refresh/only-export-components -- derived by each row from the frame's own week list, so it belongs beside it
 export function gridColumnCount(microcycles: FullMicrocycle[]): number {
   return 1 + Math.max(microcycles.length, 1);
 }

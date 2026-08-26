@@ -139,8 +139,7 @@ One gate runs the whole verification stack:
 npm run verify     # wire + typecheck + lint + unit + component + contract + build + e2e
 ```
 
-The pre-commit hook runs the same stack bar the last two, which only mean
-anything against a change as a whole; CI runs all of it.
+The pre-commit hook runs the same stack excepts the last two. CI runs all of it.
 
 - **wire** (`wire`) — regenerates the TypeScript wire types from the Rust ones
   and fails if `src/api/wire.ts` is out of date. Requires `cargo`.

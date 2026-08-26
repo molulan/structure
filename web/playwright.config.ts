@@ -18,9 +18,6 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:5174",
     screenshot: "only-on-failure",
-    // Retries are off, so a trace only exists if the first run records one. A
-    // passing test's is discarded; a failure keeps the whole timeline, which is
-    // what there is to go on when the failure only happens in CI.
     trace: "retain-on-failure",
   },
   webServer: [

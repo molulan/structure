@@ -136,14 +136,24 @@ library exercise, then asserts the app's real client was never touched.
 One gate runs the whole verification stack:
 
 ```bash
-npm run verify     # typecheck + lint + unit + contract + e2e
+npm run verify     # wire + typecheck + lint + unit + component + contract + build + e2e
 ```
 
-- **typecheck / lint** — `tsc --noEmit`, ESLint.
+The pre-commit hook runs the same stack bar the last two, which only mean
+anything against a change as a whole; CI runs all of it.
+
+- **wire** (`wire`) — regenerates the TypeScript wire types from the Rust ones
+  and fails if `src/api/wire.ts` is out of date. Requires `cargo`.
+- **typecheck / lint** — `tsc --noEmit`, ESLint with `--max-warnings 0`.
 - **unit** (`test:unit`) — pure logic, no backend (e.g. the API client).
+- **component** (`test:component`) — React components in jsdom with the `api`
+  module mocked, covering the loading/error/empty/data branches.
 - **contract** (`test:contract`) — boots a real `structure-server`
   (`STRUCTURE_DB=:memory:` on a free port) and drives the typed client against
   it, verifying our TS types match the server's wire format. Requires `cargo`.
+- **build** (`build`) — the production `vite build`, the only leg that sees what
+  ships: the dev-only routes are guarded at their imports, so their absence is
+  observable nowhere else.
 - **e2e** (`test:e2e`) — Playwright boots the backend + Vite dev server and
   drives a real browser, writing a screenshot to `e2e/screenshots/`. First run
   needs the browser: `npx playwright install chromium`.

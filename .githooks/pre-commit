@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Everything `npm run verify` runs except the e2e suite, which boots a server and
-# a Vite dev server per run and belongs in CI. Legs are selected by what the
-# commit touches; the two that span the Rust/TypeScript boundary — the wire-type
-# check and the contract suite — run whenever either side changes.
+# Everything `npm run verify` runs except the production build and the e2e suite,
+# the two that only make sense against a change as a whole and so belong in CI.
+# Legs are selected by what the commit touches; the two that span the
+# Rust/TypeScript boundary — the wire-type check and the contract suite — run
+# whenever either side changes.
 #
 # Install with `git config core.hooksPath .githooks`; bypass one commit with
 # `git commit --no-verify`.

@@ -51,3 +51,14 @@ jobs:
       # system libraries a bare runner is missing.
       - run: npx playwright install --with-deps chromium
       - run: npm run verify
+      # Playwright writes screenshots (and traces, where configured) into
+      # `test-results/`, which the runner discards with the workspace. Without
+      # this a red e2e job leaves only the reporter's stdout to go on.
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: playwright-failure
+          path: |
+            web/test-results
+            web/playwright-report
+          if-no-files-found: ignore

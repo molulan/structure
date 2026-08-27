@@ -19,6 +19,7 @@ interface PlanErrorSink {
 // nothing to assert on.
 const PlanErrorContext = createContext<PlanErrorSink>({ report: () => {}, clear: () => {} });
 
+// eslint-disable-next-line react-refresh/only-export-components -- the reader ships with the context it reads, which no other module can name
 export function usePlanErrorSink(): PlanErrorSink {
   return useContext(PlanErrorContext);
 }

@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# Everything `npm run verify` runs except the production build and the e2e suite,
+# the two that only make sense against a change as a whole and so belong in CI.
+# Legs are selected by what the commit touches; the two that span the
+# Rust/TypeScript boundary — the wire-type check and the contract suite — run
+# whenever either side changes.
+#
+# Install with `git config core.hooksPath .githooks`; bypass one commit with
+# `git commit --no-verify`.
+set -euo pipefail
+
+root=$(git rev-parse --show-toplevel)
+cd "$root"
+
+if [ "$(git symbolic-ref --quiet --short HEAD)" = main ]; then
+  echo "pre-commit: main takes changes through a pull request. Branch first: git switch -c <kebab-case-name>" >&2
+  exit 1
+fi
+
+# Every status, deletions included.
+staged=$(git diff --cached --name-only)
+rust=false
+web=false
+if grep -qE '^(structure-[^/]+/|Cargo\.(toml|lock)$)' <<<"$staged"; then rust=true; fi
+if grep -q '^web/' <<<"$staged"; then web=true; fi
+
+if ! $rust && ! $web; then
+  exit 0
+fi
+
+# The checks read the working tree, which might differ from what is being committed.
+if ! git diff --quiet; then
+  echo "pre-commit: unstaged changes present — these checks ran against the working tree, not the staged snapshot."
+fi
+
+
+# `cargo test` regenerates the web client's bindings as a side-effect. 
+# Change this to a temporary so it doesn't alter the working tree.
+STRUCTURE_WIRE_OUT_DIR=$(mktemp -d)
+export STRUCTURE_WIRE_OUT_DIR
+trap 'rm -rf "$STRUCTURE_WIRE_OUT_DIR"' EXIT
+
+step() {
+  printf '\npre-commit: %s\n' "$*"
+  "$@"
+}
+
+if $rust; then
+  step cargo fmt --all -- --check
+  step cargo clippy --workspace --all-targets -- -D warnings
+  step cargo test --workspace
+fi
+
+# The remaining legs are npm scripts, which are defined in `web/`.
+cd web
+
+if $web; then
+  step npm run verify:local
+elif $rust; then
+  # A Rust-only change can still move the wire types or the HTTP contract the
+  # typed client is written against.
+  step npm run verify:contract
+fi
+
+# The wire check reads the working tree and rewrites stale bindings in place, so
+# passing it says the file on disk is current — not the one being committed.
+if ! git -C "$root" diff --quiet -- web/src/api/wire.ts; then
+  echo "pre-commit: web/src/api/wire.ts has been regenerated but not staged — the commit would carry stale bindings. Stage it and commit again." >&2
+  exit 1
+fi

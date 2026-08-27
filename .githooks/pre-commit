@@ -12,9 +12,7 @@ set -euo pipefail
 root=$(git rev-parse --show-toplevel)
 cd "$root"
 
-# `main` takes changes through a pull request, so a commit on it is a mistake
-# whatever it contains — refused before the legs, not merely discouraged in prose.
-if [ "$(git symbolic-ref --quiet --short HEAD || true)" = main ]; then
+if [ "$(git symbolic-ref --quiet --short HEAD)" = main ]; then
   echo "pre-commit: main takes changes through a pull request. Branch first: git switch -c <kebab-case-name>" >&2
   exit 1
 fi

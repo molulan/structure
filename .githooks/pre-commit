@@ -17,8 +17,7 @@ if [ "$(git symbolic-ref --quiet --short HEAD)" = main ]; then
   exit 1
 fi
 
-# Every status, deletions included: removing a module is the change most likely
-# to leave the workspace not compiling.
+# Every status, deletions included.
 staged=$(git diff --cached --name-only)
 rust=false
 web=false
@@ -29,24 +28,22 @@ if ! $rust && ! $web; then
   exit 0
 fi
 
-# The checks read the working tree, which is what the tools take as input. Where
-# that differs from what is being committed, say so rather than let a pass be
-# read as a pass on the commit.
+# The checks read the working tree, which might differ from what is being committed.
 if ! git diff --quiet; then
   echo "pre-commit: unstaged changes present — these checks ran against the working tree, not the staged snapshot."
 fi
+
+
+# `cargo test` regenerates the web client's bindings as a side-effect. 
+# Change this to a temporary so it doesn't alter the working tree.
+STRUCTURE_WIRE_OUT_DIR=$(mktemp -d)
+export STRUCTURE_WIRE_OUT_DIR
+trap 'rm -rf "$STRUCTURE_WIRE_OUT_DIR"' EXIT
 
 step() {
   printf '\npre-commit: %s\n' "$*"
   "$@"
 }
-
-# `cargo test` regenerates the web client's bindings, and writes them over the
-# tracked file unless told otherwise. The wire check owns that file — and a leg
-# that fails should leave the working tree as it found it.
-STRUCTURE_WIRE_OUT_DIR=$(mktemp -d)
-export STRUCTURE_WIRE_OUT_DIR
-trap 'rm -rf "$STRUCTURE_WIRE_OUT_DIR"' EXIT
 
 if $rust; then
   step cargo fmt --all -- --check
@@ -54,8 +51,7 @@ if $rust; then
   step cargo test --workspace
 fi
 
-# The remaining legs are npm scripts, and `web/` is the npm project they are
-# defined in — `npm run` from anywhere else resolves their relative paths wrong.
+# The remaining legs are npm scripts, which are defined in `web/`.
 cd web
 
 if $web; then
@@ -67,8 +63,7 @@ elif $rust; then
 fi
 
 # The wire check reads the working tree and rewrites stale bindings in place, so
-# passing it says the file on disk is current — not the one being committed. A
-# second attempt would otherwise sail through carrying the old blob.
+# passing it says the file on disk is current — not the one being committed.
 if ! git -C "$root" diff --quiet -- web/src/api/wire.ts; then
   echo "pre-commit: web/src/api/wire.ts has been regenerated but not staged — the commit would carry stale bindings. Stage it and commit again." >&2
   exit 1

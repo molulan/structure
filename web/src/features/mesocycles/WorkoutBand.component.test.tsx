@@ -3,7 +3,7 @@ import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderWithClient } from "../../test/renderWithClient";
 import { pushWorkout, weeks } from "../../fixtures/plan";
-import type { FullWorkout } from "../../api/wire";
+import type { FullWorkout } from "../../api/generated/responses";
 import { ApiError } from "../../api/client";
 import { GridFrame } from "./GridFrame";
 import { PlanErrors } from "./PlanErrors";

@@ -1,18 +1,20 @@
 import type {
-  CreateMesocycleRequest,
   FullMesocycle,
   LibraryExercise,
-  LibraryExerciseRequest,
   Mesocycle,
   MesocycleRow,
   Microcycle,
   Phase,
   PlannedExercise,
+  Workout,
+} from "./generated/responses";
+import type {
+  CreateMesocycleRequest,
+  LibraryExerciseRequest,
   PlannedExerciseRequest,
   UpdatePhaseRequest,
-  Workout,
   WorkoutNameRequest,
-} from "./wire";
+} from "./generated/requests";
 
 /** A non-2xx response from the API, carrying the status and the server's message. */
 export class ApiError extends Error {

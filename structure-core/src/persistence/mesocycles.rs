@@ -16,7 +16,7 @@ pub enum MesocycleError {
 }
 
 #[derive(Serialize)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[cfg_attr(feature = "ts", derive(TS), ts(export, export_to = "responses.ts"))]
 pub struct MesocycleRow {
     pub id: i64,
     pub name: String,

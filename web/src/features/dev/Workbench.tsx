@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ApiError } from "../../api/client";
-import type { FullWorkout, LibraryExercise } from "../../api/wire";
+import type { FullWorkout, LibraryExercise } from "../../api/generated/responses";
 import { ApiProvider } from "../../lib/ApiProvider";
 import { AddExercise } from "../mesocycles/AddExercise";
 import { GridFrame } from "../mesocycles/GridFrame";

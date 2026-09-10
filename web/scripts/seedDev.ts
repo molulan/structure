@@ -4,7 +4,7 @@ import type {
   LibraryExerciseRequest,
   RepTargetInput,
   SetGroupRequest,
-} from "../src/api/wire";
+} from "../src/api/generated/requests";
 
 // The dev database's contents: one plausible four-week block plus three plans
 // caught mid-build, all created over HTTP so they go through the same validation

@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo, useRef, useState, type ReactNode } from "react";
-import type { FullMicrocycle, Phase } from "../../api/wire";
+import type { FullMicrocycle, Phase } from "../../api/generated/responses";
 import { PHASES } from "../../api/enums";
 import { useDeleteWeek, useSetPhase } from "./usePlanMutations";
 import styles from "./MesocycleGrid.module.css";

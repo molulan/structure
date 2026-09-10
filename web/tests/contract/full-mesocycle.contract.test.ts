@@ -2,7 +2,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 import { createApiClient, type ApiClient } from "../../src/api/client";
 import { buildFullMesocycle } from "../support/seed";
 
-// The leaf encodings spelled out below are what hold the generated src/api/wire.ts
+// The leaf encodings spelled out below are what hold the generated src/api/generated/
 // to what the server writes: ts-rs re-implements serde's attributes rather than
 // calling serde.
 let base: string;

@@ -12,7 +12,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
-    "wire": "tsx scripts/checkWireTypes.ts",
+    "wire": "rm -rf src/api/generated && cargo test --manifest-path ../Cargo.toml --workspace export_bindings && git diff --exit-code -- src/api/generated",
     "test:unit": "vitest run --config vitest.config.ts",
     "test:component": "vitest run --config vitest.component.config.ts",
     "test:contract": "vitest run --config vitest.contract.config.ts",

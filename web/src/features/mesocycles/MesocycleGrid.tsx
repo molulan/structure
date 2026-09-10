@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { FullMicrocycle, FullWorkout } from "../../api/wire";
+import type { FullMicrocycle, FullWorkout } from "../../api/generated/responses";
 import { GridFrame, gridColumnCount } from "./GridFrame";
 import { PlanErrors } from "./PlanErrors";
 import { WorkoutBand } from "./WorkoutBand";

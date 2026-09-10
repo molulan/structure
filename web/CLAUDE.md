@@ -4,16 +4,20 @@ Paths below are relative to `web/`, the npm project these commands run from.
 
 ## The API types are generated
 
-`src/api/wire.ts` is written from the Rust types the server serializes, by the
-ts-rs test in `structure-server/src/wire.rs` — so for every type in it, the
-frontend's idea of the contract cannot disagree with the server's. Don't edit it;
-change the Rust type and run `npm run wire`, which exports to a temp directory
-and fails if what is on disk differs. It is committed so `tsc` needs no cargo
-run, and `npm run verify` runs the check first.
+`src/api/generated/` is written from the Rust types the server serializes, by the
+tests ts-rs generates for every type marked `#[ts(export)]` — so for every type in
+it, the frontend's idea of the contract cannot disagree with the server's. Don't
+edit those files; change the Rust type and run `npm run wire`, which regenerates
+them and fails on any difference from what is committed. They are committed so
+`tsc` needs no cargo run, and `npm run verify` runs the check first.
 
-Adding an endpoint means adding its type to that test's root list. Nothing forces
-that: a request type nothing imports yet can be left out, and the omission
-surfaces only when the frontend first reaches for it.
+There is a file per exporting crate because ts-rs truncates a file another test
+binary wrote — don't merge them. `responses.ts` is what the server sends,
+`requests.ts` what it accepts; import from whichever holds the type.
+
+Adding an endpoint means marking its type `#[ts(export)]`. Nothing forces that: a
+request type nothing imports yet can be left out, and the omission surfaces only
+when the frontend first reaches for it.
 
 A type is generated exactly as Rust serializes it: `snake_case` keys, externally
 tagged enums (`{ "Rir": 2 }`), bare strings for unit variants, and newtypes as

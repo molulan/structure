@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../../lib/ApiProvider";
-import type { CreateMesocycleRequest } from "../../api/wire";
+import type { CreateMesocycleRequest } from "../../api/generated/requests";
 
 export const mesocyclesKey = ["mesocycles"] as const;
 

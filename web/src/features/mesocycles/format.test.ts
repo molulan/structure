@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Intensity, RepTarget, SetGroup } from "../../api/wire";
+import type { Intensity, RepTarget, SetGroup } from "../../api/generated/responses";
 import { describeSetGroup, formatIntensity, formatReps } from "./format";
 
 describe("formatReps", () => {

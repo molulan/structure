@@ -1,5 +1,10 @@
 import { useState } from "react";
-import type { ExerciseType, FullWorkout, LibraryExercise, MuscleGroup } from "../../api/wire";
+import type {
+  ExerciseType,
+  FullWorkout,
+  LibraryExercise,
+  MuscleGroup,
+} from "../../api/generated/responses";
 import { EXERCISE_TYPES, MUSCLE_GROUPS } from "../../api/enums";
 import { describeError } from "../../api/client";
 import {

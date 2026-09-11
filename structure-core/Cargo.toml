@@ -10,10 +10,4 @@ crate-type = ["rlib"]
 serde = { version = "1.0", features = ["derive"] }
 rusqlite = {version = "0.39.0", features = ["bundled"] }
 thiserror = "2.0.18"
-ts-rs = { version = "12", optional = true }
-
-[features]
-# Derives the TypeScript bindings on the wire types. Enabled by structure-server,
-# which exports them; built on its own, structure-ffi has no ts-rs in its graph.
-# A workspace-wide build unifies features, so there the server's request wins.
-ts = ["dep:ts-rs"]
+ts-rs = "12"

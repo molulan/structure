@@ -1,4 +1,7 @@
-import type { Intensity, RepTarget, SetGroup, Weight } from "../../api/wire";
+import type { Intensity } from "../../api/generated/Intensity";
+import type { RepTarget } from "../../api/generated/RepTarget";
+import type { SetGroup } from "../../api/generated/SetGroup";
+import type { Weight } from "../../api/generated/Weight";
 
 // Shown in place of a value whose variant isn't one we recognize (e.g. the
 // backend grew a new enum variant the client doesn't know yet). Degrading to

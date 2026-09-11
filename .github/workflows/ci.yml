@@ -37,8 +37,9 @@ jobs:
         working-directory: web
     steps:
       - uses: actions/checkout@v7
-      # The wire-type check, the contract suite and the e2e suite each build and
-      # run the Axum server, so this job needs the Rust toolchain too.
+      # The typecheck rewrites the bindings from the Rust types, and the
+      # contract and e2e suites each build and run the Axum server, so this job
+      # needs the Rust toolchain too.
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: actions/setup-node@v7

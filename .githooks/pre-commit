@@ -2,8 +2,8 @@
 # Everything `npm run verify` runs except the production build and the e2e suite,
 # the two that only make sense against a change as a whole and so belong in CI.
 # Legs are selected by what the commit touches; the two that span the
-# Rust/TypeScript boundary — the wire-type check and the contract suite — run
-# whenever either side changes.
+# Rust/TypeScript boundary — the typecheck, which rewrites the bindings first,
+# and the contract suite — run whenever either side changes.
 #
 # Install with `git config core.hooksPath .githooks`; bypass one commit with
 # `git commit --no-verify`.
@@ -34,12 +34,6 @@ if ! git diff --quiet; then
 fi
 
 
-# `cargo test` regenerates the web client's bindings as a side-effect. 
-# Change this to a temporary so it doesn't alter the working tree.
-STRUCTURE_WIRE_OUT_DIR=$(mktemp -d)
-export STRUCTURE_WIRE_OUT_DIR
-trap 'rm -rf "$STRUCTURE_WIRE_OUT_DIR"' EXIT
-
 step() {
   printf '\npre-commit: %s\n' "$*"
   "$@"
@@ -60,11 +54,4 @@ elif $rust; then
   # A Rust-only change can still move the wire types or the HTTP contract the
   # typed client is written against.
   step npm run verify:contract
-fi
-
-# The wire check reads the working tree and rewrites stale bindings in place, so
-# passing it says the file on disk is current — not the one being committed.
-if ! git -C "$root" diff --quiet -- web/src/api/wire.ts; then
-  echo "pre-commit: web/src/api/wire.ts has been regenerated but not staged — the commit would carry stale bindings. Stage it and commit again." >&2
-  exit 1
 fi

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { MesocycleMode } from "../../api/wire";
+import type { MesocycleMode } from "../../api/generated/MesocycleMode";
 import { ApiError } from "../../api/client";
 import { useCreateMesocycle, useMesocycles } from "./useMesocycles";
 import styles from "./MesocycleList.module.css";

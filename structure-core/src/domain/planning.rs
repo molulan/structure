@@ -1,9 +1,7 @@
 use serde::Serialize;
-#[cfg(feature = "ts")]
 use ts_rs::TS;
 
-#[derive(Serialize, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, PartialEq, TS)]
 pub struct Name(String);
 
 #[derive(Debug, thiserror::Error, PartialEq)]
@@ -26,8 +24,8 @@ impl Name {
     }
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, PartialEq, TS)]
+#[ts(export)]
 pub struct Mesocycle {
     id: i64,
     name: Name,
@@ -52,8 +50,7 @@ impl Mesocycle {
     }
 }
 
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub enum MesocycleMode {
     Algorithmic,
     Manual,
@@ -68,8 +65,8 @@ impl MesocycleMode {
     }
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, PartialEq, TS)]
+#[ts(export)]
 pub struct Microcycle {
     id: i64,
     position: u32,
@@ -98,8 +95,7 @@ impl Microcycle {
     }
 }
 
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub enum Phase {
     Accumulation,
     Intensification,
@@ -116,8 +112,8 @@ impl Phase {
     }
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, PartialEq, TS)]
+#[ts(export)]
 pub struct Workout {
     id: i64,
     name: Name,
@@ -142,8 +138,8 @@ impl Workout {
     }
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, PartialEq, TS)]
+#[ts(export)]
 pub struct PlannedExercise {
     id: i64,
     exercise: LibraryExercise,
@@ -180,8 +176,8 @@ impl PlannedExercise {
 /// `number_of_sets` sets. What each set targets depends on the group's
 /// [`SetGroupType`]. Per-set divergence is a tracking concern, not part of the
 /// plan.
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
+#[ts(export)]
 pub struct SetGroup {
     id: i64,
     position: u32,
@@ -263,8 +259,7 @@ impl SetGroup {
 /// reps and intensity up front; a `MyorepMatch` group instead derives them at
 /// execution from the preceding regular set, so it carries no prescription of
 /// its own — making "a MyorepMatch with its own reps/intensity" unrepresentable.
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub enum SetGroupType {
     Prescribed {
         set_type: PrescribedSetType,
@@ -277,8 +272,7 @@ pub enum SetGroupType {
 /// The set type of a `Prescribed` set group — one that fixes its own reps and
 /// intensity. `MyorepMatch` is deliberately excluded: it has no prescription,
 /// so it lives as a [`SetGroupType`] variant rather than a set type.
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub enum PrescribedSetType {
     Regular,
     Myorep,
@@ -320,8 +314,7 @@ pub enum SetGroupValidationError {
 /// an open-ended `at least n` (AMRAP) target. Each variant carries a validated
 /// newtype, so an invalid `RepTarget` is unrepresentable even though the
 /// variants themselves are public.
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub enum RepTarget {
     Exact(RepCount),
     Range(RepRange),
@@ -344,8 +337,7 @@ impl RepTarget {
 }
 
 /// A single rep count, guaranteed to be at least 1.
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub struct RepCount(u32);
 
 impl RepCount {
@@ -362,8 +354,7 @@ impl RepCount {
 }
 
 /// A closed rep range, guaranteed to satisfy `1 <= min < max`.
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub struct RepRange {
     min: u32,
     max: u32,
@@ -401,8 +392,7 @@ pub enum RepTargetError {
 /// exclusive families: proximity-to-failure (`Rir`/`Rpe`) or weight-resolving
 /// (`PercentOneRepMax`/`TargetWeight`/`WeightIncrement`). Effort and weight are
 /// never prescribed together.
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub enum Intensity {
     Rir(Rir),
     Rpe(Rpe),
@@ -455,8 +445,8 @@ pub(crate) fn load_matches_exercise_type(exercise_type: ExerciseType, load: Load
     )
 }
 
-#[derive(Serialize, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, PartialEq, TS)]
+#[ts(export)]
 pub struct LibraryExercise {
     id: i64,
     name: Name,
@@ -503,8 +493,7 @@ impl LibraryExercise {
     }
 }
 
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub enum ExerciseType {
     Bodyweight,
     WeightedBodyweight,
@@ -526,8 +515,7 @@ impl ExerciseType {
 /// A muscle a [`LibraryExercise`] trains. An exercise names one as its primary
 /// mover and any number of secondaries, so planned volume can be attributed
 /// across muscles when building per-muscle set counts.
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub enum MuscleGroup {
     Chest,
     Back,
@@ -583,8 +571,7 @@ pub enum Load {
     Weighted { weight: Option<Weight> },
 }
 
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub struct Weight {
     value: f64,
     unit: WeightUnit,
@@ -604,8 +591,7 @@ impl Weight {
     }
 }
 
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub enum WeightUnit {
     Kg,
     Lbs,
@@ -630,8 +616,7 @@ pub enum Effort {
 #[error("rpe must be between 1 and 11, got {0}")]
 pub struct RpeError(u8);
 
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub struct Rpe(u8);
 
 impl Rpe {
@@ -651,8 +636,7 @@ impl Rpe {
 #[error("RIR must be between -1 and 10, got {0}")]
 pub struct RirError(i8);
 
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub struct Rir(i8);
 
 impl Rir {
@@ -672,8 +656,7 @@ impl Rir {
 #[error("percent of 1RM must be between 1 and 100, got {0}")]
 pub struct PercentOneRepMaxError(u8);
 
-#[derive(Serialize, Debug, Clone, Copy, PartialEq)]
-#[cfg_attr(feature = "ts", derive(TS), ts(export_to = "wire.ts"))]
+#[derive(Serialize, Debug, Clone, Copy, PartialEq, TS)]
 pub struct PercentOneRepMax(u8);
 
 impl PercentOneRepMax {

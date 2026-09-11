@@ -1,5 +1,7 @@
-// Runtime companions to the enum unions in wire.ts, for rendering option lists.
-import type { ExerciseType, MuscleGroup, Phase } from "./wire";
+// Runtime companions to the generated enum unions, for rendering option lists.
+import type { ExerciseType } from "./generated/ExerciseType";
+import type { MuscleGroup } from "./generated/MuscleGroup";
+import type { Phase } from "./generated/Phase";
 
 /**
  * The union's values in the given order. The `Record<T, true>` argument is what

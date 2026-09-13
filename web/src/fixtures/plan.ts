@@ -1,4 +1,6 @@
-import type { FullMicrocycle, FullWorkout, LibraryExercise } from "../api/wire";
+import type { FullMicrocycle } from "../api/generated/FullMicrocycle";
+import type { FullWorkout } from "../api/generated/FullWorkout";
+import type { LibraryExercise } from "../api/generated/LibraryExercise";
 
 // A one-workout, two-week plan: week 1 prescribed, week 2 left empty. Shared by
 // the grid's component tests, so each one only spells out what it varies, and by

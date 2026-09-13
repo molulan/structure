@@ -1,10 +1,8 @@
 import { createApiClient, type ApiClient } from "../src/api/client";
-import type {
-  IntensityInput,
-  LibraryExerciseRequest,
-  RepTargetInput,
-  SetGroupRequest,
-} from "../src/api/wire";
+import type { IntensityInput } from "../src/api/generated/IntensityInput";
+import type { LibraryExerciseRequest } from "../src/api/generated/LibraryExerciseRequest";
+import type { RepTargetInput } from "../src/api/generated/RepTargetInput";
+import type { SetGroupRequest } from "../src/api/generated/SetGroupRequest";
 
 // The dev database's contents: one plausible four-week block plus three plans
 // caught mid-build, all created over HTTP so they go through the same validation

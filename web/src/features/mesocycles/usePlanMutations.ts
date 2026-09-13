@@ -1,7 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useApi } from "../../lib/ApiProvider";
 import type { ApiClient } from "../../api/client";
-import type { LibraryExerciseRequest, Phase } from "../../api/wire";
+import type { Phase } from "../../api/generated/Phase";
+import type { LibraryExerciseRequest } from "../../api/generated/LibraryExerciseRequest";
 import { fullMesocycleKey } from "./useFullMesocycle";
 import { mesocyclesKey } from "./useMesocycles";
 import { usePlanErrorSink } from "./PlanErrors";

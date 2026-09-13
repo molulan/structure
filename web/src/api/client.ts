@@ -1,18 +1,16 @@
-import type {
-  CreateMesocycleRequest,
-  FullMesocycle,
-  LibraryExercise,
-  LibraryExerciseRequest,
-  Mesocycle,
-  MesocycleRow,
-  Microcycle,
-  Phase,
-  PlannedExercise,
-  PlannedExerciseRequest,
-  UpdatePhaseRequest,
-  Workout,
-  WorkoutNameRequest,
-} from "./wire";
+import type { FullMesocycle } from "./generated/FullMesocycle";
+import type { LibraryExercise } from "./generated/LibraryExercise";
+import type { Mesocycle } from "./generated/Mesocycle";
+import type { MesocycleRow } from "./generated/MesocycleRow";
+import type { Microcycle } from "./generated/Microcycle";
+import type { Phase } from "./generated/Phase";
+import type { PlannedExercise } from "./generated/PlannedExercise";
+import type { Workout } from "./generated/Workout";
+import type { CreateMesocycleRequest } from "./generated/CreateMesocycleRequest";
+import type { LibraryExerciseRequest } from "./generated/LibraryExerciseRequest";
+import type { PlannedExerciseRequest } from "./generated/PlannedExerciseRequest";
+import type { UpdatePhaseRequest } from "./generated/UpdatePhaseRequest";
+import type { WorkoutNameRequest } from "./generated/WorkoutNameRequest";
 
 /** A non-2xx response from the API, carrying the status and the server's message. */
 export class ApiError extends Error {

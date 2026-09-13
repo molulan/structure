@@ -4,23 +4,21 @@ Paths below are relative to `web/`, the npm project these commands run from.
 
 ## The API types are generated
 
-`src/api/generated/` is written from the Rust types the server serializes, by the
-tests ts-rs generates for every type marked `#[ts(export)]` — so for every type in
-it, the frontend's idea of the contract cannot disagree with the server's. It is
-gitignored, and `typecheck` rewrites it before it runs — `build` goes through
-`typecheck` — so it cannot be stale. `lint` and the unit and component suites don't need it: the app imports
-these types with `import type`, which never reaches the filesystem.
+`src/api/generated/` holds a file per wire type, written by the tests ts-rs
+generates for every type marked `#[ts(export)]`. It is gitignored and rewritten
+by `typecheck`, so it cannot fall behind the Rust types. `lint` and the unit and
+component suites run without it: the app imports these types with `import type`,
+which never reaches the filesystem.
 
 Adding an endpoint means marking its type `#[ts(export)]`. Nothing forces that: a
 request type nothing imports yet can be left out, and the omission surfaces only
 when the frontend first reaches for it.
 
-A type is generated exactly as Rust serializes it: `snake_case` keys, externally
-tagged enums (`{ "Rir": 2 }`), bare strings for unit variants, and newtypes as
-their inner value. The names are the server's too — `LibraryExerciseRequest`,
-not a friendlier local alias. ts-rs models serde rather than calling it, so a
-`#[serde(...)]` attribute it doesn't support diverges silently; adding one means
-asserting that encoding against a real response.
+The shapes are serde's: `snake_case` keys, externally tagged enums
+(`{ "Rir": 2 }`), bare strings for unit variants, newtypes as their inner value.
+ts-rs models that rather than calling serde, so a `#[serde(...)]` attribute it
+doesn't support diverges silently; adding one means asserting that encoding
+against a real response.
 
 ## Verifying frontend changes
 

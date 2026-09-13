@@ -2,7 +2,7 @@ node_modules
 dist
 dist-ssr
 
-# Written from the Rust wire types by `typecheck` and `build`.
+# Written from the Rust wire types by `typecheck`.
 src/api/generated
 
 # Test + tooling artifacts

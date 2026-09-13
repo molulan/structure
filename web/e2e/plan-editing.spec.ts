@@ -6,6 +6,7 @@ import { mkdirSync } from "node:fs";
 // Library exercise names are globally unique on the shared backend, so this
 // spec's exercise name is its own.
 const EXERCISE = "E2E Overhead Press";
+const TEARDOWN_EXERCISE = "E2E Teardown Split Squat";
 
 test("builds a plan's structure through the grid", async ({ page }) => {
   await page.goto("/");
@@ -64,6 +65,15 @@ test("takes a plan's structure back apart", async ({ page }) => {
   await name.fill("Leg Day A");
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByRole("heading", { name: "Leg Day A" })).toBeVisible();
+
+  await page.getByRole("button", { name: "New exercise…" }).click();
+  await page.getByLabel("Exercise name").fill(TEARDOWN_EXERCISE);
+  await page.getByLabel("Primary muscle group").selectOption("Quads");
+  await page.getByRole("button", { name: "Create and add" }).click();
+  await expect(page.getByRole("rowheader", { name: new RegExp(TEARDOWN_EXERCISE) })).toBeVisible();
+
+  await page.getByRole("button", { name: `Remove ${TEARDOWN_EXERCISE}` }).click();
+  await expect(page.getByText("No exercises yet.")).toBeVisible();
 
   await page.getByRole("button", { name: "Delete Leg Day A" }).click();
   await expect(page.getByText("No workouts yet.")).toBeVisible();

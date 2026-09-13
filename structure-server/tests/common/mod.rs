@@ -6,6 +6,7 @@ use axum::body::Body;
 use axum::http::{Request, StatusCode};
 use serde_json::{Value, json};
 use structure_core::persistence::store::Store;
+use structure_server::ApiErrorBody;
 use tower::ServiceExt;
 
 /// Builds the full application over a fresh in-memory database.
@@ -131,4 +132,8 @@ pub async fn create_set_group(app: &Router, planned_exercise_id: i64, microcycle
     )
     .await;
     created["id"].as_i64().expect("id should be a number")
+}
+
+pub fn expect_error_body(body: Value) -> ApiErrorBody {
+    serde_json::from_value(body).expect("a failure should carry an ApiErrorBody")
 }

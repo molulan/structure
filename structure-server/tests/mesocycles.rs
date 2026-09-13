@@ -3,7 +3,7 @@ mod common;
 use axum::http::StatusCode;
 use common::{
     create_library_exercise, create_microcycle, create_planned_exercise, create_program,
-    create_set_group, create_workout, send, test_app,
+    create_set_group, create_workout, expect_error_body, send, test_app,
 };
 use serde_json::json;
 
@@ -60,7 +60,7 @@ async fn get_missing_mesocycle_returns_404() {
     let (status, body) = send(&app, "GET", "/api/mesocycles/999", None).await;
 
     assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(body["error"].is_string());
+    assert!(!expect_error_body(body).error.is_empty());
 }
 
 #[tokio::test]

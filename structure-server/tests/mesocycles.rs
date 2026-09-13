@@ -166,3 +166,18 @@ async fn get_full_missing_mesocycle_returns_404() {
 
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
+
+#[tokio::test]
+async fn create_with_empty_name_returns_422() {
+    let app = test_app();
+
+    let (status, _) = send(
+        &app,
+        "POST",
+        "/api/mesocycles",
+        Some(json!({ "name": "", "mode": "Manual" })),
+    )
+    .await;
+
+    assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
+}

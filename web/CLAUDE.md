@@ -18,7 +18,9 @@ when the frontend first reaches for it.
 A type is generated exactly as Rust serializes it: `snake_case` keys, externally
 tagged enums (`{ "Rir": 2 }`), bare strings for unit variants, and newtypes as
 their inner value. The names are the server's too — `LibraryExerciseRequest`,
-not a friendlier local alias.
+not a friendlier local alias. ts-rs models serde rather than calling it, so a
+`#[serde(...)]` attribute it doesn't support diverges silently; adding one means
+asserting that encoding against a real response.
 
 ## Verifying frontend changes
 

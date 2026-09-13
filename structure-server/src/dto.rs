@@ -139,11 +139,8 @@ pub struct LibraryExerciseRequest {
     pub name: String,
     pub exercise_type: ExerciseTypeInput,
     pub primary_muscle_group: MuscleGroupInput,
-    // `serde(default)` is invisible to ts-rs, so the generated type is told
-    // separately that this field may be omitted.
-    #[serde(default)]
-    #[ts(as = "Option<_>", optional)]
-    pub secondary_muscle_groups: Vec<MuscleGroupInput>,
+    #[ts(optional)]
+    pub secondary_muscle_groups: Option<Vec<MuscleGroupInput>>,
 }
 
 impl LibraryExerciseRequest {
@@ -151,6 +148,7 @@ impl LibraryExerciseRequest {
     pub fn secondary_muscle_groups(&self) -> Vec<MuscleGroup> {
         self.secondary_muscle_groups
             .iter()
+            .flatten()
             .map(|&m| m.into())
             .collect()
     }

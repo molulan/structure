@@ -1,8 +1,6 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { ApiError, createApiClient, type ApiClient } from "../../src/api/client";
 
-// The one thing no Rust test can reach: `client.ts` turning the server's
-// `{"error": "…"}` envelope into the message that goes on screen.
 let api: ApiClient;
 
 beforeAll(() => {
@@ -14,7 +12,7 @@ beforeAll(() => {
 });
 
 describe("failure reporting contract", () => {
-  it("reports a rejected request as the server's message", async () => {
+  it("shows the server's message, not the JSON", async () => {
     await api.createLibraryExercise({
       name: "Contract Duplicate Curl",
       exercise_type: "Weighted",

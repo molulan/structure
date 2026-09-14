@@ -1,3 +1,4 @@
+import type { ApiErrorBody } from "./generated/ApiErrorBody";
 import type { FullMesocycle } from "./generated/FullMesocycle";
 import type { LibraryExercise } from "./generated/LibraryExercise";
 import type { Mesocycle } from "./generated/Mesocycle";
@@ -23,13 +24,13 @@ export class ApiError extends Error {
   }
 }
 
-// The server reports failures as `{"error": "…"}`; anything else (a proxy's
-// HTML error page, an empty body) is shown as-is rather than guessed at.
+// Extracts the server's message from a failed response, or returns the body
+// unchanged when it isn't an ApiErrorBody.
 function messageFromBody(body: string): string {
   try {
     const parsed: unknown = JSON.parse(body);
-    if (parsed && typeof parsed === "object" && "error" in parsed) {
-      const { error } = parsed as { error: unknown };
+    if (parsed && typeof parsed === "object") {
+      const { error } = parsed as Partial<ApiErrorBody>;
       if (typeof error === "string") return error;
     }
   } catch {

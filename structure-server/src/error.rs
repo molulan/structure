@@ -2,7 +2,7 @@ use crate::dto::SetGroupTypeInputError;
 use axum::Json;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
-use serde_json::json;
+use serde::{Deserialize, Serialize};
 use structure_core::persistence::aggregates::FullMesocycleError;
 use structure_core::persistence::library_exercises::LibraryExerciseError;
 use structure_core::persistence::mesocycles::MesocycleError;
@@ -10,8 +10,16 @@ use structure_core::persistence::microcycles::MicrocycleError;
 use structure_core::persistence::planned_exercises::PlannedExerciseError;
 use structure_core::persistence::set_groups::SetGroupError;
 use structure_core::persistence::workouts::WorkoutError;
+use ts_rs::TS;
 
-/// An error rendered as a JSON `{ "error": ... }` body with a status code.
+/// The JSON body of an [`ApiError`] response.
+#[derive(Serialize, Deserialize, TS)]
+#[ts(export)]
+pub struct ApiErrorBody {
+    pub error: String,
+}
+
+/// The status and message a handler returns when a request fails.
 pub struct ApiError {
     status: StatusCode,
     message: String,
@@ -45,7 +53,13 @@ impl ApiError {
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
-        (self.status, Json(json!({ "error": self.message }))).into_response()
+        (
+            self.status,
+            Json(ApiErrorBody {
+                error: self.message,
+            }),
+        )
+            .into_response()
     }
 }
 

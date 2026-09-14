@@ -3,7 +3,7 @@ mod common;
 use axum::http::StatusCode;
 use common::{
     create_library_exercise, create_microcycle, create_planned_exercise, create_program,
-    create_workout, send, test_app,
+    create_workout, expect_error_body, send, test_app,
 };
 use serde_json::json;
 
@@ -159,12 +159,7 @@ async fn create_with_secondary_matching_primary_returns_422() {
 
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     // Assert the message identifies the primary/secondary clash, not just any 422.
-    assert!(
-        body["error"]
-            .as_str()
-            .expect("error should be a string")
-            .contains("primary")
-    );
+    assert!(expect_error_body(body).error.contains("primary"));
 }
 
 #[tokio::test]
@@ -187,7 +182,7 @@ async fn create_with_duplicate_name_returns_409() {
     .await;
 
     assert_eq!(status, StatusCode::CONFLICT);
-    assert!(body["error"].is_string());
+    assert!(!expect_error_body(body).error.is_empty());
 }
 
 #[tokio::test]

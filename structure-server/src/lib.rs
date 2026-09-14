@@ -7,6 +7,8 @@ mod planned_exercises;
 mod set_groups;
 mod workouts;
 
+pub use error::ApiErrorBody;
+
 use std::path::PathBuf;
 
 use axum::{

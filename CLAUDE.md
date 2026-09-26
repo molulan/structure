@@ -28,6 +28,7 @@ Within the Rust workspace, tests live next to the code in `#[cfg(test)] mod test
 
 ## Git
 
+- Use the `plan-commits` skill to plan a PR's commits before implementing it.
 - Branch per change off `main` with a descriptive kebab-case name (e.g. `split-exercises-module`); land it through a GitHub PR rather than committing to `main` directly. The pre-commit hook refuses a commit on `main` outright.
 - Write a short commit subject line phrased as a command — e.g. "Add set validation", "Split exercises module" (not "Added…" or "Splitting…").
 - **The PR is the unit that is verified whole**, so it is the unit to bisect: `git bisect --first-parent` considers only the merge commits on `main`, every one of which is a state CI passed. PRs merge as merge commits and keep their individual commits, which stay a chronological record rather than a curated history — bisecting without `--first-parent` walks into them and can land mid-change.

@@ -15,8 +15,10 @@ reread something an earlier one showed them.
 
 ## The rules a plan follows
 
-- **One intent per commit.** Each commit moves the story forward by one step,
-  and the reviewer should never have to ask what this commit is for.
+- **One logical change per commit.** Each commit is complete — everything its
+  change needs, and nothing unrelated — and moves the story forward by one step.
+  The reviewer should never have to ask what this commit is for. An unrelated
+  fix or a whitespace cleanup is its own commit.
 - **Commits are additive.** A later commit may add to what an earlier one
   introduced: fill in a stub's body, add a field, a variant or a parameter. It
   never renames, removes, or changes the behaviour of what an earlier commit
@@ -48,3 +50,5 @@ before where it is used. Each step adds to the one before and revises none.
    earlier one introduced, stop. Explain what broke the plan, and propose a
    revised one for approval before going on. If that reshapes commits already
    made, re-check each one.
+5. **Review** the finished commits with the `review-commits` skill before
+   anything is pushed.

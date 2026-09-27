@@ -30,7 +30,7 @@ Within the Rust workspace, tests live next to the code in `#[cfg(test)] mod test
 
 - Use the `plan-commits` skill to plan a PR's commits before implementing it.
 - Branch per change off `main` with a descriptive kebab-case name (e.g. `split-exercises-module`); land it through a GitHub PR rather than committing to `main` directly. The pre-commit hook refuses a commit on `main` outright.
-- Write a short commit subject line phrased as a command — e.g. "Add set validation", "Split exercises module" (not "Added…" or "Splitting…").
+- Commit messages follow [the seven rules](https://cbea.ms/git-commit/): a subject of at most 50 characters, capitalized, imperative ("If applied, this commit will…"), with no trailing period; a blank line; then a body wrapped at 72 characters that explains what and why, not how.
 - **Every commit merged to `main` from #86 on is curated and green**, so `git bisect` can land on any of them. PRs can only merge as merge commits, so a PR's commits reach `main` as the series that was reviewed; the required `commits` job holds each commit before a PR's tip to the pre-commit checks, and `rust` and `web` hold the tip to the full gate. History merged before #86 was checked only at its merge commits; bisect it with `git bisect --first-parent`.
 - Keep PRs small and focused — ideally under 500 lines of diff. Split larger work into a sequence of PRs.
 - The checks are a hook, not a habit: `git config core.hooksPath .githooks` installs `.githooks/pre-commit`, which runs everything `npm run verify` runs except the production build and the e2e suite picking its legs from what the commit touches. `git commit --no-verify` skips it for a WIP commit; CI still has the final say. `--all-targets` on clippy is what reaches the test code.

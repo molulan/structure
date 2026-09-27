@@ -63,3 +63,26 @@ jobs:
             web/test-results
             web/playwright-report
           if-no-files-found: ignore
+
+  # The jobs above check only a pull request's tip. This one runs the pre-commit
+  # checks on every commit before it, so none lands on `main` broken.
+  commits:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+        run: scripts/check-commits "$BASE" HEAD^

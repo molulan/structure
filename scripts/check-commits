@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Runs the pre-commit checks on every commit in <base>..<tip>, oldest first,
+# stopping at the first that fails. Works in a throwaway worktree, so the
+# caller's checkout is left alone.
+#
+# Usage: scripts/check-commits <base> [<tip>]    (tip defaults to HEAD)
+set -euo pipefail
+
+base=$(git rev-parse "$1")
+tip=$(git rev-parse "${2:-HEAD}")
+root=$(git rev-parse --show-toplevel)
+
+# Sharing the checkout's target directory spares every run a cold build.
+export CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-$root/target}
+
+worktree=$(mktemp -d)
+trap 'git -C "$root" worktree remove --force "$worktree"' EXIT
+git -C "$root" worktree add --quiet --detach "$worktree" "$tip"
+cd "$worktree"
+
+for commit in $(git rev-list --reverse "$base..$tip"); do
+  printf '\ncheck-commits: %s\n' "$(git log -1 --format='%h %s' "$commit")"
+  git checkout --quiet "$commit"
+  cargo fmt --all -- --check
+  cargo clippy --workspace --all-targets -- -D warnings
+  cargo test --workspace
+  (cd web && npm ci && npm run verify:local)
+done

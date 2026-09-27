@@ -28,7 +28,7 @@ Within the Rust workspace, tests live next to the code in `#[cfg(test)] mod test
 
 ## Git
 
-- Use the `plan-commits` skill to plan a PR's commits before implementing it.
+- Use the `plan-commits` skill to plan a PR's commits before implementing it, and the `review-commits` skill to review them before pushing.
 - Branch per change off `main` with a descriptive kebab-case name (e.g. `split-exercises-module`); land it through a GitHub PR rather than committing to `main` directly. The pre-commit hook refuses a commit on `main` outright.
 - Commit messages follow [the seven rules](https://cbea.ms/git-commit/): a subject of at most 50 characters, capitalized, imperative ("If applied, this commit will…"), with no trailing period; a blank line; then a body wrapped at 72 characters that explains what and why, not how.
 - **Every commit merged to `main` from #86 on is curated and green**, so `git bisect` can land on any of them. PRs can only merge as merge commits, so a PR's commits reach `main` as the series that was reviewed; the required `commits` job holds each commit before a PR's tip to the pre-commit checks, and `rust` and `web` hold the tip to the full gate. History merged before #86 was checked only at its merge commits; bisect it with `git bisect --first-parent`.

@@ -50,3 +50,5 @@ before where it is used. Each step adds to the one before and revises none.
    earlier one introduced, stop. Explain what broke the plan, and propose a
    revised one for approval before going on. If that reshapes commits already
    made, re-check each one.
+5. **Review** the finished commits with the `review-commits` skill before
+   anything is pushed.
